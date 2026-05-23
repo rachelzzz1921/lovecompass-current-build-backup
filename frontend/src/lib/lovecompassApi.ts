@@ -1,4 +1,5 @@
 import type { AnswerDraft, TestQuestionsResponse } from "@/lib/questionTypes";
+import { supabase } from "@/integrations/supabase/client";
 
 export type AttemptReport = {
   attemptId: string;
@@ -34,9 +35,16 @@ export type AttemptHistoryItem = {
 const API_BASE =
   (import.meta.env.VITE_LOVECOMPASS_API_BASE_URL as string | undefined)?.replace(/\/$/, "") ?? "";
 
+async function getAccessToken(): Promise<string | null> {
+  const { data } = await supabase.auth.getSession();
+  return data.session?.access_token ?? null;
+}
+
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
-  const token =
-    typeof window !== "undefined" ? window.localStorage.getItem("lovecompass_token") : null;
+  if (!API_BASE) {
+    throw new Error("未配置 VITE_LOVECOMPASS_API_BASE_URL");
+  }
+  const token = await getAccessToken();
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
     headers: {

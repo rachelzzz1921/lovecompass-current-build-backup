@@ -47,6 +47,8 @@ def get_pool() -> ConnectionPool:
         _pool = ConnectionPool(
             normalize_database_url(DATABASE_URL),
             kwargs={"row_factory": dict_row, "prepare_threshold": None},
+            min_size=0,
+            max_size=int(os.getenv("DATABASE_POOL_MAX_SIZE", "1")),
             open=True,
         )
     return _pool

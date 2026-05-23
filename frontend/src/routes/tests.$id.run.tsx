@@ -7,6 +7,7 @@ import { ArrowLeft, ArrowRight, Clock, Sparkles, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { QuestionRenderer } from "@/components/questions/QuestionRenderer";
 import { lovecompassApi } from "@/lib/lovecompassApi";
+import { resolveSuiteSlug } from "@/lib/suiteSlugs";
 import type { AnswerDraft, AnswerPayload, ApiQuestion } from "@/lib/questionTypes";
 
 export const Route = createFileRoute("/tests/$id/run")({
@@ -52,7 +53,11 @@ function TestRun() {
     setIdx(0);
     const storedSuiteSlug =
       typeof window !== "undefined" ? window.sessionStorage.getItem(`suite:${product.id}`) : null;
-    const suiteSlug = isBackendSuiteRoute ? routeSuiteSlug : storedSuiteSlug || routeSuiteSlug;
+    const suiteSlug = resolveSuiteSlug({
+      productId: product.id,
+      routeId: routeSuiteSlug,
+      sessionSuiteSlug: storedSuiteSlug,
+    });
     lovecompassApi
       .getQuestions(suiteSlug)
       .then((res) => {
@@ -133,7 +138,11 @@ function TestRun() {
       }));
       const storedSuiteSlug =
         typeof window !== "undefined" ? window.sessionStorage.getItem(`suite:${product.id}`) : null;
-      const suiteSlug = isBackendSuiteRoute ? routeSuiteSlug : storedSuiteSlug || routeSuiteSlug;
+      const suiteSlug = resolveSuiteSlug({
+        productId: product.id,
+        routeId: routeSuiteSlug,
+        sessionSuiteSlug: storedSuiteSlug,
+      });
       const redemptionEventId =
         typeof window !== "undefined"
           ? window.sessionStorage.getItem(`redemption:${suiteSlug}`) ||

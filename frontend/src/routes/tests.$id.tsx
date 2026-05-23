@@ -1,6 +1,8 @@
 import { createFileRoute, Link, Outlet, useNavigate, useParams, useRouterState } from "@tanstack/react-router";
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { PRODUCTS } from "@/data/products";
+import { getStoredSelfGender, setStoredSelfGender, SELF_SUITE_SLUGS, type SelfGender } from "@/lib/suiteSlugs";
 import { ArrowLeft, ArrowRight, Clock, Layers, Sparkles, Lock, ShieldCheck } from "lucide-react";
 
 export const Route = createFileRoute("/tests/$id")({
@@ -24,12 +26,21 @@ function TestEntry() {
 
   const isFree = product.status === "free";
   const hasAccess = typeof window !== "undefined" && (sessionStorage.getItem(`access:${routeSuiteSlug}`) === "1" || sessionStorage.getItem(`access:${product.id}`) === "1");
+  const isSelfProduct = product.id === "self";
+  const [selfGender, setSelfGender] = useState<SelfGender | null>(() => getStoredSelfGender());
+
+  const runSuiteSlug =
+    isSelfProduct && selfGender ? SELF_SUITE_SLUGS[selfGender] : routeSuiteSlug;
 
   const start = () => {
+    if (isSelfProduct && !selfGender) return;
     if (isFree || hasAccess) {
-      nav({ to: "/tests/$id/run", params: { id: routeSuiteSlug } });
+      if (isSelfProduct && selfGender) {
+        setStoredSelfGender(selfGender);
+      }
+      nav({ to: "/tests/$id/run", params: { id: runSuiteSlug } });
     } else {
-      nav({ to: "/access", search: { product: product.id, redirect: `/tests/${routeSuiteSlug}/run` } });
+      nav({ to: "/access", search: { product: product.id, redirect: `/tests/${runSuiteSlug}/run` } });
     }
   };
 
@@ -142,6 +153,28 @@ function TestEntry() {
               </div>
             </div>
           </div>
+          {isSelfProduct && (
+            <div className="mt-6 flex flex-col gap-2">
+              <div className="text-[10px] font-mono tracking-[0.3em] text-muted-foreground">选择题库版本</div>
+              <div className="flex gap-2">
+                {(["female", "male"] as const).map((gender) => (
+                  <button
+                    key={gender}
+                    type="button"
+                    onClick={() => setSelfGender(gender)}
+                    className={`flex-1 h-11 rounded-full border text-sm transition ${
+                      selfGender === gender
+                        ? "border-accent bg-accent/15 text-foreground"
+                        : "border-border/60 bg-glass text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {gender === "female" ? "女性版 · 50 题" : "男性版 · 50 题"}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="flex gap-2 w-full md:w-auto">
             {!isFree && !hasAccess && (
               <Link
@@ -154,7 +187,8 @@ function TestEntry() {
             )}
             <button
               onClick={start}
-              className={`flex-1 md:flex-none inline-flex items-center justify-center gap-1.5 px-6 h-11 rounded-full text-sm font-medium bg-gradient-to-r ${a.ring} text-primary-foreground hover:opacity-95`}
+              disabled={isSelfProduct && !selfGender}
+              className={`flex-1 md:flex-none inline-flex items-center justify-center gap-1.5 px-6 h-11 rounded-full text-sm font-medium bg-gradient-to-r ${a.ring} text-primary-foreground hover:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed`}
             >
               {isFree || hasAccess ? "开始测试" : "去解锁"} <ArrowRight className="h-4 w-4" />
             </button>

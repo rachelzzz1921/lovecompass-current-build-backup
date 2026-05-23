@@ -15,3 +15,7 @@
 ## 安全说明
 
 本仓库不应包含真实 Supabase service role、数据库连接串、OpenAI Key 或任何生产密钥。真实运行环境需要在部署平台或后端本地 `.env` 中单独配置。
+
+## Vercel 部署
+
+使用现有 Supabase 项目 `wjfpglsygkbpubanylug`，不新建数据库。完整步骤与环境变量见 **[docs/VERCEL_DEPLOY.md](docs/VERCEL_DEPLOY.md)**。

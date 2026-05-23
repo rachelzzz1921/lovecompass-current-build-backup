@@ -44,7 +44,11 @@ def get_pool() -> ConnectionPool:
     if not DATABASE_URL:
         raise RuntimeError("DATABASE_URL 或 SUPABASE_DB_URL 未配置")
     if _pool is None:
-        _pool = ConnectionPool(normalize_database_url(DATABASE_URL), kwargs={"row_factory": dict_row}, open=True)
+        _pool = ConnectionPool(
+            normalize_database_url(DATABASE_URL),
+            kwargs={"row_factory": dict_row, "prepare_threshold": None},
+            open=True,
+        )
     return _pool
 
 

@@ -214,8 +214,16 @@ class ChatIn(BaseModel):
     message: str = Field(min_length=1)
 
 @app.get("/health")
-def health():
-    return {"ok": True}
+def health(db: bool = False):
+    """Liveness probe. Pass ?db=1 to verify DATABASE_URL connectivity (use after Vercel deploy)."""
+    if not db:
+        return {"ok": True}
+    try:
+        with get_conn() as conn:
+            conn.execute("SELECT 1").fetchone()
+        return {"ok": True, "database": "connected"}
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail={"ok": False, "database": str(exc)[:200]})
 
 @app.get("/tests/{suite_slug}/questions")
 def get_questions(suite_slug: str):

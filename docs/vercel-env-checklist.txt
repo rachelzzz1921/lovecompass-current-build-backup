@@ -1,0 +1,20 @@
+# Vercel 环境变量清单（复制到控制台，勿提交真实密钥）
+# 项目 A：backend（Root = backend）
+# 项目 B：frontend（Root = frontend）
+
+# ── backend ─────────────────────────────────────────
+DATABASE_URL=
+SUPABASE_URL=https://wjfpglsygkbpubanylug.supabase.co
+SUPABASE_PROJECT_ID=wjfpglsygkbpubanylug
+SUPABASE_JWT_SECRET=
+CORS_ORIGINS=
+AI_PROVIDER=zhipu
+ZHIPU_API_KEY=
+ZHIPU_BASE_URL=https://open.bigmodel.cn/api/paas/v4
+ZHIPU_MODEL=glm-4-flash
+LOVECOMPASS_ALLOW_DEMO_USER_FALLBACK=false
+
+# ── frontend ────────────────────────────────────────
+NEXT_PUBLIC_SUPABASE_URL=https://wjfpglsygkbpubanylug.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+VITE_LOVECOMPASS_API_BASE_URL=

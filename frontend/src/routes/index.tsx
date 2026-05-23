@@ -271,7 +271,7 @@ function Home() {
 
                     {isFree ? (
                       <Button
-                        onClick={() => nav({ to: "/result/self/$variant", params: { variant: "demo" } })}
+                        onClick={() => nav({ to: "/tests/$id", params: { id: "self" } })}
                         className="w-full bg-gradient-to-r from-[oklch(0.68_0.18_285)] to-[oklch(0.82_0.14_200)] text-primary-foreground hover:opacity-90 rounded-xl h-10 font-medium"
                       >
                         立即开始 <ArrowRight className="ml-1 h-4 w-4" />

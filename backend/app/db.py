@@ -4,7 +4,7 @@ import ipaddress
 import os
 from contextlib import contextmanager
 from typing import Any
-from urllib.parse import parse_qsl, unquote, urlsplit
+from urllib.parse import parse_qsl, unquote
 
 from psycopg.conninfo import make_conninfo
 from psycopg.rows import dict_row
@@ -12,6 +12,7 @@ from psycopg_pool import ConnectionPool
 
 _pool: ConnectionPool | None = None
 
+# libpq/psycopg query params we accept from DATABASE_URL (not pgbouncer=true — use port 6543).
 _ALLOWED_LIBPQ_QUERY_PARAMS = {
     "application_name",
     "connect_timeout",
@@ -24,6 +25,10 @@ _ALLOWED_LIBPQ_QUERY_PARAMS = {
     "keepalives_count",
 }
 
+# Supabase Transaction Pooler (port 6543) requires TLS.
+_POOLER_SSLMODE = "require"
+_DEFAULT_CONNECT_TIMEOUT = int(os.getenv("DATABASE_CONNECT_TIMEOUT", "10"))
+
 
 def _clean_database_url(url: str) -> str:
     return url.strip().strip('"').strip("'")
@@ -35,6 +40,14 @@ def _is_ip(value: str) -> bool:
         return True
     except ValueError:
         return False
+
+
+def _finalize_pooler_conn(conn: dict[str, Any]) -> dict[str, Any]:
+    """Apply Supabase pooler defaults after parsing URL or libpq strings."""
+    conn["hostaddr"] = ""
+    conn["sslmode"] = _POOLER_SSLMODE
+    conn.setdefault("connect_timeout", _DEFAULT_CONNECT_TIMEOUT)
+    return conn
 
 
 def _parse_postgres_uri(url: str) -> dict[str, Any]:
@@ -80,21 +93,17 @@ def _parse_postgres_uri(url: str) -> dict[str, Any]:
         "dbname": dbname,
         "user": unquote(username),
         "password": unquote(password),
-        "sslmode": "require",
-        # Supabase/Vercel integrations may set PGHOSTADDR to the pooler hostname.
-        # libpq treats hostaddr as an IP address only; clear it so host= is used.
-        "hostaddr": "",
     }
 
     for key, value in parse_qsl(query, keep_blank_values=True):
         if key in _ALLOWED_LIBPQ_QUERY_PARAMS:
             conn[key] = value
 
-    return conn
+    return _finalize_pooler_conn(conn)
 
 
 def _parse_libpq_keyvalue(url: str) -> dict[str, Any]:
-    conn: dict[str, Any] = {"sslmode": "require", "hostaddr": ""}
+    conn: dict[str, Any] = {}
     for part in url.split():
         if "=" not in part:
             continue
@@ -112,7 +121,7 @@ def _parse_libpq_keyvalue(url: str) -> dict[str, Any]:
             conn[key] = value
     if "host" not in conn and not conn.get("hostaddr"):
         raise ValueError("DATABASE_URL libpq string missing host")
-    return conn
+    return _finalize_pooler_conn(conn)
 
 
 def database_conninfo(url: str) -> dict[str, Any]:
@@ -147,6 +156,7 @@ def get_pool() -> ConnectionPool:
             kwargs={"row_factory": dict_row, "prepare_threshold": None},
             min_size=0,
             max_size=int(os.getenv("DATABASE_POOL_MAX_SIZE", "1")),
+            timeout=float(os.getenv("DATABASE_POOL_TIMEOUT", "30")),
             open=True,
         )
     return _pool

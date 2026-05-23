@@ -4,5 +4,10 @@ __pycache__
 .env
 .env.*
 !.env.example
-data/*.sql
+scripts/
+migrations/
+data/
 docs/
+**/*.sql
+**/*.pyc
+**/__pycache__/

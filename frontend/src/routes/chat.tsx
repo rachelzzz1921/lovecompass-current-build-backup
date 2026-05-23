@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { lovecompassApi } from "@/lib/lovecompassApi";
+import { AuthChecking, useRequireAuth } from "@/lib/requireAuth";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -79,6 +80,7 @@ const COUNSELORS: Counselor[] = [
 type Msg = { role: "user" | "ai"; text: string; ts: number };
 
 function ChatPage() {
+  const { pending: authPending } = useRequireAuth();
   const { attemptId, analystId } = Route.useSearch();
   const initialCounselor = COUNSELORS.find((c) => c.id === analystId && c.available) ?? COUNSELORS[0];
   const [active, setActive] = useState<Counselor>(initialCounselor);
@@ -129,6 +131,8 @@ function ChatPage() {
       { role: "ai", text: `你好。我是 ${c.name}，${c.title} ${c.emoji}\n\n${c.description}`, ts: Date.now() },
     ]);
   };
+
+  if (authPending) return <AuthChecking />;
 
   return (
     <main className="relative min-h-screen">

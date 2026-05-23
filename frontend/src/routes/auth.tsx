@@ -1,14 +1,21 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { createFileRoute, Link, useNavigate, useSearch } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { ArrowLeft, Mail, Lock, Sparkles, ShieldCheck } from "lucide-react";
+import { safeReturnPath } from "@/lib/requireAuth";
+import { completeSupabaseAuthFromUrl, getSessionWithRefresh } from "@/lib/supabaseSession";
+
+const AuthSearchSchema = z.object({
+  redirect: z.string().optional(),
+});
 
 export const Route = createFileRoute("/auth")({
+  validateSearch: (s) => AuthSearchSchema.parse(s),
   head: () => ({
     meta: [
       { title: "登录 · MIRROR" },
@@ -18,31 +25,85 @@ export const Route = createFileRoute("/auth")({
   component: AuthPage,
 });
 
+/** OAuth must land on a route that exists in production (/auth handles PKCE code exchange). */
+function oauthReturnUrl(returnPath: string) {
+  return `${window.location.origin}/auth?redirect=${encodeURIComponent(safeReturnPath(returnPath))}`;
+}
+
 function AuthPage() {
   const nav = useNavigate();
+  const search = useSearch({ from: "/auth" });
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
   const [loading, setLoading] = useState(false);
+  const [booting, setBooting] = useState(true);
+
+  const returnPath = safeReturnPath(search.redirect);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void (async () => {
+      const hasOAuthParams =
+        window.location.search.includes("code=") || window.location.hash.includes("access_token");
+
+      if (hasOAuthParams) {
+        const result = await completeSupabaseAuthFromUrl(window.location.href);
+        if (result.error && !cancelled) {
+          toast.error(result.error);
+        }
+      }
+
+      const session = await getSessionWithRefresh();
+      if (!cancelled) {
+        setBooting(false);
+        if (session) {
+          void nav({ href: returnPath });
+        }
+      }
+    })();
+
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      if ((event === "SIGNED_IN" || event === "TOKEN_REFRESHED") && session) {
+        void nav({ href: returnPath });
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      sub.subscription.unsubscribe();
+    };
+  }, [nav, returnPath]);
+
+  const goNext = () => {
+    void nav({ href: returnPath });
+  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
       if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password: pw,
-          options: { emailRedirectTo: window.location.origin },
+          options: {
+            emailRedirectTo: oauthReturnUrl(returnPath),
+          },
         });
         if (error) throw error;
-        toast.success("账号已建立，正在进入…");
-        nav({ to: "/" });
+        if (data.session) {
+          toast.success("账号已建立，正在进入…");
+          goNext();
+        } else {
+          toast.success("验证邮件已发送，请查收邮箱完成注册后再登录");
+        }
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password: pw });
         if (error) throw error;
         toast.success("欢迎回到 MIRROR");
-        nav({ to: "/" });
+        goNext();
       }
     } catch (err) {
       toast.error((err as Error).message);
@@ -54,23 +115,29 @@ function AuthPage() {
   const google = async () => {
     setLoading(true);
     try {
-      const result = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin });
-      if (result.error) {
-        toast.error("登录失败");
-        return;
-      }
-      if (result.redirected) return;
-      nav({ to: "/" });
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: oauthReturnUrl(returnPath),
+        },
+      });
+      if (error) throw error;
     } catch (e) {
-      toast.error((e as Error).message);
-    } finally {
+      toast.error((e as Error).message || "Google 登录失败");
       setLoading(false);
     }
   };
 
+  if (booting) {
+    return (
+      <main className="min-h-screen flex items-center justify-center text-sm text-muted-foreground">
+        正在确认登录状态…
+      </main>
+    );
+  }
+
   return (
     <main className="relative min-h-screen flex items-center justify-center px-5 py-10">
-      {/* Top bar */}
       <Link
         to="/"
         className="absolute top-6 left-6 z-20 flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition"
@@ -85,7 +152,6 @@ function AuthPage() {
           transition={{ duration: 0.6 }}
           className="bg-glass-strong rounded-3xl p-8 md:p-9"
         >
-          {/* Brand mark */}
           <div className="flex items-center gap-2.5 mb-7">
             <div className="w-8 h-8 rounded-md bg-gradient-to-br from-[oklch(0.68_0.18_285)] to-[oklch(0.82_0.14_200)] grid place-items-center text-[oklch(0.12_0.018_270)] font-bold text-sm">
               M
@@ -108,7 +174,6 @@ function AuthPage() {
             登录后即可解锁 AI 关系分析师、画像档案与对话历史。
           </p>
 
-          {/* Mode toggle */}
           <div className="mt-6 grid grid-cols-2 p-1 rounded-full bg-secondary/40 border border-border/50">
             {(["login", "signup"] as const).map((m) => (
               <button

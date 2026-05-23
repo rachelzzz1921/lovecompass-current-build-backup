@@ -2,11 +2,14 @@ import { createFileRoute, Link, useNavigate, useSearch } from "@tanstack/react-r
 import { useRef, useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { z } from "zod";
-import { Button } from "@/components/ui/button";
+import { HintButton } from "@/components/HintButton";
 import { toast } from "sonner";
 import { ArrowLeft, Lock, KeyRound, Sparkles, ShieldCheck, Mail } from "lucide-react";
 import { PRODUCTS } from "@/data/products";
+import { markProductAccess } from "@/lib/accessGate";
 import { lovecompassApi } from "@/lib/lovecompassApi";
+import { getApiErrorHint } from "@/lib/apiErrors";
+import { AuthChecking, useRequireAuth } from "@/lib/requireAuth";
 
 const SearchSchema = z.object({
   product: z.enum(["self", "ros", "mate"]).optional(),
@@ -33,6 +36,7 @@ function normalizeCode(value: string) {
 function AccessPage() {
   const search = useSearch({ from: "/access" });
   const nav = useNavigate();
+  const { pending: authPending } = useRequireAuth();
   const product = PRODUCTS.find((p) => p.id === search.product) ?? PRODUCTS[0];
   const [code, setCode] = useState("");
   const [verifying, setVerifying] = useState(false);
@@ -52,19 +56,19 @@ function AccessPage() {
     try {
       const res = await lovecompassApi.verifyRedemption({ code: normalized, product: product.id });
       const suiteSlug = res.suiteSlug || product.id;
-      sessionStorage.setItem(`access:${suiteSlug}`, "1");
-      sessionStorage.setItem(`access:${product.id}`, "1");
-      sessionStorage.setItem(`suite:${product.id}`, suiteSlug);
-      if (res.redemptionEventId) {
-        sessionStorage.setItem(`redemption:${suiteSlug}`, res.redemptionEventId);
-        sessionStorage.setItem(`redemption:${product.id}`, res.redemptionEventId);
-      }
+      markProductAccess(product.id, suiteSlug, res.redemptionEventId);
       toast.success("解锁成功，正在进入测试…");
-      const target = search.redirect ?? res.redirect ?? `/tests/${suiteSlug}/run`;
-      nav({ to: target });
+      const target = search.redirect ?? res.redirect;
+      if (target?.includes("/run")) {
+        const slug = target.match(/\/tests\/([^/]+)\/run/)?.[1] ?? suiteSlug;
+        nav({ to: "/tests/$id/run", params: { id: slug } });
+      } else {
+        nav({ to: "/tests/$id/run", params: { id: suiteSlug } });
+      }
     } catch (e) {
       setVerifying(false);
-      toast.error((e as Error).message || "兑换码无效或已被使用");
+      const msg = (e as Error).message || "兑换码无效或已被使用";
+      toast.error(msg, { description: getApiErrorHint(msg) ?? undefined });
       setCode("");
       inputRef.current?.focus();
     }
@@ -72,6 +76,8 @@ function AccessPage() {
 
   const filled = Math.min(normalizeCode(code).length, CODE_MAX_LENGTH);
   const pct = Math.round((filled / CODE_MAX_LENGTH) * 100);
+
+  if (authPending) return <AuthChecking />;
 
   return (
     <main className="relative min-h-screen flex items-center justify-center px-5 py-10">
@@ -141,10 +147,11 @@ function AccessPage() {
             </div>
           </div>
 
-          <Button
+          <HintButton
             onClick={verify}
-            disabled={verifying || filled < 4}
-            className="mt-7 w-full h-12 rounded-full bg-gradient-to-r from-[oklch(0.68_0.18_285)] to-[oklch(0.82_0.14_200)] text-primary-foreground hover:opacity-95 disabled:opacity-40"
+            blocked={verifying || filled < 4}
+            blockedHint={filled < 4 ? "请输入至少 4 位兑换码后再验证" : undefined}
+            className="mt-7 w-full h-12 rounded-full bg-gradient-to-r from-[oklch(0.68_0.18_285)] to-[oklch(0.82_0.14_200)] text-primary-foreground hover:opacity-95 disabled:opacity-40 inline-flex items-center justify-center"
           >
             {verifying ? (
               <span className="flex items-center gap-2 font-mono text-sm tracking-[0.2em]">
@@ -155,7 +162,7 @@ function AccessPage() {
                 <KeyRound className="mr-1.5 h-4 w-4" /> 验证并解锁
               </>
             )}
-          </Button>
+          </HintButton>
 
           <div className="mt-6 grid grid-cols-2 gap-3 text-[11px]">
             <div className="bg-secondary/30 rounded-xl border border-border/50 p-3">

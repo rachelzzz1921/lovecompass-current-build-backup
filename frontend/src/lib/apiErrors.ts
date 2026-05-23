@@ -14,10 +14,10 @@ export function getApiErrorHint(message: string): string | null {
   if (message.includes("VITE_LOVECOMPASS_API_BASE_URL")) {
     return "前端需配置 VITE_LOVECOMPASS_API_BASE_URL，指向后端 Vercel 域名（无尾部斜杠）。";
   }
-  if (/401|需要登录|登录令牌|未登录/.test(message)) {
-    return "此功能需要登录。请返回首页完成 Supabase 登录后再试。";
+  if (/401|需要登录|登录已过期|登录令牌|未登录/.test(message)) {
+    return "此功能需要登录。请返回登录页完成登录后再试；若已登录仍失败，请确认后端已配置 SUPABASE_JWT_SECRET。";
   }
-  if (/500.*JWT|SUPABASE_JWT_SECRET/.test(message)) {
+  if (message.includes("SUPABASE_JWT_SECRET") || message.includes("服务端未配置")) {
     return "后端未配置 SUPABASE_JWT_SECRET，请在 Vercel 后端项目填入 JWT Secret 并重新部署。";
   }
   if (/无法连接|Failed to fetch|CORS|NetworkError/.test(message)) {

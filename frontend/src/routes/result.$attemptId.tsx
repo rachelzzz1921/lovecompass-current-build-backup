@@ -10,7 +10,8 @@ import { ArchetypeCard } from "@/components/ArchetypeCard";
 import { AbilityRadar } from "@/components/AbilityRadar";
 import { Petals } from "@/components/Petals";
 import { ApiErrorPanel } from "@/components/ApiErrorPanel";
-import { formatApiErrorMessage } from "@/lib/apiErrors";
+import { formatApiErrorMessage, getApiErrorHint } from "@/lib/apiErrors";
+import { AuthChecking, useRequireAuth } from "@/lib/requireAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -57,6 +58,7 @@ const SELF_DIMENSION_META: Record<string, { name: string; core: string }> = {
 
 function ResultPage() {
   const { attemptId } = useParams({ from: "/result/$attemptId" });
+  const { pending: authPending } = useRequireAuth();
   const nav = useNavigate();
   const [data, setData] = useState<AttemptResult | null>(null);
   const [report, setReport] = useState<AttemptReport | null>(null);
@@ -117,6 +119,8 @@ function ResultPage() {
     const designArchetype = resolveDesignArchetype(data, ability, gender);
     return { dimensions, ability, designArchetype };
   }, [data]);
+
+  if (authPending) return <AuthChecking />;
 
   if (error) {
     return (

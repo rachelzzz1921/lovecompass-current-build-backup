@@ -1,6 +1,6 @@
 import type { AnswerDraft, TestQuestionsResponse } from "@/lib/questionTypes";
 import { formatApiErrorMessage } from "@/lib/apiErrors";
-import { supabase } from "@/integrations/supabase/client";
+import { getRequiredAccessToken } from "@/lib/supabaseSession";
 
 export type AttemptReport = {
   attemptId: string;
@@ -36,29 +36,7 @@ export type AttemptHistoryItem = {
 const API_BASE =
   (import.meta.env.VITE_LOVECOMPASS_API_BASE_URL as string | undefined)?.replace(/\/$/, "") ?? "";
 
-async function getAccessToken(): Promise<string | null> {
-  const { data } = await supabase.auth.getSession();
-  return data.session?.access_token ?? null;
-}
-
-async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
-  if (!API_BASE) {
-    throw new Error("未配置 VITE_LOVECOMPASS_API_BASE_URL");
-  }
-  const token = await getAccessToken();
-  let res: Response;
-  try {
-    res = await fetch(`${API_BASE}${path}`, {
-      ...init,
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...(init?.headers ?? {}),
-      },
-    });
-  } catch (err) {
-    throw new Error(formatApiErrorMessage(err));
-  }
+async function parseJsonResponse<T>(res: Response): Promise<T> {
   const payload = await res.json().catch(() => null);
   if (!res.ok) {
     const detail = payload?.detail;
@@ -78,6 +56,39 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   return payload as T;
 }
 
+async function requestJson<T>(path: string, init?: RequestInit, authRequired = false): Promise<T> {
+  if (!API_BASE) {
+    throw new Error("未配置 VITE_LOVECOMPASS_API_BASE_URL");
+  }
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(init?.headers as Record<string, string> | undefined),
+  };
+
+  if (authRequired) {
+    headers.Authorization = `Bearer ${await getRequiredAccessToken()}`;
+  } else {
+    try {
+      const token = await getRequiredAccessToken();
+      headers.Authorization = `Bearer ${token}`;
+    } catch {
+      // Public endpoints may be called before login.
+    }
+  }
+
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}${path}`, {
+      ...init,
+      headers,
+    });
+  } catch (err) {
+    throw new Error(formatApiErrorMessage(err));
+  }
+  return parseJsonResponse<T>(res);
+}
+
 export const lovecompassApi = {
   getQuestions: (suiteSlug: string) =>
     requestJson<TestQuestionsResponse>(`/tests/${encodeURIComponent(suiteSlug)}/questions`),
@@ -88,6 +99,7 @@ export const lovecompassApi = {
         method: "POST",
         body: JSON.stringify(data),
       },
+      true,
     ),
   submitAttempt: (data: {
     suiteSlug: string;
@@ -100,21 +112,29 @@ export const lovecompassApi = {
         method: "POST",
         body: JSON.stringify(data),
       },
+      true,
     ),
   getAttemptResult: (attemptId: string) =>
-    requestJson<{ attempt: unknown }>(`/attempts/${encodeURIComponent(attemptId)}/result`),
+    requestJson<{ attempt: unknown }>(`/attempts/${encodeURIComponent(attemptId)}/result`, undefined, true),
   getAttemptReport: (attemptId: string, refresh = false) =>
     requestJson<{ report: AttemptReport }>(
       `/attempts/${encodeURIComponent(attemptId)}/report${refresh ? "?refresh=true" : ""}`,
       { method: "POST" },
+      true,
     ),
   getAttemptHistory: (limit = 20) =>
     requestJson<{ attempts: AttemptHistoryItem[] }>(
       `/attempts?limit=${encodeURIComponent(String(limit))}`,
+      undefined,
+      true,
     ),
   sendChatMessage: (data: { attemptId?: string; analystId?: string; message: string }) =>
-    requestJson<{ message: string; conversationId?: string }>("/chat/message", {
-      method: "POST",
-      body: JSON.stringify(data),
-    }),
+    requestJson<{ message: string; conversationId?: string }>(
+      "/chat/message",
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+      },
+      true,
+    ),
 };

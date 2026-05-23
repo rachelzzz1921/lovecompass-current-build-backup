@@ -2,14 +2,18 @@ import { createFileRoute, Link, useNavigate, useParams } from "@tanstack/react-r
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import { HintButton } from "@/components/HintButton";
 import { PRODUCTS } from "@/data/products";
 import { ArrowLeft, ArrowRight, Clock, Sparkles, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { QuestionRenderer } from "@/components/questions/QuestionRenderer";
 import { ApiErrorPanel } from "@/components/ApiErrorPanel";
-import { formatApiErrorMessage } from "@/lib/apiErrors";
+import { formatApiErrorMessage, getApiErrorHint } from "@/lib/apiErrors";
+import { AuthChecking, safeReturnPath, useRequireAuth } from "@/lib/requireAuth";
+import { hasProductAccess } from "@/lib/accessGate";
 import { lovecompassApi } from "@/lib/lovecompassApi";
-import { resolveSuiteSlug } from "@/lib/suiteSlugs";
+import { getRequiredAccessToken } from "@/lib/supabaseSession";
+import { resolveProductId, resolveSuiteSlug } from "@/lib/suiteSlugs";
 import type { AnswerDraft, AnswerPayload, ApiQuestion } from "@/lib/questionTypes";
 
 export const Route = createFileRoute("/tests/$id/run")({
@@ -28,9 +32,9 @@ function isAnswered(q: ApiQuestion | undefined, payload: AnswerPayload | undefin
 
 function TestRun() {
   const { id } = useParams({ from: "/tests/$id/run" });
+  const { pending: authPending } = useRequireAuth();
   const product = PRODUCTS.find((p) => p.id === id) ?? PRODUCTS[0];
   const routeSuiteSlug = id;
-  const isBackendSuiteRoute = routeSuiteSlug.includes("_");
   const nav = useNavigate();
 
   const [idx, setIdx] = useState(0);
@@ -43,6 +47,31 @@ function TestRun() {
   const [finishing, setFinishing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const [accessChecked, setAccessChecked] = useState(false);
+
+  useEffect(() => {
+    if (authPending) return;
+    const productId = resolveProductId(routeSuiteSlug);
+    const storedSuiteSlug =
+      typeof window !== "undefined" ? window.sessionStorage.getItem(`suite:${productId}`) : null;
+    const suiteSlug = resolveSuiteSlug({
+      productId,
+      routeId: routeSuiteSlug,
+      sessionSuiteSlug: storedSuiteSlug,
+    });
+    if (!hasProductAccess(productId, suiteSlug)) {
+      toast.info("请先输入兑换码解锁本题库");
+      void nav({
+        to: "/access",
+        search: {
+          product: productId,
+          redirect: `/tests/${routeSuiteSlug}/run`,
+        },
+      });
+      return;
+    }
+    setAccessChecked(true);
+  }, [authPending, routeSuiteSlug, nav]);
 
   useEffect(() => {
     const t = setInterval(() => setSeconds((s) => s + 1), 1000);
@@ -50,14 +79,16 @@ function TestRun() {
   }, []);
 
   useEffect(() => {
+    if (authPending || !accessChecked) return;
     let cancelled = false;
     setLoading(true);
     setError(null);
     setIdx(0);
+    const productId = resolveProductId(routeSuiteSlug);
     const storedSuiteSlug =
-      typeof window !== "undefined" ? window.sessionStorage.getItem(`suite:${product.id}`) : null;
+      typeof window !== "undefined" ? window.sessionStorage.getItem(`suite:${productId}`) : null;
     const suiteSlug = resolveSuiteSlug({
-      productId: product.id,
+      productId,
       routeId: routeSuiteSlug,
       sessionSuiteSlug: storedSuiteSlug,
     });
@@ -78,7 +109,7 @@ function TestRun() {
     return () => {
       cancelled = true;
     };
-  }, [isBackendSuiteRoute, product.id, routeSuiteSlug, reloadKey]);
+  }, [accessChecked, authPending, routeSuiteSlug, reloadKey]);
 
   const q = useMemo(() => questions[idx], [questions, idx]);
   const total = questions.length;
@@ -132,6 +163,7 @@ function TestRun() {
     markDuration(q.id);
     setFinishing(true);
     try {
+      await getRequiredAccessToken();
       const payload: AnswerDraft[] = questions.map((item) => ({
         questionId: item.id,
         externalId: item.externalId,
@@ -139,17 +171,18 @@ function TestRun() {
         answerPayload: answers[item.id],
         durationMs: durations[item.id],
       }));
+      const productId = resolveProductId(routeSuiteSlug);
       const storedSuiteSlug =
-        typeof window !== "undefined" ? window.sessionStorage.getItem(`suite:${product.id}`) : null;
+        typeof window !== "undefined" ? window.sessionStorage.getItem(`suite:${productId}`) : null;
       const suiteSlug = resolveSuiteSlug({
-        productId: product.id,
+        productId,
         routeId: routeSuiteSlug,
         sessionSuiteSlug: storedSuiteSlug,
       });
       const redemptionEventId =
         typeof window !== "undefined"
           ? window.sessionStorage.getItem(`redemption:${suiteSlug}`) ||
-            window.sessionStorage.getItem(`redemption:${product.id}`)
+            window.sessionStorage.getItem(`redemption:${productId}`)
           : null;
       const res = await lovecompassApi.submitAttempt({
         suiteSlug,
@@ -159,9 +192,18 @@ function TestRun() {
       nav({ to: "/analyzing", search: { attemptId: res.attemptId } });
     } catch (e) {
       setFinishing(false);
-      toast.error((e as Error).message || "提交失败，请稍后再试");
+      const msg = (e as Error).message || "提交失败，请稍后再试";
+      toast.error(msg, { description: getApiErrorHint(msg) ?? undefined });
+      if (/需要登录|登录已过期|登录令牌/.test(msg)) {
+        nav({
+          to: "/auth",
+          search: { redirect: safeReturnPath(window.location.pathname + window.location.search) },
+        });
+      }
     }
   };
+
+  if (authPending || !accessChecked) return <AuthChecking />;
 
   if (loading) {
     return (
@@ -282,29 +324,43 @@ function TestRun() {
               >
                 <Button
                   variant="outline"
-                  disabled={idx === 0}
-                  onClick={() => goTo(idx - 1)}
-                  className="rounded-xl border-border/60 bg-glass disabled:opacity-30 flex-1 md:flex-none"
+                  onClick={() => {
+                    if (idx === 0) {
+                      toast.info("已经是第一题了");
+                      return;
+                    }
+                    goTo(idx - 1);
+                  }}
+                  className="rounded-xl border-border/60 bg-glass flex-1 md:flex-none"
                 >
                   <ArrowLeft className="mr-1 h-4 w-4" /> 上一题
                 </Button>
-                {idx === total - 1 && isAnswered(q, currentAnswer) ? (
-                  <Button
+                {idx === total - 1 ? (
+                  <HintButton
                     data-testid="finish-attempt"
                     onClick={finish}
-                    className="rounded-xl bg-gradient-to-r from-[oklch(0.68_0.18_285)] to-[oklch(0.82_0.14_200)] text-primary-foreground flex-1 md:flex-none"
+                    blocked={!isAnswered(q, currentAnswer) || firstMissingIdx >= 0}
+                    blockedHint={
+                      !isAnswered(q, currentAnswer)
+                        ? "请先回答本题后再生成画像"
+                        : firstMissingIdx >= 0
+                          ? `还有第 ${firstMissingIdx + 1} 题未完成，请补全后再提交`
+                          : undefined
+                    }
+                    className="rounded-xl bg-gradient-to-r from-[oklch(0.68_0.18_285)] to-[oklch(0.82_0.14_200)] text-primary-foreground flex-1 md:flex-none inline-flex items-center justify-center px-4 py-2 text-sm font-medium"
                   >
                     生成画像 <Sparkles className="ml-1 h-4 w-4" />
-                  </Button>
+                  </HintButton>
                 ) : (
-                  <Button
+                  <HintButton
                     data-testid="next-question"
-                    disabled={!isAnswered(q, currentAnswer)}
+                    blocked={!isAnswered(q, currentAnswer)}
+                    blockedHint="请先回答本题后再继续"
                     onClick={() => goTo(Math.min(total - 1, idx + 1))}
-                    className="rounded-xl bg-gradient-to-r from-[oklch(0.68_0.18_285)] to-[oklch(0.82_0.14_200)] text-primary-foreground disabled:opacity-40 flex-1 md:flex-none"
+                    className="rounded-xl bg-gradient-to-r from-[oklch(0.68_0.18_285)] to-[oklch(0.82_0.14_200)] text-primary-foreground opacity-100 flex-1 md:flex-none inline-flex items-center justify-center px-4 py-2 text-sm font-medium"
                   >
                     下一题 <ArrowRight className="ml-1 h-4 w-4" />
-                  </Button>
+                  </HintButton>
                 )}
               </div>
               <div className="h-24 md:hidden" />

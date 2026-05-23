@@ -20,6 +20,14 @@ export function setStoredSelfGender(gender: SelfGender) {
   sessionStorage.setItem("suite:self", SELF_SUITE_SLUGS[gender]);
 }
 
+/** Map backend suite slug or route id to frontend product id. */
+export function resolveProductId(routeOrSuiteId: string): "self" | "ros" | "mate" {
+  if (routeOrSuiteId === "self" || routeOrSuiteId.includes("self")) return "self";
+  if (routeOrSuiteId === "ros" || routeOrSuiteId.includes("ros")) return "ros";
+  if (routeOrSuiteId === "mate" || routeOrSuiteId.includes("mate")) return "mate";
+  return "self";
+}
+
 /** Map frontend product/route ids to API suite slugs. */
 export function resolveSuiteSlug(options: {
   productId: string;

@@ -1,7 +1,11 @@
 import { createFileRoute, Link, Outlet, useNavigate, useParams, useRouterState } from "@tanstack/react-router";
 import { useState } from "react";
 import { motion } from "framer-motion";
+import { toast } from "sonner";
 import { PRODUCTS } from "@/data/products";
+import { HintButton } from "@/components/HintButton";
+import { useAuth } from "@/hooks/useAuth";
+import { hasProductAccess } from "@/lib/accessGate";
 import { getStoredSelfGender, setStoredSelfGender, SELF_SUITE_SLUGS, type SelfGender } from "@/lib/suiteSlugs";
 import { ArrowLeft, ArrowRight, Clock, Layers, Sparkles, Lock, ShieldCheck } from "lucide-react";
 
@@ -18,31 +22,54 @@ const ACCENT = {
 function TestEntry() {
   const { id } = useParams({ from: "/tests/$id" });
   const nav = useNavigate();
+  const { user, loading: authLoading } = useAuth();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   if (pathname.endsWith("/run")) return <Outlet />;
   const product = PRODUCTS.find((p) => p.id === id) ?? PRODUCTS[0];
   const routeSuiteSlug = id;
   const a = ACCENT[product.accent];
 
-  const isFree = product.status === "free";
-  const hasAccess = typeof window !== "undefined" && (sessionStorage.getItem(`access:${routeSuiteSlug}`) === "1" || sessionStorage.getItem(`access:${product.id}`) === "1");
   const isSelfProduct = product.id === "self";
   const [selfGender, setSelfGender] = useState<SelfGender | null>(() => getStoredSelfGender());
 
   const runSuiteSlug =
     isSelfProduct && selfGender ? SELF_SUITE_SLUGS[selfGender] : routeSuiteSlug;
+  const hasAccess = hasProductAccess(product.id, runSuiteSlug);
+
+  const returnPath = `/tests/${id}`;
+
+  const startBlockedReason = (): string | null => {
+    if (authLoading) return "正在确认登录状态，请稍候";
+    if (!user) return "请先登录后再开始测试";
+    if (isSelfProduct && !selfGender) return "请先选择「女性版」或「男性版」题库";
+    if (!hasAccess) return "请先输入兑换码解锁本题库";
+    return null;
+  };
 
   const start = () => {
-    if (isSelfProduct && !selfGender) return;
-    if (isFree || hasAccess) {
-      if (isSelfProduct && selfGender) {
-        setStoredSelfGender(selfGender);
+    const blocked = startBlockedReason();
+    if (blocked) {
+      toast.info(blocked);
+      if (!user) {
+        nav({ to: "/auth", search: { redirect: returnPath } });
+        return;
       }
-      nav({ to: "/tests/$id/run", params: { id: runSuiteSlug } });
-    } else {
-      nav({ to: "/access", search: { product: product.id, redirect: `/tests/${runSuiteSlug}/run` } });
+      if (!hasAccess) {
+        nav({
+          to: "/access",
+          search: { product: product.id, redirect: `/tests/${runSuiteSlug}/run` },
+        });
+      }
+      return;
     }
+
+    if (isSelfProduct && selfGender) {
+      setStoredSelfGender(selfGender);
+    }
+    nav({ to: "/tests/$id/run", params: { id: runSuiteSlug } });
   };
+
+  const blockedReason = startBlockedReason();
 
   return (
     <main className="relative min-h-screen">
@@ -62,7 +89,6 @@ function TestEntry() {
           <p className="mt-4 text-lg text-foreground/80">{product.subtitle}</p>
           <p className="mt-3 text-sm text-muted-foreground max-w-2xl leading-relaxed">{product.description}</p>
 
-          {/* Spec strip */}
           <div className="mt-7 flex flex-wrap gap-2">
             <span className="chip font-mono">
               <Clock className="h-3 w-3" /> {product.duration}
@@ -76,7 +102,6 @@ function TestEntry() {
           </div>
         </motion.div>
 
-        {/* Dimensions preview */}
         <motion.div
           initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
@@ -107,7 +132,6 @@ function TestEntry() {
           </p>
         </motion.div>
 
-        {/* Flow */}
         <motion.div
           initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
@@ -115,8 +139,8 @@ function TestEntry() {
           className="mt-6 grid md:grid-cols-3 gap-3"
         >
           {[
-            { n: "01", t: "作答", d: "情境式选题，跟着直觉走" },
-            { n: "02", t: "匹配", d: "AI 把答案翻译成画像指纹" },
+            { n: "01", t: "兑换", d: "输入兑换码解锁题库" },
+            { n: "02", t: "作答", d: "情境式选题，跟着直觉走" },
             { n: "03", t: "解读", d: "生成可视化报告与对话入口" },
           ].map((s) => (
             <div key={s.n} className="bg-glass rounded-2xl p-5">
@@ -127,7 +151,6 @@ function TestEntry() {
           ))}
         </motion.div>
 
-        {/* CTA */}
         <motion.div
           initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
@@ -135,26 +158,22 @@ function TestEntry() {
           className="mt-8 bg-glass-strong rounded-3xl p-7 flex flex-col md:flex-row items-center justify-between gap-5"
         >
           <div className="flex items-center gap-3">
-            {isFree ? (
-              <span className="w-10 h-10 rounded-xl bg-[oklch(0.55_0.16_200_/_0.18)] grid place-items-center text-[oklch(0.82_0.14_200)]">
-                <Sparkles className="h-5 w-5" />
-              </span>
-            ) : (
-              <span className="w-10 h-10 rounded-xl bg-[oklch(0.50_0.20_285_/_0.18)] grid place-items-center text-[oklch(0.82_0.10_285)]">
-                <Lock className="h-5 w-5" />
-              </span>
-            )}
+            <span className="w-10 h-10 rounded-xl bg-[oklch(0.50_0.20_285_/_0.18)] grid place-items-center text-[oklch(0.82_0.10_285)]">
+              {hasAccess ? <Sparkles className="h-5 w-5" /> : <Lock className="h-5 w-5" />}
+            </span>
             <div>
               <div className="font-display text-lg text-foreground/95">
-                {isFree ? "免费开始" : hasAccess ? "已解锁，可直接开始" : "需要兑换码解锁"}
+                {hasAccess ? "已解锁，可以开始" : "需要兑换码解锁"}
               </div>
               <div className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
-                <ShieldCheck className="h-3 w-3" /> 答题过程不被记录任何外泄信息
+                <ShieldCheck className="h-3 w-3" />
+                {user ? "已登录" : "开始之前请先登录"} · 答题过程不外泄
               </div>
             </div>
           </div>
+
           {isSelfProduct && (
-            <div className="mt-6 flex flex-col gap-2">
+            <div className="w-full md:w-auto flex flex-col gap-2">
               <div className="text-[10px] font-mono tracking-[0.3em] text-muted-foreground">选择题库版本</div>
               <div className="flex gap-2">
                 {(["female", "male"] as const).map((gender) => (
@@ -172,26 +191,30 @@ function TestEntry() {
                   </button>
                 ))}
               </div>
+              {!selfGender && (
+                <p className="text-[11px] text-muted-foreground">请先选择上方版本，再点击「开始测试」</p>
+              )}
             </div>
           )}
 
           <div className="flex gap-2 w-full md:w-auto">
-            {!isFree && !hasAccess && (
+            {!hasAccess && (
               <Link
                 to="/access"
-                search={{ product: product.id }}
+                search={{ product: product.id, redirect: `/tests/${runSuiteSlug || product.id}/run` }}
                 className="flex-1 md:flex-none inline-flex items-center justify-center gap-1.5 px-5 h-11 rounded-full border border-border/60 bg-glass text-sm hover:bg-secondary/40"
               >
                 <Lock className="h-4 w-4" /> 输入兑换码
               </Link>
             )}
-            <button
+            <HintButton
               onClick={start}
-              disabled={isSelfProduct && !selfGender}
-              className={`flex-1 md:flex-none inline-flex items-center justify-center gap-1.5 px-6 h-11 rounded-full text-sm font-medium bg-gradient-to-r ${a.ring} text-primary-foreground hover:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed`}
+              blocked={Boolean(blockedReason)}
+              blockedHint={blockedReason ?? undefined}
+              className={`flex-1 md:flex-none inline-flex items-center justify-center gap-1.5 px-6 h-11 rounded-full text-sm font-medium bg-gradient-to-r ${a.ring} text-primary-foreground hover:opacity-95`}
             >
-              {isFree || hasAccess ? "开始测试" : "去解锁"} <ArrowRight className="h-4 w-4" />
-            </button>
+              {hasAccess ? "开始测试" : "去解锁"} <ArrowRight className="h-4 w-4" />
+            </HintButton>
           </div>
         </motion.div>
       </section>

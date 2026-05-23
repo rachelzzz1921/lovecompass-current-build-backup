@@ -19,6 +19,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as TestsIdRouteImport } from './routes/tests.$id'
 import { Route as ShowcaseQuestionsRouteImport } from './routes/showcase.questions'
 import { Route as ResultAttemptIdRouteImport } from './routes/result.$attemptId'
+import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as TestsIdRunRouteImport } from './routes/tests.$id.run'
 import { Route as ResultSelfVariantRouteImport } from './routes/result.self.$variant'
 
@@ -72,6 +73,11 @@ const ResultAttemptIdRoute = ResultAttemptIdRouteImport.update({
   path: '/result/$attemptId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthCallbackRoute = AuthCallbackRouteImport.update({
+  id: '/callback',
+  path: '/callback',
+  getParentRoute: () => AuthRoute,
+} as any)
 const TestsIdRunRoute = TestsIdRunRouteImport.update({
   id: '/run',
   path: '/run',
@@ -87,10 +93,11 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/access': typeof AccessRoute
   '/analyzing': typeof AnalyzingRoute
-  '/auth': typeof AuthRoute
+  '/auth': typeof AuthRouteWithChildren
   '/chat': typeof ChatRoute
   '/history': typeof HistoryRoute
   '/run': typeof RunRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/result/$attemptId': typeof ResultAttemptIdRoute
   '/showcase/questions': typeof ShowcaseQuestionsRoute
   '/tests/$id': typeof TestsIdRouteWithChildren
@@ -101,10 +108,11 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/access': typeof AccessRoute
   '/analyzing': typeof AnalyzingRoute
-  '/auth': typeof AuthRoute
+  '/auth': typeof AuthRouteWithChildren
   '/chat': typeof ChatRoute
   '/history': typeof HistoryRoute
   '/run': typeof RunRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/result/$attemptId': typeof ResultAttemptIdRoute
   '/showcase/questions': typeof ShowcaseQuestionsRoute
   '/tests/$id': typeof TestsIdRouteWithChildren
@@ -116,10 +124,11 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/access': typeof AccessRoute
   '/analyzing': typeof AnalyzingRoute
-  '/auth': typeof AuthRoute
+  '/auth': typeof AuthRouteWithChildren
   '/chat': typeof ChatRoute
   '/history': typeof HistoryRoute
   '/run': typeof RunRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/result/$attemptId': typeof ResultAttemptIdRoute
   '/showcase/questions': typeof ShowcaseQuestionsRoute
   '/tests/$id': typeof TestsIdRouteWithChildren
@@ -136,6 +145,7 @@ export interface FileRouteTypes {
     | '/chat'
     | '/history'
     | '/run'
+    | '/auth/callback'
     | '/result/$attemptId'
     | '/showcase/questions'
     | '/tests/$id'
@@ -150,6 +160,7 @@ export interface FileRouteTypes {
     | '/chat'
     | '/history'
     | '/run'
+    | '/auth/callback'
     | '/result/$attemptId'
     | '/showcase/questions'
     | '/tests/$id'
@@ -164,6 +175,7 @@ export interface FileRouteTypes {
     | '/chat'
     | '/history'
     | '/run'
+    | '/auth/callback'
     | '/result/$attemptId'
     | '/showcase/questions'
     | '/tests/$id'
@@ -175,7 +187,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AccessRoute: typeof AccessRoute
   AnalyzingRoute: typeof AnalyzingRoute
-  AuthRoute: typeof AuthRoute
+  AuthRoute: typeof AuthRouteWithChildren
   ChatRoute: typeof ChatRoute
   HistoryRoute: typeof HistoryRoute
   RunRoute: typeof RunRoute
@@ -257,6 +269,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResultAttemptIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/auth/callback': {
+      id: '/auth/callback'
+      path: '/callback'
+      fullPath: '/auth/callback'
+      preLoaderRoute: typeof AuthCallbackRouteImport
+      parentRoute: typeof AuthRoute
+    }
     '/tests/$id/run': {
       id: '/tests/$id/run'
       path: '/run'
@@ -274,6 +293,16 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AuthRouteChildren {
+  AuthCallbackRoute: typeof AuthCallbackRoute
+}
+
+const AuthRouteChildren: AuthRouteChildren = {
+  AuthCallbackRoute: AuthCallbackRoute,
+}
+
+const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
+
 interface TestsIdRouteChildren {
   TestsIdRunRoute: typeof TestsIdRunRoute
 }
@@ -289,7 +318,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AccessRoute: AccessRoute,
   AnalyzingRoute: AnalyzingRoute,
-  AuthRoute: AuthRoute,
+  AuthRoute: AuthRouteWithChildren,
   ChatRoute: ChatRoute,
   HistoryRoute: HistoryRoute,
   RunRoute: RunRoute,

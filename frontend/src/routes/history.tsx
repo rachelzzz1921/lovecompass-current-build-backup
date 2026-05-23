@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { PRODUCTS } from "@/data/products";
 import { lovecompassApi, type AttemptHistoryItem } from "@/lib/lovecompassApi";
 import { formatApiErrorMessage, getApiErrorHint } from "@/lib/apiErrors";
+import { AuthChecking, useRequireAuth } from "@/lib/requireAuth";
 
 export const Route = createFileRoute("/history")({
   head: () => ({
@@ -152,6 +153,7 @@ function lockedSnapshot(set: Snapshot["set"]): Snapshot {
 }
 
 function HistoryPage() {
+  const { pending: authPending } = useRequireAuth();
   const [attempts, setAttempts] = useState<AttemptHistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -191,6 +193,8 @@ function HistoryPage() {
   const unlocked = snapshots.filter((m) => !m.locked);
   const latest = unlocked[0];
   const errorHint = error ? getApiErrorHint(error) : null;
+
+  if (authPending) return <AuthChecking />;
 
   return (
     <main className="relative min-h-screen">

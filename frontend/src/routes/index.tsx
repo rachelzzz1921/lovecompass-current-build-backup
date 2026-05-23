@@ -4,6 +4,7 @@ import { PRODUCTS, type Product } from "@/data/products";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { HintButton } from "@/components/HintButton";
 import { Lock, ArrowRight, Sparkles, MessageSquare, Brain, Layers, Repeat, Heart, AlertTriangle, MessageCircle, ChevronLeft, ChevronRight, Menu, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
@@ -222,7 +223,7 @@ function Home() {
         <div className="grid md:grid-cols-3 gap-5">
           {PRODUCTS.map((p, i) => {
             const a = ACCENT[p.accent];
-            const isFree = p.status === "free";
+            const isComingSoon = p.status === "coming-soon";
             return (
               <motion.div
                 key={p.id}
@@ -238,8 +239,8 @@ function Home() {
                   <div className="relative">
                     <div className="flex items-center justify-between">
                       <span className="font-mono text-[10px] tracking-[0.3em] text-muted-foreground">{p.code}</span>
-                      <span className={`chip ${isFree ? "chip-cyan" : ""} font-mono text-[10px]`}>
-                        {!isFree && <Lock className="h-2.5 w-2.5" />}
+                      <span className={`chip font-mono text-[10px]`}>
+                        {!isComingSoon && <Lock className="h-2.5 w-2.5" />}
                         {p.badge}
                       </span>
                     </div>
@@ -269,19 +270,23 @@ function Home() {
                       <span>{p.questionCount}</span>
                     </div>
 
-                    {isFree ? (
-                      <Button
-                        onClick={() => nav({ to: "/tests/$id", params: { id: "self" } })}
-                        className="w-full bg-gradient-to-r from-[oklch(0.68_0.18_285)] to-[oklch(0.82_0.14_200)] text-primary-foreground hover:opacity-90 rounded-xl h-10 font-medium"
-                      >
-                        立即开始 <ArrowRight className="ml-1 h-4 w-4" />
-                      </Button>
-                    ) : (
-                      <Button disabled variant="outline" className="w-full rounded-xl h-10 bg-secondary/30 border-border/50 text-muted-foreground">
-                        <Lock className="mr-1.5 h-3.5 w-3.5" />
-                        即将开放
-                      </Button>
-                    )}
+                    <HintButton
+                      onClick={() => nav({ to: "/tests/$id", params: { id: p.id } })}
+                      blocked={isComingSoon}
+                      blockedHint="该测试尚未开放，请关注后续更新"
+                      className="w-full inline-flex items-center justify-center bg-gradient-to-r from-[oklch(0.68_0.18_285)] to-[oklch(0.82_0.14_200)] text-primary-foreground hover:opacity-90 rounded-xl h-10 font-medium text-sm"
+                    >
+                      {isComingSoon ? (
+                        <>
+                          <Lock className="mr-1.5 h-3.5 w-3.5" />
+                          即将开放
+                        </>
+                      ) : (
+                        <>
+                          兑换后开始 <ArrowRight className="ml-1 h-4 w-4" />
+                        </>
+                      )}
+                    </HintButton>
                   </div>
                 </div>
               </motion.div>

@@ -13,10 +13,25 @@ from app.question_adapter import adapt_question
 from app.scoring import summarize_scores
 from app.ai_adapter import get_ai_adapter
 
+
+def _cors_origins() -> list[str]:
+    raw = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:4173")
+    return [origin.strip() for origin in raw.split(",") if origin.strip()]
+
+
+def _cors_allow_vercel_previews() -> bool:
+    return os.getenv("CORS_ALLOW_VERCEL_PREVIEWS", "true").strip().lower() not in {
+        "0",
+        "false",
+        "no",
+    }
+
+
 app = FastAPI(title="LoveCompass API", version="0.1.0")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[origin.strip() for origin in os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:4173").split(",")],
+    allow_origins=_cors_origins(),
+    allow_origin_regex=r"https://[\w.-]+\.vercel\.app" if _cors_allow_vercel_previews() else None,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

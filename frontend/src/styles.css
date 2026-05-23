@@ -39,6 +39,8 @@
   --color-mint: var(--mint);
   --color-rose: var(--rose);
   --color-amber: var(--amber);
+  --color-sakura: var(--sakura);
+  --color-sakura-soft: var(--sakura-soft);
 
   --font-display: "Space Grotesk", "Noto Sans SC", system-ui, sans-serif;
   --font-body: "Inter", "Noto Sans SC", system-ui, sans-serif;
@@ -59,6 +61,8 @@
   --mint: oklch(0.78 0.15 165);
   --rose: oklch(0.72 0.18 360);
   --amber: oklch(0.82 0.14 75);
+  --sakura: oklch(0.78 0.14 350);
+  --sakura-soft: oklch(0.88 0.08 350);
 
   --card: oklch(0.18 0.020 270);
   --card-foreground: oklch(0.97 0.005 260);
@@ -130,6 +134,27 @@
   .text-gradient-cyan {
     background: linear-gradient(135deg, oklch(0.85 0.12 200), oklch(0.78 0.15 165));
     -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .text-gradient-sakura {
+    background: linear-gradient(
+      135deg,
+      oklch(0.97 0.01 350),
+      oklch(0.85 0.12 350) 45%,
+      oklch(0.78 0.16 15) 85%
+    );
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .text-sakura { color: var(--sakura); }
+  .sakura-divider {
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      oklch(0.78 0.14 350 / 0.35),
+      oklch(0.85 0.12 15 / 0.55),
+      oklch(0.78 0.14 350 / 0.35),
+      transparent
+    );
   }
   .bg-glass {
     background: linear-gradient(180deg, oklch(0.22 0.020 270 / 0.55), oklch(0.16 0.020 270 / 0.55));

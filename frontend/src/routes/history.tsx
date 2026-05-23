@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { PRODUCTS } from "@/data/products";
 import { lovecompassApi, type AttemptHistoryItem } from "@/lib/lovecompassApi";
+import { formatApiErrorMessage, getApiErrorHint } from "@/lib/apiErrors";
 
 export const Route = createFileRoute("/history")({
   head: () => ({
@@ -154,6 +155,7 @@ function HistoryPage() {
   const [attempts, setAttempts] = useState<AttemptHistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let alive = true;
@@ -165,9 +167,9 @@ function HistoryPage() {
         setAttempts(res.attempts ?? []);
         setError(null);
       })
-      .catch((e: Error) => {
+      .catch((e) => {
         if (!alive) return;
-        setError(e.message || "画像档案加载失败");
+        setError(formatApiErrorMessage(e));
       })
       .finally(() => {
         if (alive) setLoading(false);
@@ -175,7 +177,7 @@ function HistoryPage() {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [reloadKey]);
 
   const snapshots = useMemo(() => {
     const real = attempts.map(toSnapshot);
@@ -188,6 +190,7 @@ function HistoryPage() {
 
   const unlocked = snapshots.filter((m) => !m.locked);
   const latest = unlocked[0];
+  const errorHint = error ? getApiErrorHint(error) : null;
 
   return (
     <main className="relative min-h-screen">
@@ -219,8 +222,18 @@ function HistoryPage() {
         </motion.div>
 
         {error && (
-          <div className="mt-6 rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-            {error}
+          <div className="mt-6 rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-4 text-sm">
+            <p className="text-destructive">{error}</p>
+            {errorHint && (
+              <p className="mt-2 text-xs text-muted-foreground leading-relaxed">{errorHint}</p>
+            )}
+            <button
+              type="button"
+              className="mt-3 text-xs font-mono tracking-wider text-foreground/80 hover:text-foreground underline-offset-2 hover:underline"
+              onClick={() => setReloadKey((k) => k + 1)}
+            >
+              重试加载
+            </button>
           </div>
         )}
 

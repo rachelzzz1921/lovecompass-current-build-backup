@@ -9,6 +9,8 @@ import { ScoreRing } from "@/components/ScoreRing";
 import { ArchetypeCard } from "@/components/ArchetypeCard";
 import { AbilityRadar } from "@/components/AbilityRadar";
 import { Petals } from "@/components/Petals";
+import { ApiErrorPanel } from "@/components/ApiErrorPanel";
+import { formatApiErrorMessage } from "@/lib/apiErrors";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -100,7 +102,7 @@ function ResultPage() {
           });
       })
       .catch((e) => {
-        if (!ignore) setError((e as Error).message);
+        if (!ignore) setError(formatApiErrorMessage(e));
       });
     return () => {
       ignore = true;
@@ -116,7 +118,15 @@ function ResultPage() {
     return { dimensions, ability, designArchetype };
   }, [data]);
 
-  if (error) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">{error}</div>;
+  if (error) {
+    return (
+      <ApiErrorPanel
+        title="画像加载失败"
+        message={error}
+        backTo={{ to: "/", label: "返回首页" }}
+      />
+    );
+  }
   if (!data || !normalized) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">读取你的画像…</div>;
 
   const { ability, designArchetype: archetype } = normalized;

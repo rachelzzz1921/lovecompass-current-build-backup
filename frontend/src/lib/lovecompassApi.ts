@@ -1,4 +1,5 @@
 import type { AnswerDraft, TestQuestionsResponse } from "@/lib/questionTypes";
+import { formatApiErrorMessage } from "@/lib/apiErrors";
 import { supabase } from "@/integrations/supabase/client";
 
 export type AttemptReport = {
@@ -45,18 +46,33 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
     throw new Error("未配置 VITE_LOVECOMPASS_API_BASE_URL");
   }
   const token = await getAccessToken();
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(init?.headers ?? {}),
-    },
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}${path}`, {
+      ...init,
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(init?.headers ?? {}),
+      },
+    });
+  } catch (err) {
+    throw new Error(formatApiErrorMessage(err));
+  }
   const payload = await res.json().catch(() => null);
   if (!res.ok) {
+    const detail = payload?.detail;
+    const detailText =
+      typeof detail === "string"
+        ? detail
+        : Array.isArray(detail)
+          ? detail.map((item: { msg?: string }) => item.msg).filter(Boolean).join("；")
+          : null;
     const message =
-      payload?.message || payload?.error || payload?.detail || `请求失败：${res.status}`;
+      payload?.message ||
+      payload?.error ||
+      detailText ||
+      `请求失败：${res.status}`;
     throw new Error(message);
   }
   return payload as T;

@@ -8,6 +8,7 @@ SUPABASE_URL=https://wjfpglsygkbpubanylug.supabase.co
 SUPABASE_PROJECT_ID=wjfpglsygkbpubanylug
 SUPABASE_JWT_SECRET=
 CORS_ORIGINS=
+# 默认允许 https://*.vercel.app 预览域名；自定义域名仍需写入 CORS_ORIGINS
 AI_PROVIDER=zhipu
 ZHIPU_API_KEY=
 ZHIPU_BASE_URL=https://open.bigmodel.cn/api/paas/v4

@@ -6,6 +6,8 @@ import { PRODUCTS } from "@/data/products";
 import { ArrowLeft, ArrowRight, Clock, Sparkles, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { QuestionRenderer } from "@/components/questions/QuestionRenderer";
+import { ApiErrorPanel } from "@/components/ApiErrorPanel";
+import { formatApiErrorMessage } from "@/lib/apiErrors";
 import { lovecompassApi } from "@/lib/lovecompassApi";
 import { resolveSuiteSlug } from "@/lib/suiteSlugs";
 import type { AnswerDraft, AnswerPayload, ApiQuestion } from "@/lib/questionTypes";
@@ -40,6 +42,7 @@ function TestRun() {
   const [loading, setLoading] = useState(true);
   const [finishing, setFinishing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     const t = setInterval(() => setSeconds((s) => s + 1), 1000);
@@ -67,7 +70,7 @@ function TestRun() {
         if (sorted[0]) setQuestionStartedAt((prev) => ({ ...prev, [sorted[0].id]: Date.now() }));
       })
       .catch((e) => {
-        if (!cancelled) setError((e as Error).message);
+        if (!cancelled) setError(formatApiErrorMessage(e));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -75,7 +78,7 @@ function TestRun() {
     return () => {
       cancelled = true;
     };
-  }, [isBackendSuiteRoute, product.id, routeSuiteSlug]);
+  }, [isBackendSuiteRoute, product.id, routeSuiteSlug, reloadKey]);
 
   const q = useMemo(() => questions[idx], [questions, idx]);
   const total = questions.length;
@@ -170,15 +173,12 @@ function TestRun() {
 
   if (error || !q) {
     return (
-      <main className="min-h-screen flex flex-col items-center justify-center gap-4 text-muted-foreground px-6 text-center">
-        <p>{error ?? "未找到可作答的题目"}</p>
-        <Button
-          variant="outline"
-          onClick={() => nav({ to: "/tests/$id", params: { id: product.id } })}
-        >
-          返回测试详情
-        </Button>
-      </main>
+      <ApiErrorPanel
+        title={error ? "题目加载失败" : "未找到可作答的题目"}
+        message={error ?? "请返回测试详情页重新选择性别或兑换码。"}
+        onRetry={error ? () => setReloadKey((k) => k + 1) : undefined}
+        backTo={{ to: "/tests/$id", params: { id: product.id }, label: "返回测试详情" }}
+      />
     );
   }
 

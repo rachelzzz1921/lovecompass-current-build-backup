@@ -14,7 +14,7 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   });
   const payload = await res.json().catch(() => null);
   if (!res.ok) {
-    const message = payload?.message || payload?.error || `请求失败：${res.status}`;
+    const message = payload?.message || payload?.error || payload?.detail || `请求失败：${res.status}`;
     throw new Error(message);
   }
   return payload as T;

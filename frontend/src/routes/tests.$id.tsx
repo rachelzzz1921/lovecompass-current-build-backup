@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate, useParams } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useNavigate, useParams, useRouterState } from "@tanstack/react-router";
 import { motion } from "framer-motion";
 import { PRODUCTS } from "@/data/products";
 import { ArrowLeft, ArrowRight, Clock, Layers, Sparkles, Lock, ShieldCheck } from "lucide-react";
@@ -16,17 +16,20 @@ const ACCENT = {
 function TestEntry() {
   const { id } = useParams({ from: "/tests/$id" });
   const nav = useNavigate();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  if (pathname.endsWith("/run")) return <Outlet />;
   const product = PRODUCTS.find((p) => p.id === id) ?? PRODUCTS[0];
+  const routeSuiteSlug = id;
   const a = ACCENT[product.accent];
 
   const isFree = product.status === "free";
-  const hasAccess = typeof window !== "undefined" && sessionStorage.getItem(`access:${product.id}`) === "1";
+  const hasAccess = typeof window !== "undefined" && (sessionStorage.getItem(`access:${routeSuiteSlug}`) === "1" || sessionStorage.getItem(`access:${product.id}`) === "1");
 
   const start = () => {
     if (isFree || hasAccess) {
-      nav({ to: "/tests/$id/run", params: { id: product.id } });
+      nav({ to: "/tests/$id/run", params: { id: routeSuiteSlug } });
     } else {
-      nav({ to: "/access", search: { product: product.id } });
+      nav({ to: "/access", search: { product: product.id, redirect: `/tests/${routeSuiteSlug}/run` } });
     }
   };
 

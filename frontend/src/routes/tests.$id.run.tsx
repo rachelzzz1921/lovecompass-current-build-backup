@@ -25,6 +25,8 @@ function isAnswered(q: ApiQuestion | undefined, payload: AnswerPayload | undefin
 function TestRun() {
   const { id } = useParams({ from: "/tests/$id/run" });
   const product = PRODUCTS.find((p) => p.id === id) ?? PRODUCTS[0];
+  const routeSuiteSlug = id;
+  const isBackendSuiteRoute = routeSuiteSlug.includes("_");
   const nav = useNavigate();
 
   const [idx, setIdx] = useState(0);
@@ -47,8 +49,10 @@ function TestRun() {
     setLoading(true);
     setError(null);
     setIdx(0);
-    lovecompassApi
-      .getQuestions(product.id)
+      const storedSuiteSlug = typeof window !== "undefined" ? window.sessionStorage.getItem(`suite:${product.id}`) : null;
+      const suiteSlug = isBackendSuiteRoute ? routeSuiteSlug : (storedSuiteSlug || routeSuiteSlug);
+      lovecompassApi
+      .getQuestions(suiteSlug)
       .then((res) => {
         if (cancelled) return;
         const sorted = [...res.questions].sort((a, b) => a.order - b.order);
@@ -64,7 +68,7 @@ function TestRun() {
     return () => {
       cancelled = true;
     };
-  }, [product.id]);
+  }, [isBackendSuiteRoute, product.id, routeSuiteSlug]);
 
   const q = useMemo(() => questions[idx], [questions, idx]);
   const total = questions.length;
@@ -112,8 +116,10 @@ function TestRun() {
         answerPayload: answers[item.id],
         durationMs: durations[item.id],
       }));
-      const redemptionEventId = typeof window !== "undefined" ? window.sessionStorage.getItem(`redemption:${product.id}`) : null;
-      const res = await lovecompassApi.submitAttempt({ suiteSlug: product.id, redemptionEventId, answers: payload });
+      const storedSuiteSlug = typeof window !== "undefined" ? window.sessionStorage.getItem(`suite:${product.id}`) : null;
+      const suiteSlug = isBackendSuiteRoute ? routeSuiteSlug : (storedSuiteSlug || routeSuiteSlug);
+      const redemptionEventId = typeof window !== "undefined" ? (window.sessionStorage.getItem(`redemption:${suiteSlug}`) || window.sessionStorage.getItem(`redemption:${product.id}`)) : null;
+      const res = await lovecompassApi.submitAttempt({ suiteSlug, redemptionEventId, answers: payload });
       nav({ to: "/analyzing", search: { attemptId: res.attemptId } });
     } catch (e) {
       setFinishing(false);
@@ -138,7 +144,7 @@ function TestRun() {
     <main className="relative min-h-screen">
       <div className="relative z-10 max-w-2xl mx-auto px-5 md:px-6 pt-6 pb-24">
         <div className="flex items-center justify-between mb-5">
-          <Link to="/tests/$id" params={{ id: product.id }} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition">
+          <Link to="/tests/$id" params={{ id: routeSuiteSlug }} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition">
             <ArrowLeft className="h-3.5 w-3.5" /> 退出
           </Link>
           <span className="chip chip-violet font-mono">{product.code}</span>

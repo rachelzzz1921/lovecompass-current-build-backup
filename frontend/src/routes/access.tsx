@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { ArrowLeft, Lock, KeyRound, Sparkles, ShieldCheck, Mail } from "lucide-react";
 import { PRODUCTS } from "@/data/products";
-import { isValidAccessCode } from "@/data/accessCodes";
+import { lovecompassApi } from "@/lib/lovecompassApi";
 
 const SearchSchema = z.object({
   product: z.enum(["self", "ros", "mate"]).optional(),
@@ -24,67 +24,54 @@ export const Route = createFileRoute("/access")({
   component: AccessPage,
 });
 
-const LEN = 8;
+const CODE_MAX_LENGTH = 32;
+
+function normalizeCode(value: string) {
+  return value.trim().toUpperCase().replace(/\s+/g, "").slice(0, CODE_MAX_LENGTH);
+}
 
 function AccessPage() {
   const search = useSearch({ from: "/access" });
   const nav = useNavigate();
   const product = PRODUCTS.find((p) => p.id === search.product) ?? PRODUCTS[0];
-  const [chars, setChars] = useState<string[]>(Array(LEN).fill(""));
+  const [code, setCode] = useState("");
   const [verifying, setVerifying] = useState(false);
-  const refs = useRef<Array<HTMLInputElement | null>>([]);
+  const inputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
-    refs.current[0]?.focus();
+    inputRef.current?.focus();
   }, []);
 
-  const setAt = (i: number, v: string) => {
-    const next = [...chars];
-    next[i] = v.slice(-1).toUpperCase();
-    setChars(next);
-    if (v && i < LEN - 1) refs.current[i + 1]?.focus();
-  };
-
-  const onKey = (i: number, e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Backspace" && !chars[i] && i > 0) refs.current[i - 1]?.focus();
-    if (e.key === "ArrowLeft" && i > 0) refs.current[i - 1]?.focus();
-    if (e.key === "ArrowRight" && i < LEN - 1) refs.current[i + 1]?.focus();
-  };
-
-  const onPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
-    const text = e.clipboardData.getData("text").trim().toUpperCase().slice(0, LEN);
-    if (!text) return;
-    e.preventDefault();
-    const next = Array(LEN).fill("");
-    for (let i = 0; i < text.length; i++) next[i] = text[i];
-    setChars(next);
-    refs.current[Math.min(text.length, LEN - 1)]?.focus();
-  };
-
   const verify = async () => {
-    const code = chars.join("").trim();
-    if (code.length < 4) {
+    const normalized = normalizeCode(code);
+    if (normalized.length < 4) {
       toast.error("请输入完整的兑换码");
       return;
     }
     setVerifying(true);
-    await new Promise((r) => setTimeout(r, 700)); // 演示用：模拟校验
-    if (isValidAccessCode(code)) {
+    try {
+      const res = await lovecompassApi.verifyRedemption({ code: normalized, product: product.id });
+      const suiteSlug = res.suiteSlug || product.id;
+      sessionStorage.setItem(`access:${suiteSlug}`, "1");
       sessionStorage.setItem(`access:${product.id}`, "1");
+      sessionStorage.setItem(`suite:${product.id}`, suiteSlug);
+      if (res.redemptionEventId) {
+        sessionStorage.setItem(`redemption:${suiteSlug}`, res.redemptionEventId);
+        sessionStorage.setItem(`redemption:${product.id}`, res.redemptionEventId);
+      }
       toast.success("解锁成功，正在进入测试…");
-      const target = search.redirect ?? `/tests/${product.id}`;
-      // navigate to test entry/run
-      window.location.href = target;
-    } else {
+      const target = search.redirect ?? res.redirect ?? `/tests/${suiteSlug}/run`;
+      nav({ to: target });
+    } catch (e) {
       setVerifying(false);
-      toast.error("兑换码无效或已被使用");
-      setChars(Array(LEN).fill(""));
-      refs.current[0]?.focus();
+      toast.error((e as Error).message || "兑换码无效或已被使用");
+      setCode("");
+      inputRef.current?.focus();
     }
   };
 
-  const filled = chars.filter(Boolean).length;
-  const pct = Math.round((filled / LEN) * 100);
+  const filled = Math.min(normalizeCode(code).length, CODE_MAX_LENGTH);
+  const pct = Math.round((filled / CODE_MAX_LENGTH) * 100);
 
   return (
     <main className="relative min-h-screen flex items-center justify-center px-5 py-10">
@@ -119,41 +106,31 @@ function AccessPage() {
           </h1>
           <p className="text-sm text-muted-foreground mt-2">
             兑换码用于解锁 <span className="text-foreground/90">{product.title}</span>
-            。验证通过后可直接开始测试并获得 AI 分析师专属解读权限。
+            。验证通过后会绑定真实测试套件，并保留本次兑换事件用于答题提交。
           </p>
 
-          {/* OTP-style boxes */}
           <div className="mt-8">
             <div className="flex justify-between items-center mb-3">
               <span className="text-[10px] font-mono tracking-[0.3em] text-muted-foreground">
                 REDEEM CODE
               </span>
               <span className="text-[10px] font-mono text-muted-foreground tabular-nums">
-                {filled}/{LEN}
+                {filled}/{CODE_MAX_LENGTH}
               </span>
             </div>
-            <div className="flex gap-2 justify-between" onPaste={onPaste as never}>
-              {chars.map((c, i) => (
-                <input
-                  key={i}
-                  ref={(el) => { refs.current[i] = el; }}
-                  value={c}
-                  onChange={(e) => setAt(i, e.target.value)}
-                  onKeyDown={(e) => onKey(i, e)}
-                  onPaste={onPaste}
-                  inputMode="text"
-                  autoCapitalize="characters"
-                  maxLength={1}
-                  className={`w-full aspect-square max-w-[56px] rounded-xl text-center font-mono text-xl md:text-2xl uppercase
-                    bg-secondary/30 border transition-all outline-none caret-[oklch(0.82_0.14_200)]
-                    ${
-                      c
-                        ? "border-[oklch(0.68_0.18_285_/_0.7)] text-foreground glow-violet"
-                        : "border-border/60 text-foreground/70 focus:border-[oklch(0.82_0.14_200_/_0.7)] focus:glow-cyan"
-                    }`}
-                />
-              ))}
-            </div>
+            <input
+              ref={inputRef}
+              value={code}
+              onChange={(e) => setCode(normalizeCode(e.target.value))}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !verifying) void verify();
+              }}
+              inputMode="text"
+              autoCapitalize="characters"
+              maxLength={CODE_MAX_LENGTH}
+              placeholder="例如 LC-E2E-F-20260523"
+              className="w-full h-14 rounded-2xl px-4 text-center font-mono text-lg md:text-xl uppercase bg-secondary/30 border border-border/60 transition-all outline-none caret-[oklch(0.82_0.14_200)] focus:border-[oklch(0.82_0.14_200_/_0.7)] focus:glow-cyan placeholder:text-muted-foreground/45"
+            />
             <div className="mt-4 h-[3px] rounded-full bg-secondary/40 overflow-hidden">
               <motion.div
                 className="h-full bg-gradient-to-r from-[oklch(0.68_0.18_285)] to-[oklch(0.82_0.14_200)]"
@@ -187,7 +164,7 @@ function AccessPage() {
                 <span className="font-mono tracking-[0.2em]">SECURE</span>
               </div>
               <p className="text-foreground/80 leading-relaxed">
-                兑换码一码一用，验证记录加密保存。
+                兑换码会在后端真库校验，一次兑换会关联到本次作答记录。
               </p>
             </div>
             <div className="bg-secondary/30 rounded-xl border border-border/50 p-3">
@@ -202,9 +179,7 @@ function AccessPage() {
           </div>
 
           <p className="mt-6 text-center text-[11px] text-muted-foreground">
-            测试用兑换码示例：<span className="font-mono text-foreground/80">LOVE2026</span>
-            <span className="mx-1.5">·</span>
-            <span className="font-mono text-foreground/80">MATCH88</span>
+            当前页面已接入真实后端兑换码校验，测试码仅用于内部联调。
           </p>
         </motion.div>
       </div>

@@ -1,0 +1,4 @@
+batch_name,suite_slug,code,kind,max_uses,expires_at,is_active,note
+第一套通用码,s01_self_female,在这里填通用码A,common,999999,,true,同一用户同一测试仍只能兑换一次；换另一个码可重测
+第一套通用码,s01_self_male,在这里填通用码A,common,999999,,true,同一用户同一测试仍只能兑换一次；换另一个码可重测
+后续一客一码,s01_self_female,在这里填一客一码001,single_use,1,,true,小红书售卖后发放

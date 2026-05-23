@@ -1,0 +1,67 @@
+[1;37m{[m
+  [1;34m"defaultBranchRef"[m[1;37m:[m [1;37m{[m
+    [1;34m"name"[m[1;37m:[m [32m"main"[m
+  [1;37m}[m[1;37m,[m
+  [1;34m"description"[m[1;37m:[m [32m"Open Source Qualtrics Alternative"[m[1;37m,[m
+  [1;34m"homepageUrl"[m[1;37m:[m [32m"https://formbricks.com"[m[1;37m,[m
+  [1;34m"licenseInfo"[m[1;37m:[m [1;37m{[m
+    [1;34m"key"[m[1;37m:[m [32m"other"[m[1;37m,[m
+    [1;34m"name"[m[1;37m:[m [32m"Other"[m[1;37m,[m
+    [1;34m"nickname"[m[1;37m:[m [32m""[m
+  [1;37m}[m[1;37m,[m
+  [1;34m"nameWithOwner"[m[1;37m:[m [32m"formbricks/formbricks"[m[1;37m,[m
+  [1;34m"repositoryTopics"[m[1;37m:[m [1;37m[[m
+    [1;37m{[m
+      [1;34m"name"[m[1;37m:[m [32m"forms"[m
+    [1;37m}[m[1;37m,[m
+    [1;37m{[m
+      [1;34m"name"[m[1;37m:[m [32m"survey"[m
+    [1;37m}[m[1;37m,[m
+    [1;37m{[m
+      [1;34m"name"[m[1;37m:[m [32m"typescript"[m
+    [1;37m}[m[1;37m,[m
+    [1;37m{[m
+      [1;34m"name"[m[1;37m:[m [32m"nextjs"[m
+    [1;37m}[m[1;37m,[m
+    [1;37m{[m
+      [1;34m"name"[m[1;37m:[m [32m"react"[m
+    [1;37m}[m[1;37m,[m
+    [1;37m{[m
+      [1;34m"name"[m[1;37m:[m [32m"tailwindcss"[m
+    [1;37m}[m[1;37m,[m
+    [1;37m{[m
+      [1;34m"name"[m[1;37m:[m [32m"form"[m
+    [1;37m}[m[1;37m,[m
+    [1;37m{[m
+      [1;34m"name"[m[1;37m:[m [32m"reactjs"[m
+    [1;37m}[m[1;37m,[m
+    [1;37m{[m
+      [1;34m"name"[m[1;37m:[m [32m"survey-analysis"[m
+    [1;37m}[m[1;37m,[m
+    [1;37m{[m
+      [1;34m"name"[m[1;37m:[m [32m"survey-data"[m
+    [1;37m}[m[1;37m,[m
+    [1;37m{[m
+      [1;34m"name"[m[1;37m:[m [32m"survey-form"[m
+    [1;37m}[m[1;37m,[m
+    [1;37m{[m
+      [1;34m"name"[m[1;37m:[m [32m"surveys"[m
+    [1;37m}[m[1;37m,[m
+    [1;37m{[m
+      [1;34m"name"[m[1;37m:[m [32m"typeform"[m
+    [1;37m}[m[1;37m,[m
+    [1;37m{[m
+      [1;34m"name"[m[1;37m:[m [32m"turborepo"[m
+    [1;37m}[m[1;37m,[m
+    [1;37m{[m
+      [1;34m"name"[m[1;37m:[m [32m"xm"[m
+    [1;37m}[m[1;37m,[m
+    [1;37m{[m
+      [1;34m"name"[m[1;37m:[m [32m"open-source"[m
+    [1;37m}[m[1;37m,[m
+    [1;37m{[m
+      [1;34m"name"[m[1;37m:[m [32m"experience-management"[m
+    [1;37m}[m
+  [1;37m][m[1;37m,[m
+  [1;34m"url"[m[1;37m:[m [32m"https://github.com/formbricks/formbricks"[m
+[1;37m}[m

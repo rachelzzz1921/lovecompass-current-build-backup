@@ -1,0 +1,92 @@
+# LoveCompass 本轮交付说明
+
+作者：**Manus AI**  
+日期：2026-05-23
+
+## 一、交付概览
+
+本轮已在 Lovable 前端现有设计基础上完成关键的**题型匹配契约、真实 `attemptId` 流程、结果页与聊天页跳转关系修复**，并在 `/home/ubuntu/lovecompass_backend` 中搭建了独立 FastAPI 后端 API 骨架。前端已通过构建校验，后端 Python 代码已通过编译校验，说明当前改动在语法与构建层面可继续推进到真实数据库联调。
+
+| 模块 | 本轮状态 | 关键产物 |
+|---|---:|---|
+| 题型契约 | 已冻结设计并落入前端类型/渲染器 | `/home/ubuntu/LoveCompass_前端题型契约与跳转修复方案.md`、`src/lib/questionTypes.ts` |
+| 答题页 | 已从 mock 题目切换为后端 API 加载并提交 | `src/routes/tests.$id.run.tsx` |
+| 分析页 | 已支持真实 `attemptId` 优先跳转 | `src/routes/analyzing.tsx` |
+| 结果页 | 已改为统一 API 客户端读取结果，并增加带上下文聊天入口 | `src/routes/result.$attemptId.tsx` |
+| 聊天页 | 已支持 `attemptId` 与 `analystId` 查询参数 | `src/routes/chat.tsx` |
+| 历史页 | 已修正结果/聊天跳转，避免上下文丢失 | `src/routes/history.tsx` |
+| 后端 API | 已搭建 FastAPI 骨架并对齐数据库迁移表 | `/home/ubuntu/lovecompass_backend/app/`、`README_API.md` |
+| 校验 | 已通过 | `python3.11 -m py_compile app/*.py`、`npm run build` |
+
+## 二、题型匹配与前端渲染
+
+我已按题库实际出现的 `type` 范围整理前端呈现策略，核心原则是：**后端返回稳定的题型 UI 契约，前端只负责把题自然地匹配到 Lovable 已设计好的展示模式**。这样不会把评分细节暴露给浏览器，也不会让每一种题型都散落在页面逻辑中。
+
+| 题库类型 | 前端统一 `kind` | Lovable 呈现模式 | 说明 |
+|---|---|---|---|
+| `choice`、`scenario` | `choice` | 列表单选/情境单选 | 保留场景文案和选项 key，但隐藏评分 |
+| `likert`、`scale` | `scale` | 量表选择 | 支持最小/最大值、步长和两端标签 |
+| `slider` | `slider` | 拖动滑杆 | 支持反馈文案与范围配置 |
+| `binary` | `binary` | 双选按钮 | 用于是/否、A/B 倾向题 |
+| `card` | `card` | 卡片式选择 | 用于更视觉化的选项组 |
+| `mood` | `mood` | 情绪网格 | 用于情绪、状态、感受类题目 |
+| `rank` | `rank` | 排序列表 | 暂以点击轮转顺序实现，后续可升级为拖拽排序 |
+
+相关前端文件已经建立为：`src/lib/questionTypes.ts`、`src/components/QuestionRenderer.tsx` 与统一 API 客户端 `src/lib/lovecompassApi.ts`。其中 `QuestionRenderer` 是后续继续扩展题型呈现的主入口。
+
+## 三、跳转关系修复
+
+本轮重点把 Lovable 原有较松散的跳转链路整理成围绕真实 `attemptId` 的闭环。现在用户从兑换码、答题、分析、结果、聊天到历史页之间的主要关系如下。
+
+| 起点 | 目标 | 当前行为 |
+|---|---|---|
+| 测试详情页 | 兑换码页或答题页 | 保留原入口逻辑，后续由兑换码校验返回 suite 与 redemptionEventId |
+| 答题页 | 分析页 | 提交答案后由后端返回真实 `attemptId`，前端进入 `/analyzing?attemptId=...` |
+| 分析页 | 真实结果页 | 如果存在 `attemptId`，优先跳转 `/result/$attemptId`；没有时保留 demo fallback |
+| 结果页 | AI 分析师 | 新增“和分析师聊聊”，跳转 `/chat?attemptId=...&analystId=mirror` |
+| 历史页 | 结果页/聊天页 | 未锁定记录使用 `attemptId` 链接真实结果页；聊天同样携带上下文 |
+| 聊天页 | AI 对话 API | 读取 `attemptId` 与 `analystId`，发送消息时传给后端 |
+
+这使得“用户刚做完哪一套题、当前结果是哪一次 attempt、聊天分析师应该读取哪份画像”这三个上下文不再断裂。
+
+## 四、后端 API 骨架
+
+后端新增 FastAPI 服务位于 `/home/ubuntu/lovecompass_backend/app/`，已对齐现有 Supabase/PostgreSQL 数据库迁移中的核心表：`test_suites`、`test_questions`、`redemption_codes`、`redemption_events`、`test_attempts`、`test_attempt_answers` 与聊天相关表。
+
+| 方法 | 路径 | 用途 | 前端对应 |
+|---|---|---|---|
+| `GET` | `/health` | 健康检查 | 部署检查 |
+| `GET` | `/tests/{suite_slug}/questions` | 返回过滤评分后的题目 UI 契约 | 答题页加载题库 |
+| `POST` | `/redemption/verify` | 验证兑换码并返回 `redemptionEventId` | 兑换码页 |
+| `POST` | `/attempts` | 保存答案、写入 attempt、生成基础评分 | 答题页提交 |
+| `GET` | `/attempts/{attempt_id}/result` | 读取结果页所需画像数据 | 结果页 |
+| `POST` | `/chat/message` | 预留 AI 分析师对话入口 | 聊天页 |
+
+启动说明已写入 `/home/ubuntu/lovecompass_backend/README_API.md`。本地联调时需要设置：
+
+```bash
+DATABASE_URL='已脱敏的 PostgreSQL 环境变量' uvicorn app.main:app --reload --port 8000
+```
+
+前端则通过环境变量连接：
+
+```bash
+VITE_LOVECOMPASS_API_BASE_URL=http://localhost:8000
+```
+
+## 五、校验结果
+
+本轮完成后已经执行以下校验。
+
+| 校验项 | 命令 | 结果 |
+|---|---|---:|
+| 后端 Python 语法编译 | `python3.11 -m py_compile app/*.py` | 通过 |
+| 前端生产构建 | `npm run build` | 通过 |
+
+前端构建输出显示 Vite/TanStack Start 产物已正常生成，最新一次构建结束状态为 `✓ built`。
+
+## 六、下一步建议
+
+下一步应进入真实数据库联调与业务细化。首先需要配置 `DATABASE_URL`，导入已生成的题库 SQL 与基础 seed，然后用真实兑换码完成一次端到端流程：兑换码验证、题目加载、提交答案、读取结果、进入聊天。其次，当前后端评分函数是可运行的基础版，已经将答案写入 `test_attempt_answers` 并生成维度均值，但还应继续把正式 ROS/RK 公式、原型匹配和 AI 报告生成任务接入 `scoring_models` 与 `ai_result_reports`。最后，聊天接口目前是上下文预留与占位回复，后续可以接入 OpenAI-compatible 模型，并将 `chat_sessions` 与 `chat_messages` 真正落库。
+
+需要特别注意的是，当前 `LOVECOMPASS_DEMO_USER_ID` 默认值只是开发占位；接入 Supabase Auth 后，应由鉴权中间件从用户 token 解析真实 `user_id`，避免生产环境使用固定用户。

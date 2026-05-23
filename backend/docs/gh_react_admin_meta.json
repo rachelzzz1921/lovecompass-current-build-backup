@@ -1,0 +1,52 @@
+[1;37m{[m
+  [1;34m"defaultBranchRef"[m[1;37m:[m [1;37m{[m
+    [1;34m"name"[m[1;37m:[m [32m"master"[m
+  [1;37m}[m[1;37m,[m
+  [1;34m"description"[m[1;37m:[m [32m"A frontend Framework for single-page applications on top of REST/GraphQL APIs, using TypeScript, React and Material Design"[m[1;37m,[m
+  [1;34m"homepageUrl"[m[1;37m:[m [32m"http://marmelab.com/react-admin"[m[1;37m,[m
+  [1;34m"licenseInfo"[m[1;37m:[m [1;37m{[m
+    [1;34m"key"[m[1;37m:[m [32m"mit"[m[1;37m,[m
+    [1;34m"name"[m[1;37m:[m [32m"MIT License"[m[1;37m,[m
+    [1;34m"nickname"[m[1;37m:[m [32m""[m
+  [1;37m}[m[1;37m,[m
+  [1;34m"nameWithOwner"[m[1;37m:[m [32m"marmelab/react-admin"[m[1;37m,[m
+  [1;34m"repositoryTopics"[m[1;37m:[m [1;37m[[m
+    [1;37m{[m
+      [1;34m"name"[m[1;37m:[m [32m"material-ui"[m
+    [1;37m}[m[1;37m,[m
+    [1;37m{[m
+      [1;34m"name"[m[1;37m:[m [32m"react"[m
+    [1;37m}[m[1;37m,[m
+    [1;37m{[m
+      [1;34m"name"[m[1;37m:[m [32m"frontend-framework"[m
+    [1;37m}[m[1;37m,[m
+    [1;37m{[m
+      [1;34m"name"[m[1;37m:[m [32m"rest"[m
+    [1;37m}[m[1;37m,[m
+    [1;37m{[m
+      [1;34m"name"[m[1;37m:[m [32m"admin"[m
+    [1;37m}[m[1;37m,[m
+    [1;37m{[m
+      [1;34m"name"[m[1;37m:[m [32m"admin-dashboard"[m
+    [1;37m}[m[1;37m,[m
+    [1;37m{[m
+      [1;34m"name"[m[1;37m:[m [32m"single-page-app"[m
+    [1;37m}[m[1;37m,[m
+    [1;37m{[m
+      [1;34m"name"[m[1;37m:[m [32m"admin-on-rest"[m
+    [1;37m}[m[1;37m,[m
+    [1;37m{[m
+      [1;34m"name"[m[1;37m:[m [32m"react-admin"[m
+    [1;37m}[m[1;37m,[m
+    [1;37m{[m
+      [1;34m"name"[m[1;37m:[m [32m"reactjs"[m
+    [1;37m}[m[1;37m,[m
+    [1;37m{[m
+      [1;34m"name"[m[1;37m:[m [32m"admin-ui"[m
+    [1;37m}[m[1;37m,[m
+    [1;37m{[m
+      [1;34m"name"[m[1;37m:[m [32m"graphql"[m
+    [1;37m}[m
+  [1;37m][m[1;37m,[m
+  [1;34m"url"[m[1;37m:[m [32m"https://github.com/marmelab/react-admin"[m
+[1;37m}[m

@@ -1,0 +1,675 @@
+{
+  "suite": {
+    "id": "S01_SELF_MALE",
+    "name": "自我关系模式测试",
+    "gender": "male",
+    "version": "1.0",
+    "total_questions": 50,
+    "estimated_minutes": 12,
+    "is_free": true,
+    "dimensions": ["SA1","SA2","SA3","SA4","SA5","SA6"],
+    "result_types": ["贾探春","贾宝玉","柳湘莲","贾雨村","北静王","蒋玉菡"],
+    "question_types_used": ["choice","scale","slider","mood","rank","binary","card","scenario"]
+  },
+
+  "scoring_formula": {
+    "SA1": {
+      "label": "自我吸引感知",
+      "direction": "positive",
+      "formula": "weighted_avg * 20",
+      "weights": {"SA1-M-01":1.2,"SA1-M-02":1.5,"SA1-M-03":1.0,"SA1-M-04":1.2,"SA1-M-05":1.0,"SA1-M-06":1.2},
+      "weight_sum": 7.1
+    },
+    "SA2": {
+      "label": "依恋焦虑",
+      "direction": "reverse",
+      "formula": "weighted_avg * 20",
+      "weights": {"SA2-M-07":1.5,"SA2-M-08":1.5,"SA2-M-09":1.2,"SA2-M-10":1.5,"SA2-M-11":1.2,"SA2-M-12":1.0,"SA2-M-13":1.5,"SA2-M-14":1.5,"SA2-M-15":1.5,"SA2-M-16":1.2},
+      "weight_sum": 13.6
+    },
+    "SA3": {
+      "label": "依恋回避",
+      "direction": "reverse",
+      "formula": "weighted_avg * 20",
+      "weights": {"SA3-M-17":1.5,"SA3-M-18":1.5,"SA3-M-19":1.5,"SA3-M-20":1.2,"SA3-M-21":1.2,"SA3-M-22":1.2,"SA3-M-23":1.0,"SA3-M-24":1.0},
+      "weight_sum": 10.1
+    },
+    "SA4": {
+      "label": "自我边界",
+      "direction": "positive",
+      "formula": "weighted_avg * 20",
+      "weights": {"SA4-M-25":1.5,"SA4-M-26":1.5,"SA4-M-27":1.5,"SA4-M-28":1.2,"SA4-M-29":1.5,"SA4-M-30":1.5,"SA4-M-31":1.2,"SA4-M-32":1.2},
+      "weight_sum": 11.1
+    },
+    "SA5": {
+      "label": "情绪调节",
+      "direction": "positive",
+      "formula": "weighted_avg * 20",
+      "weights": {"SA5-M-33":1.5,"SA5-M-34":1.5,"SA5-M-35":1.5,"SA5-M-36":1.2,"SA5-M-37":1.2,"SA5-M-38":1.2,"SA5-M-39":1.5,"SA5-M-40":1.2,"SA5-M-41":1.5},
+      "weight_sum": 12.3
+    },
+    "SA6": {
+      "label": "关系投入模式",
+      "direction": "positive",
+      "formula": "weighted_avg * 20",
+      "weights": {"SA6-M-43":1.5,"SA6-M-44":1.5,"SA6-M-45":1.5,"SA6-M-47":1.5,"SA6-M-48":1.5,"SA6-M-49":1.0},
+      "weight_sum": 8.5,
+      "auxiliary_questions": ["SA6-M-42","SA6-M-46","SA6-M-50"]
+    }
+  },
+
+  "type_rules": {
+    "primary": [
+      {"condition": "SA2 < 45 && SA3 < 45", "type": "贾雨村", "attachment": "混合型"},
+      {"condition": "SA2 < 45 && SA3 >= 60", "type": "贾宝玉", "attachment": "焦虑型"},
+      {"condition": "SA2 >= 60 && SA3 < 45", "type": "柳湘莲", "attachment": "回避型"},
+      {"condition": "SA2 >= 60 && SA3 >= 60", "type": "贾探春", "attachment": "安全型"}
+    ],
+    "override": [
+      {"condition": "SA1 < 40", "type": "蒋玉菡", "note": "低自我高投入修正，优先级高于primary"},
+      {"condition": "SA4 >= 80 && primary_type == '贾探春'", "type": "北静王", "note": "高边界安全修正"}
+    ],
+    "grey_zone": {
+      "note": "SA2或SA3在45-60之间为灰色地带，保留primary类型但在报告中注明临界状态"
+    }
+  },
+
+  "result_profiles": {
+    "贾探春": {
+      "attachment_type": "安全型",
+      "tagline": "你在感情里有一种天然的清醒",
+      "description": "你在感情里有一种天然的清醒。不将就、不消耗自己、懂得进退。你给的爱是有质量的——因为你从不从匮乏里给出去。",
+      "matching_logic": "清醒独立、有原则、不轻易依赖但真心投入、感情里的清醒者",
+      "radar_baseline": {"SA1":72,"SA2":75,"SA3":70,"SA4":78,"SA5":74,"SA6":68}
+    },
+    "贾宝玉": {
+      "attachment_type": "焦虑型",
+      "tagline": "你是感情里最用心的那种人",
+      "description": "你是感情里最用心的那种人。在意每一个细节，记得每一句话。你的情感浓度是别人给不了的——只是你值得一个同样认真的人。",
+      "matching_logic": "情感浓烈、在意细节、害怕失去、记得每一句话的人",
+      "radar_baseline": {"SA1":58,"SA2":35,"SA3":65,"SA4":52,"SA5":48,"SA6":62}
+    },
+    "柳湘莲": {
+      "attachment_type": "回避型",
+      "tagline": "你的独立是一种骨气，不是冷漠",
+      "description": "你的独立是一种骨气，不是冷漠。你不轻易动心，是因为你对感情有真正的标准。一旦你认定，就是全力以赴——只是这个人要配得上你的认定。",
+      "matching_logic": "独来独往、不轻易动情、骨子里重情义、一旦受伤彻底消失",
+      "radar_baseline": {"SA1":68,"SA2":72,"SA3":28,"SA4":74,"SA5":60,"SA6":55}
+    },
+    "贾雨村": {
+      "attachment_type": "混合型",
+      "tagline": "你的复杂是深度，不是问题",
+      "description": "你的复杂是深度，不是问题。你在感情里有很多面，时而投入时而抽离——那是因为你在真实地和自己相处。懂你的人，会爱上你的所有层次。",
+      "matching_logic": "入世又抽离、多面复杂、感情里有很多层、懂他的人才能爱上他的全部",
+      "radar_baseline": {"SA1":60,"SA2":42,"SA3":42,"SA4":55,"SA5":52,"SA6":58}
+    },
+    "北静王": {
+      "attachment_type": "高边界安全型",
+      "tagline": "你有一种天然的分寸感",
+      "description": "你有一种天然的分寸感。亲密而不失自我，投入但保持清醒。你不是不能爱，你只是不会为了爱而降低标准。这是成熟，不是距离。",
+      "matching_logic": "有分寸感、亲密而不失自我、投入但保持清醒、成熟不是距离",
+      "radar_baseline": {"SA1":75,"SA2":78,"SA3":72,"SA4":88,"SA5":76,"SA6":65}
+    },
+    "蒋玉菡": {
+      "attachment_type": "低自我高投入型",
+      "tagline": "你的深情是你最大的财富",
+      "description": "你的深情是你最大的财富。你爱起来是全心全意的，没有保留。你给的温柔是真实的重量，不是表演——只是别忘了，你自己也值得被这样对待。",
+      "matching_logic": "深情无保留、全心全意、温柔有重量、只是别忘了自己也值得被这样对待",
+      "radar_baseline": {"SA1":32,"SA2":38,"SA3":60,"SA4":35,"SA5":55,"SA6":45}
+    }
+  },
+
+  "questions": [
+    {
+      "id": "SA1-M-01", "order": 1, "dimension": "SA1",
+      "type": "binary", "weight": 1.2, "direction": "positive",
+      "text": "喜欢一个人，但不确定她对你什么感觉。你更倾向于？",
+      "options": [
+        {"key": "left",  "text": "主动出击，表明态度", "sub": "反正输了也知道结果", "score": 4},
+        {"key": "right", "text": "观察等待，找准时机", "sub": "冒然行动容易搞砸",   "score": 2}
+      ]
+    },
+    {
+      "id": "SA1-M-02", "order": 2, "dimension": "SA1",
+      "type": "choice", "weight": 1.5, "direction": "positive",
+      "text": "你喜欢的女生突然冷淡了，消息回得很慢。你脑子里第一个念头是？",
+      "options": [
+        {"key": "A", "text": "是不是我最近哪里做得不对",           "sub": "先检讨自己",        "score": 1},
+        {"key": "B", "text": "她可能有事，但我有点不安",           "sub": "理性但有情绪",      "score": 2},
+        {"key": "C", "text": "她的状态跟我没直接关系，观察一下",   "sub": "能区分事件和自我",  "score": 4},
+        {"key": "D", "text": "她不珍惜是她的事，我该干嘛干嘛",     "sub": "自我价值感稳定",    "score": 5}
+      ]
+    },
+    {
+      "id": "SA1-M-03", "order": 3, "dimension": "SA1",
+      "type": "slider", "weight": 1.0, "direction": "positive",
+      "text": "走进一个全是陌生人的场合，你的内心状态是？",
+      "slider": {
+        "min": 0, "max": 100,
+        "min_label": "我会很在意别人怎么看我",
+        "max_label": "我对自己的状态很笃定",
+        "feedback": [
+          {"range": [0,20],   "text": "陌生场合让你高度警觉"},
+          {"range": [21,40],  "text": "需要一点时间才能找到状态"},
+          {"range": [41,60],  "text": "看情况，有时自信有时不确定"},
+          {"range": [61,80],  "text": "通常能稳住自己"},
+          {"range": [81,100], "text": "你不需要别人的眼光来定位自己"}
+        ]
+      },
+      "scoring": {"method": "slider_to_5", "formula": "value / 100 * 5"}
+    },
+    {
+      "id": "SA1-M-04", "order": 4, "dimension": "SA1",
+      "type": "card", "weight": 1.2, "direction": "positive",
+      "text": "哥们告诉你，你前女友最近过得很好，新男友比你条件好很多。你的真实反应更接近哪张？",
+      "options": [
+        {"key": "A", "text": "有点难受，脑子里开始比较",   "sub": "感觉自己差了一截",  "score": 1},
+        {"key": "B", "text": "有点在意，但没影响心情太久", "sub": "想了一下，过去了",    "score": 3},
+        {"key": "C", "text": "替她高兴，跟我没什么关系了", "sub": "各走各的路",          "score": 4},
+        {"key": "D", "text": "那有什么，我也在往前走",     "sub": "自己的事更重要",      "score": 5}
+      ]
+    },
+    {
+      "id": "SA1-M-05", "order": 5, "dimension": "SA1",
+      "type": "scale", "weight": 1.0, "direction": "positive",
+      "text": "你相信自己对女生有真实的吸引力，不只是靠外表，也来自你这个人本身。",
+      "scale": {"min": 1, "max": 5, "min_label": "完全不信", "max_label": "非常确信"},
+      "scoring": {"method": "direct"}
+    },
+    {
+      "id": "SA1-M-06", "order": 6, "dimension": "SA1",
+      "type": "binary", "weight": 1.2, "direction": "positive",
+      "text": "被拒绝过一次之后，你对下一段感情的态度是？",
+      "options": [
+        {"key": "left",  "text": "该上就上，拒绝是正常的", "sub": "失败了再试",          "score": 5},
+        {"key": "right", "text": "会更谨慎，不想再被动",   "sub": "先确认信号再行动",    "score": 2}
+      ]
+    },
+    {
+      "id": "SA2-M-07", "order": 7, "dimension": "SA2",
+      "type": "mood", "weight": 1.5, "direction": "reverse",
+      "text": "发了条消息给她，两个小时没回。你的状态最接近？",
+      "options": [
+        {"key": "A", "icon": "ti-mood-smile",    "text": "没事，她可能在忙",           "score": 5},
+        {"key": "B", "icon": "ti-mood-confuzed", "text": "有点奇怪，但没多想",         "score": 4},
+        {"key": "C", "icon": "ti-mood-nervous",  "text": "开始回想最近有没有得罪她",   "score": 2},
+        {"key": "D", "icon": "ti-mood-sad",      "text": "有点被晾着的感觉",           "score": 3},
+        {"key": "E", "icon": "ti-mood-angry",    "text": "有点烦，觉得她不够重视",     "score": 3},
+        {"key": "F", "icon": "ti-mood-suprised", "text": "去翻她最近有没有发朋友圈",   "score": 1},
+        {"key": "G", "icon": "ti-mood-empty",    "text": "开始想最坏的情况",           "score": 1},
+        {"key": "H", "icon": "ti-mood-tongue",   "text": "随便，去干别的了",           "score": 5}
+      ]
+    },
+    {
+      "id": "SA2-M-08", "order": 8, "dimension": "SA2",
+      "type": "binary", "weight": 1.5, "direction": "reverse",
+      "text": "你们约好见面，她临时说有事取消。你的处理方式？",
+      "options": [
+        {"key": "left",  "text": "好的，改天再约", "sub": "没放心上",          "score": 5},
+        {"key": "right", "text": "追问一下是什么事", "sub": "需要知道原因才安心","score": 2}
+      ]
+    },
+    {
+      "id": "SA2-M-09", "order": 9, "dimension": "SA2",
+      "type": "scale", "weight": 1.2, "direction": "reverse",
+      "text": "当她一段时间没主动联系我，我会开始担心她是不是对我没兴趣了。",
+      "scale": {"min": 1, "max": 5, "min_label": "从不", "max_label": "总是"},
+      "scoring": {"method": "reverse", "formula": "6 - value"}
+    },
+    {
+      "id": "SA2-M-10", "order": 10, "dimension": "SA2",
+      "type": "scenario", "weight": 1.5, "direction": "reverse",
+      "text": "你们在一起两个月，关系不错。有天你刷到她跟一个你不认识的男生合照，底下还有几条互动评论。她没主动提起过这个人。你会怎么做？",
+      "scene": "关系稳定期，突然发现未知社交",
+      "options": [
+        {"key": "A", "text": "没什么大不了，她有自己的社交",       "sub": "低焦虑，边界清晰","score": 5},
+        {"key": "B", "text": "心里有点在意，但不会表现出来",       "sub": "轻微焦虑，能消化","score": 4},
+        {"key": "C", "text": "找个机会自然地问一下她是谁",         "sub": "中等焦虑，有行动","score": 3},
+        {"key": "D", "text": "直接问她这个人是谁，什么关系",       "sub": "高焦虑，需要确认","score": 1}
+      ]
+    },
+    {
+      "id": "SA2-M-11", "order": 11, "dimension": "SA2",
+      "type": "slider", "weight": 1.2, "direction": "reverse",
+      "text": "你需要多高频率的主动联系才能在关系里感到安心？",
+      "slider": {
+        "min": 0, "max": 100,
+        "min_label": "有她就够了，不需要频繁联系",
+        "max_label": "需要每天高频互动才放心",
+        "feedback": [
+          {"range": [0,20],   "text": "你在关系里安全感很强"},
+          {"range": [21,40],  "text": "偶尔需要确认，但不依赖"},
+          {"range": [41,60],  "text": "中等需求，取决于关系质量"},
+          {"range": [61,80],  "text": "比较依赖稳定的联系"},
+          {"range": [81,100], "text": "频繁互动是你的安全感来源"}
+        ]
+      },
+      "scoring": {"method": "reverse_slider", "formula": "(100 - value) / 100 * 5"}
+    },
+    {
+      "id": "SA2-M-12", "order": 12, "dimension": "SA2",
+      "type": "choice", "weight": 1.0, "direction": "reverse",
+      "text": "她说今晚要和闺蜜出去，可能很晚，叫你不用等她。你的反应？",
+      "options": [
+        {"key": "A", "text": "好啊，我也去做自己的事",             "sub": "低焦虑，独立感强",  "score": 5},
+        {"key": "B", "text": "有点想她，但理解，等她回来再聊",     "sub": "健康依恋",          "score": 4},
+        {"key": "C", "text": "嘴上说好，但心里有点空",             "sub": "焦虑在低鸣",        "score": 2},
+        {"key": "D", "text": "开始想她跟谁出去，玩什么",           "sub": "焦虑带控制倾向",    "score": 1}
+      ]
+    },
+    {
+      "id": "SA2-M-13", "order": 13, "dimension": "SA2",
+      "type": "scale", "weight": 1.5, "direction": "reverse",
+      "text": "我有时候为了不让她不高兴，会压着自己真实的想法不说。",
+      "scale": {"min": 1, "max": 5, "min_label": "从不", "max_label": "经常"},
+      "scoring": {"method": "reverse", "formula": "6 - value"}
+    },
+    {
+      "id": "SA2-M-14", "order": 14, "dimension": "SA2",
+      "type": "scenario", "weight": 1.5, "direction": "reverse",
+      "text": "你们吵架了，她说需要冷静，今晚不想说话。消息已读不回，头像也没动静。距离她说这句话已经过了三个小时。你现在怎么做？",
+      "scene": "冷战三小时，对方无动静",
+      "options": [
+        {"key": "A", "text": "给她时间，我去做自己的事",           "sub": "低焦虑，尊重边界",  "score": 5},
+        {"key": "B", "text": "忍着，但一直在看手机",               "sub": "中高焦虑，表面克制","score": 3},
+        {"key": "C", "text": "发一条消息确认她还好",               "sub": "高焦虑，难以等待",  "score": 2},
+        {"key": "D", "text": "越想越不对，开始担心是不是要分",     "sub": "极高焦虑，灾难化",  "score": 1}
+      ]
+    },
+    {
+      "id": "SA2-M-15", "order": 15, "dimension": "SA2",
+      "type": "scale", "weight": 1.5, "direction": "reverse",
+      "text": "在关系里，我需要她频繁确认感情，才能真正安心。",
+      "scale": {"min": 1, "max": 5, "min_label": "完全不符合", "max_label": "完全符合"},
+      "scoring": {"method": "reverse", "formula": "6 - value"}
+    },
+    {
+      "id": "SA2-M-16", "order": 16, "dimension": "SA2",
+      "type": "mood", "weight": 1.2, "direction": "reverse",
+      "text": "她发了条朋友圈，你点了赞，她没有回应。你的感受？",
+      "options": [
+        {"key": "A", "icon": "ti-mood-smile",    "text": "没想那么多",                 "score": 5},
+        {"key": "B", "icon": "ti-mood-confuzed", "text": "稍微注意到了，没放心上",     "score": 4},
+        {"key": "C", "icon": "ti-mood-nervous",  "text": "有点在意，想着要不要说什么", "score": 3},
+        {"key": "D", "icon": "ti-mood-sad",      "text": "有点失落，感觉被忽视",       "score": 2},
+        {"key": "E", "icon": "ti-mood-empty",    "text": "开始想她是不是不想理我",     "score": 1},
+        {"key": "F", "icon": "ti-mood-angry",    "text": "有点不爽，觉得她不重视我",   "score": 2},
+        {"key": "G", "icon": "ti-mood-happy",    "text": "无所谓，我又不是专门为她点的","score": 5},
+        {"key": "H", "icon": "ti-mood-tongue",   "text": "根本没注意",                 "score": 5}
+      ]
+    },
+    {
+      "id": "SA3-M-17", "order": 17, "dimension": "SA3",
+      "type": "choice", "weight": 1.5, "direction": "reverse",
+      "text": "你们在一起三个月，她说想每天睡前通话。你的第一感受？",
+      "options": [
+        {"key": "A", "text": "挺好的，我也喜欢这样",               "sub": "低回避",            "score": 5},
+        {"key": "B", "text": "可以试试，看看适不适合",             "sub": "中低回避",          "score": 4},
+        {"key": "C", "text": "有点压力，但不好意思说",             "sub": "中高回避",          "score": 2},
+        {"key": "D", "text": "觉得有点喘不过气，想保留空间",       "sub": "高回避",            "score": 1}
+      ]
+    },
+    {
+      "id": "SA3-M-18", "order": 18, "dimension": "SA3",
+      "type": "binary", "weight": 1.5, "direction": "reverse",
+      "text": "她第一次跟你说「我爱你」，你的本能反应更接近？",
+      "options": [
+        {"key": "left",  "text": "心里暖，自然地回了她", "sub": "亲密感舒适",        "score": 5},
+        {"key": "right", "text": "有点懵，说不出口，笑了笑", "sub": "亲密感触发不适", "score": 1}
+      ]
+    },
+    {
+      "id": "SA3-M-19", "order": 19, "dimension": "SA3",
+      "type": "scale", "weight": 1.5, "direction": "reverse",
+      "text": "当关系越来越亲密，她对我有很强的情感需求时，我会有一种想要后退的冲动。",
+      "scale": {"min": 1, "max": 5, "min_label": "从不", "max_label": "经常"},
+      "scoring": {"method": "reverse", "formula": "6 - value"}
+    },
+    {
+      "id": "SA3-M-20", "order": 20, "dimension": "SA3",
+      "type": "card", "weight": 1.2, "direction": "reverse",
+      "text": "她情绪很差，发消息说很难受，需要你陪她聊聊。你的内心感受更接近哪张？",
+      "options": [
+        {"key": "A", "text": "当然，马上回她",               "sub": "情感可及",          "score": 5},
+        {"key": "B", "text": "愿意陪，但不太知道说什么好",   "sub": "有心无力",          "score": 4},
+        {"key": "C", "text": "有点不知所措，感觉有压力",     "sub": "情感负担感",        "score": 3},
+        {"key": "D", "text": "有点烦，觉得她太依赖我了",     "sub": "高回避",            "score": 1}
+      ]
+    },
+    {
+      "id": "SA3-M-21", "order": 21, "dimension": "SA3",
+      "type": "slider", "weight": 1.2, "direction": "reverse",
+      "text": "在一段关系里，你愿意让她了解你多少？",
+      "slider": {
+        "min": 0, "max": 100,
+        "min_label": "我更愿意保留自己的私人世界",
+        "max_label": "我愿意完全敞开自己",
+        "feedback": [
+          {"range": [0,20],   "text": "需要很强的安全感才会打开"},
+          {"range": [21,40],  "text": "会有选择地分享，留有保留"},
+          {"range": [41,60],  "text": "愿意分享，但某些部分是禁区"},
+          {"range": [61,80],  "text": "比较愿意敞开，但需要时间"},
+          {"range": [81,100], "text": "在关系里能真正放下防备"}
+        ]
+      },
+      "scoring": {"method": "reverse_slider", "formula": "(100 - value) / 100 * 5"}
+    },
+    {
+      "id": "SA3-M-22", "order": 22, "dimension": "SA3",
+      "type": "scale", "weight": 1.2, "direction": "reverse",
+      "text": "我不太习惯向她表达我的脆弱或真实需求，觉得这样显得不够稳。",
+      "scale": {"min": 1, "max": 5, "min_label": "完全不符合", "max_label": "完全符合"},
+      "scoring": {"method": "reverse", "formula": "6 - value"}
+    },
+    {
+      "id": "SA3-M-23", "order": 23, "dimension": "SA3",
+      "type": "choice", "weight": 1.0, "direction": "reverse",
+      "text": "她想更深入了解你，包括你的过去、你的软肋、你真正在怕什么。你的感受？",
+      "options": [
+        {"key": "A", "text": "愿意，我也想让她真正了解我",         "sub": "低回避",            "score": 5},
+        {"key": "B", "text": "愿意，但可能需要慢慢来",             "sub": "中低回避",          "score": 4},
+        {"key": "C", "text": "有点不自在，但不知道怎么拒绝",       "sub": "中高回避",          "score": 2},
+        {"key": "D", "text": "感觉太暴露了，想转移话题",           "sub": "高回避",            "score": 1}
+      ]
+    },
+    {
+      "id": "SA3-M-24", "order": 24, "dimension": "SA3",
+      "type": "mood", "weight": 1.0, "direction": "reverse",
+      "text": "她说想见你的朋友，融入你的圈子。你的感受？",
+      "options": [
+        {"key": "A", "icon": "ti-heart",         "text": "很好，正合我意",             "score": 5},
+        {"key": "B", "icon": "ti-mood-happy",    "text": "挺好的，有点期待",           "score": 5},
+        {"key": "C", "icon": "ti-mood-smile",    "text": "可以，想想怎么安排",         "score": 4},
+        {"key": "D", "icon": "ti-mood-confuzed", "text": "有点没准备好",               "score": 3},
+        {"key": "E", "icon": "ti-mood-nervous",  "text": "感觉有点正式，有点紧张",     "score": 3},
+        {"key": "F", "icon": "ti-mood-empty",    "text": "不太舒服，觉得进展太快",     "score": 2},
+        {"key": "G", "icon": "ti-mood-sad",      "text": "感觉我的空间被进入了",       "score": 1},
+        {"key": "H", "icon": "ti-mood-tongue",   "text": "还没到那一步",               "score": 3}
+      ]
+    },
+    {
+      "id": "SA4-M-25", "order": 25, "dimension": "SA4",
+      "type": "choice", "weight": 1.5, "direction": "positive",
+      "text": "她说你最近对她态度有点冷，让你反省。但你觉得自己没问题。你会怎么做？",
+      "options": [
+        {"key": "A", "text": "认真想想，可能真的是我的问题",       "sub": "边界弱，容易被定义","score": 1},
+        {"key": "B", "text": "听她说完，再表达自己的判断",         "sub": "边界健康",          "score": 4},
+        {"key": "C", "text": "告诉她我不觉得有问题，说明立场",     "sub": "边界清晰",          "score": 5},
+        {"key": "D", "text": "不想争，但心里很不舒服",             "sub": "边界弱，压抑",      "score": 2}
+      ]
+    },
+    {
+      "id": "SA4-M-26", "order": 26, "dimension": "SA4",
+      "type": "scale", "weight": 1.5, "direction": "positive",
+      "text": "我清楚自己在关系里有哪些事不可接受，而且我能直接说出来。",
+      "scale": {"min": 1, "max": 5, "min_label": "完全不符合", "max_label": "完全符合"},
+      "scoring": {"method": "direct"}
+    },
+    {
+      "id": "SA4-M-27", "order": 27, "dimension": "SA4",
+      "type": "scenario", "weight": 1.5, "direction": "positive",
+      "text": "吵架时她说了一句很过分的话，当场让你很难受。事后她道歉了，说是气话，不是真心的。你怎么处理？",
+      "scene": "被伤害后的修复场景",
+      "options": [
+        {"key": "A", "text": "接受道歉，过去了就算了",                 "sub": "边界弱",            "score": 2},
+        {"key": "B", "text": "接受道歉，但告诉她那句话真的伤到我了",   "sub": "边界健康",          "score": 4},
+        {"key": "C", "text": "告诉她这种话我不能接受，下次不行",       "sub": "边界清晰，有规则",  "score": 5},
+        {"key": "D", "text": "嘴上说没事，但心里记住了",               "sub": "边界模糊，内外不一","score": 1}
+      ]
+    },
+    {
+      "id": "SA4-M-28", "order": 28, "dimension": "SA4",
+      "type": "rank", "weight": 1.2, "direction": "positive",
+      "text": "在关系里，下面哪些事你最不愿意妥协？从最重要到最不重要排序。",
+      "items": [
+        {"id": "a", "text": "我的个人时间和空间"},
+        {"id": "b", "text": "我的朋友圈和社交自由"},
+        {"id": "c", "text": "我的工作和个人目标"},
+        {"id": "d", "text": "我对自己行为底线的标准"}
+      ],
+      "scoring": {"method": "rank_position", "key_item": "d", "score_map": {"1st":5,"2nd":4,"3rd":3,"4th":2}}
+    },
+    {
+      "id": "SA4-M-29", "order": 29, "dimension": "SA4",
+      "type": "binary", "weight": 1.5, "direction": "positive",
+      "text": "她不喜欢你跟某个女性朋友来往，希望你减少联系。那只是普通朋友。你会？",
+      "options": [
+        {"key": "left",  "text": "减少联系，不想因为这个起摩擦", "sub": "关系稳定优先", "score": 1},
+        {"key": "right", "text": "告诉她那是我的朋友，不会因此改变", "sub": "自主权优先","score": 5}
+      ]
+    },
+    {
+      "id": "SA4-M-30", "order": 30, "dimension": "SA4",
+      "type": "scale", "weight": 1.5, "direction": "positive",
+      "text": "当她越过我的边界，我能直接说出来，不会忍着或绕弯子。",
+      "scale": {"min": 1, "max": 5, "min_label": "完全不符合", "max_label": "完全符合"},
+      "scoring": {"method": "direct"}
+    },
+    {
+      "id": "SA4-M-31", "order": 31, "dimension": "SA4",
+      "type": "choice", "weight": 1.2, "direction": "positive",
+      "text": "她希望你改掉一个你一直有的生活习惯，说这样对关系更好。但你很喜欢这个习惯。你会？",
+      "options": [
+        {"key": "A", "text": "认真考虑改，关系比习惯重要",         "sub": "边界弱",            "score": 2},
+        {"key": "B", "text": "听她的理由，但最终自己决定",         "sub": "边界健康",          "score": 4},
+        {"key": "C", "text": "告诉她这是我的习惯，她需要接受",     "sub": "边界清晰",          "score": 5},
+        {"key": "D", "text": "暂时答应，但内心很不情愿",           "sub": "边界弱，压抑",      "score": 1}
+      ]
+    },
+    {
+      "id": "SA4-M-32", "order": 32, "dimension": "SA4",
+      "type": "scale", "weight": 1.2, "direction": "positive",
+      "text": "我不会为了维持一段关系，一再妥协自己的核心需求或底线。",
+      "scale": {"min": 1, "max": 5, "min_label": "完全不符合", "max_label": "完全符合"},
+      "scoring": {"method": "direct"}
+    },
+    {
+      "id": "SA5-M-33", "order": 33, "dimension": "SA5",
+      "type": "choice", "weight": 1.5, "direction": "positive",
+      "text": "你们因为一件小事起了争执，你很生气。你通常怎么处理？",
+      "options": [
+        {"key": "A", "text": "直接说出感受，但控制语气",           "sub": "健康表达",          "score": 5},
+        {"key": "B", "text": "先冷静，等情绪平了再说",             "sub": "有调节能力",        "score": 4},
+        {"key": "C", "text": "当下直接爆，说完又后悔",             "sub": "冲动型",            "score": 2},
+        {"key": "D", "text": "什么都不说，冷处理等她来哄",         "sub": "回避型",            "score": 1}
+      ]
+    },
+    {
+      "id": "SA5-M-34", "order": 34, "dimension": "SA5",
+      "type": "slider", "weight": 1.5, "direction": "positive",
+      "text": "当你在关系里感到受伤或委屈，你能用语言说出来的能力有多强？",
+      "slider": {
+        "min": 0, "max": 100,
+        "min_label": "很难开口，通常用行动或沉默传递",
+        "max_label": "能直接说出感受",
+        "feedback": [
+          {"range": [0,20],   "text": "情绪更多通过行为表达"},
+          {"range": [21,40],  "text": "能说一些，但说不完整"},
+          {"range": [41,60],  "text": "看情况，有时能说有时不行"},
+          {"range": [61,80],  "text": "通常能表达，偶尔会憋"},
+          {"range": [81,100], "text": "能把情绪转化成清晰的语言"}
+        ]
+      },
+      "scoring": {"method": "slider_to_5", "formula": "value / 100 * 5"}
+    },
+    {
+      "id": "SA5-M-35", "order": 35, "dimension": "SA5",
+      "type": "scale", "weight": 1.5, "direction": "positive",
+      "text": "我不会把工作或其他压力的情绪，发泄到她身上。",
+      "scale": {"min": 1, "max": 5, "min_label": "完全不符合", "max_label": "完全符合"},
+      "scoring": {"method": "direct"}
+    },
+    {
+      "id": "SA5-M-36", "order": 36, "dimension": "SA5",
+      "type": "card", "weight": 1.2, "direction": "positive",
+      "text": "工作上遇到很糟糕的事，心情很差。晚上她说了一句无心的话。你的反应更接近哪张？",
+      "options": [
+        {"key": "A", "text": "告诉她今天状态不好，那句话让我不舒服", "sub": "情绪清晰，能区分来源","score": 5},
+        {"key": "B", "text": "比平时敏感，反应有点过，事后意识到",   "sub": "有觉察，控制有限",  "score": 3},
+        {"key": "C", "text": "直接爆发，事后才意识到是因为工作",     "sub": "情绪迁移，觉察晚",  "score": 2},
+        {"key": "D", "text": "什么都没说，但心里记住了",             "sub": "积压型",            "score": 2}
+      ]
+    },
+    {
+      "id": "SA5-M-37", "order": 37, "dimension": "SA5",
+      "type": "binary", "weight": 1.2, "direction": "positive",
+      "text": "她做了一件让你失望的事，但你知道她不是故意的。你会怎么做？",
+      "options": [
+        {"key": "left",  "text": "跟她说，这件事让我有点失望", "sub": "直接表达情绪", "score": 5},
+        {"key": "right", "text": "算了，不是故意的就过去了",   "sub": "压下去不说",   "score": 2}
+      ]
+    },
+    {
+      "id": "SA5-M-38", "order": 38, "dimension": "SA5",
+      "type": "slider", "weight": 1.2, "direction": "positive",
+      "text": "在关系里发生冲突时，你保持情绪稳定、不失控的能力有多强？",
+      "slider": {
+        "min": 0, "max": 100,
+        "min_label": "很难控制，容易崩",
+        "max_label": "通常能保持相对冷静",
+        "feedback": [
+          {"range": [0,20],   "text": "冲突是你最难过的时刻"},
+          {"range": [21,40],  "text": "会有情绪，但不总能控制"},
+          {"range": [41,60],  "text": "能撑一会儿，时间长了会崩"},
+          {"range": [61,80],  "text": "通常能保持，偶尔失控"},
+          {"range": [81,100], "text": "你有较强的情绪容纳能力"}
+        ]
+      },
+      "scoring": {"method": "slider_to_5", "formula": "value / 100 * 5"}
+    },
+    {
+      "id": "SA5-M-39", "order": 39, "dimension": "SA5",
+      "type": "scale", "weight": 1.5, "direction": "positive",
+      "text": "关系中出现矛盾时，我能在情绪相对平稳的状态下表达感受，不会爆发或完全沉默。",
+      "scale": {"min": 1, "max": 5, "min_label": "完全不符合", "max_label": "完全符合"},
+      "scoring": {"method": "direct"}
+    },
+    {
+      "id": "SA5-M-40", "order": 40, "dimension": "SA5",
+      "type": "scenario", "weight": 1.2, "direction": "positive",
+      "text": "你们冷战了一天，她没有主动。你知道这件事你也有一半责任，但先开口感觉很难。现在已经晚上十一点了。你会怎么做？",
+      "scene": "冷战结束前的最后时刻",
+      "options": [
+        {"key": "A", "text": "先开口，责任是我的就是我的",         "sub": "情绪成熟，能放下自尊","score": 5},
+        {"key": "B", "text": "再等等，看她有没有动静",             "sub": "有些执着，但能修复",  "score": 3},
+        {"key": "C", "text": "一直等，就看谁先撑不住",             "sub": "冷战作为工具",        "score": 2},
+        {"key": "D", "text": "随便发个表情包，假装没事发生",       "sub": "回避型修复，表面化",  "score": 1}
+      ]
+    },
+    {
+      "id": "SA5-M-41", "order": 41, "dimension": "SA5",
+      "type": "scale", "weight": 1.5, "direction": "positive",
+      "text": "当我感到受伤或委屈，我能用语言说出来，不会用冷战或消失来回应。",
+      "scale": {"min": 1, "max": 5, "min_label": "完全不符合", "max_label": "完全符合"},
+      "scoring": {"method": "direct"}
+    },
+    {
+      "id": "SA6-M-42", "order": 42, "dimension": "SA6",
+      "type": "rank", "weight": null, "direction": "auxiliary",
+      "text": "喜欢一个人，你最先在意的是什么？从最重要到最不重要排序。",
+      "items": [
+        {"id": "a", "text": "她对我有没有真实的吸引力"},
+        {"id": "b", "text": "她能不能给我安全感和稳定"},
+        {"id": "c", "text": "我们有没有共同的未来方向"},
+        {"id": "d", "text": "在一起的感觉轻松不轻松"}
+      ],
+      "scoring": {"method": "auxiliary_type", "note": "辅助类型判断，不计入SA6分数"}
+    },
+    {
+      "id": "SA6-M-43", "order": 43, "dimension": "SA6",
+      "type": "choice", "weight": 1.5, "direction": "positive",
+      "text": "你发现在这段关系里，你付出明显比她多。你怎么面对？",
+      "options": [
+        {"key": "A", "text": "告诉她我的感受，希望她有所改变",     "sub": "边界健康",          "score": 5},
+        {"key": "B", "text": "继续付出，只要她好就行",             "sub": "低自我投入模式",    "score": 1},
+        {"key": "C", "text": "开始质疑这段关系值不值得",           "sub": "有自我保护意识",    "score": 4},
+        {"key": "D", "text": "减少付出，看看她的反应",             "sub": "测试型策略",        "score": 3}
+      ]
+    },
+    {
+      "id": "SA6-M-44", "order": 44, "dimension": "SA6",
+      "type": "scale", "weight": 1.5, "direction": "positive",
+      "text": "我在关系里的投入是主动选择的，不是因为怕孤独或外部压力。",
+      "scale": {"min": 1, "max": 5, "min_label": "完全不符合", "max_label": "完全符合"},
+      "scoring": {"method": "direct"}
+    },
+    {
+      "id": "SA6-M-45", "order": 45, "dimension": "SA6",
+      "type": "binary", "weight": 1.5, "direction": "positive",
+      "text": "自从在一起，你发现自己越来越少做之前喜欢的事。你的态度是？",
+      "options": [
+        {"key": "left",  "text": "主动找回自己的节奏，两件事都要", "sub": "自我意识强",    "score": 5},
+        {"key": "right", "text": "感情是重心，这是自然的",         "sub": "关系中心化",    "score": 1}
+      ]
+    },
+    {
+      "id": "SA6-M-46", "order": 46, "dimension": "SA6",
+      "type": "rank", "weight": null, "direction": "auxiliary",
+      "text": "你理想中的关系状态是什么样的？从最接近你到最不重要排序。",
+      "items": [
+        {"id": "a", "text": "我们是彼此最重要的人，紧密相连"},
+        {"id": "b", "text": "我们各有各的生活，感情很深"},
+        {"id": "c", "text": "我们一起成长，互相推动"},
+        {"id": "d", "text": "在一起很舒服，没有太多要求"}
+      ],
+      "scoring": {"method": "auxiliary_type", "note": "b排第一=高自主性，辅助SA6类型判断"}
+    },
+    {
+      "id": "SA6-M-47", "order": 47, "dimension": "SA6",
+      "type": "slider", "weight": 1.5, "direction": "positive",
+      "text": "在一段关系里，你有多能保持自己原本的生活重心——朋友、目标、爱好？",
+      "slider": {
+        "min": 0, "max": 100,
+        "min_label": "我容易把全部重心放在关系上",
+        "max_label": "我能很好地保持自己的生活",
+        "feedback": [
+          {"range": [0,20],   "text": "你倾向于把关系放在一切之上"},
+          {"range": [21,40],  "text": "有时会迷失在关系里"},
+          {"range": [41,60],  "text": "能保持一部分，但关系影响你"},
+          {"range": [61,80],  "text": "大多数时候能守住自己的生活"},
+          {"range": [81,100], "text": "你在关系里同时活得很完整"}
+        ]
+      },
+      "scoring": {"method": "slider_to_5", "formula": "value / 100 * 5"}
+    },
+    {
+      "id": "SA6-M-48", "order": 48, "dimension": "SA6",
+      "type": "scale", "weight": 1.5, "direction": "positive",
+      "text": "我能在关系里保持自我，不会因为喜欢一个人失去自己的目标、朋友圈或生活重心。",
+      "scale": {"min": 1, "max": 5, "min_label": "完全不符合", "max_label": "完全符合"},
+      "scoring": {"method": "direct"}
+    },
+    {
+      "id": "SA6-M-49", "order": 49, "dimension": "SA6",
+      "type": "card", "weight": 1.0, "direction": "positive",
+      "text": "你对自己在过去关系里出现过的模式，了解多少？",
+      "options": [
+        {"key": "A", "text": "我很清楚自己的问题，也在改",         "sub": "高觉察，成长型",    "score": 5},
+        {"key": "B", "text": "大概知道，但不确定怎么改",           "sub": "有觉察，执行待提升","score": 3},
+        {"key": "C", "text": "问题都在对方，跟我关系不大",         "sub": "低觉察，归因外部",  "score": 1},
+        {"key": "D", "text": "不太回顾过去，往前看就好",           "sub": "回避型自我认知",    "score": 2}
+      ]
+    },
+    {
+      "id": "SA6-M-50", "order": 50, "dimension": "SA6",
+      "type": "rank", "weight": null, "direction": "auxiliary",
+      "text": "用四个词描述你在关系里的状态，从最像你到最不像你排序。",
+      "items": [
+        {"id": "a", "text": "我是付出更多的那个"},
+        {"id": "b", "text": "我是需要更多确认的那个"},
+        {"id": "c", "text": "我是更独立、更难靠近的那个"},
+        {"id": "d", "text": "我是比较能控制情绪的那个"}
+      ],
+      "scoring": {
+        "method": "auxiliary_type",
+        "mapping": {
+          "a_first": "SA6低自我倾向 → 蒋玉菡方向",
+          "b_first": "SA2高焦虑倾向 → 贾宝玉方向",
+          "c_first": "SA3高回避倾向 → 柳湘莲方向",
+          "d_first": "SA5高调节能力 → 贾探春/北静王方向"
+        },
+        "note": "辅助类型判断，不计入SA6分数"
+      }
+    }
+  ]
+}

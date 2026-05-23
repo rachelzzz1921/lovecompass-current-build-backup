@@ -15,6 +15,10 @@ DATABASE_URL='<DATABASE_URL>' uvicorn app.main:app --reload --port 8000
 VITE_LOVECOMPASS_API_BASE_URL=http://localhost:8000
 ```
 
+## Vercel 与智谱部署
+
+后端已补齐 `api/index.py` 与 `vercel.json`，可以将 `backend/` 作为独立 Vercel 项目部署。正式 AI 生成使用智谱适配器，生产环境需配置 `AI_PROVIDER=zhipu`、`ZHIPU_API_KEY`、`ZHIPU_BASE_URL` 与 `ZHIPU_MODEL`，其中密钥只能放在后端项目环境变量中，不能写入前端或提交到仓库。完整前后端部署变量清单见 `../docs/vercel_zhipu_deployment.md`。
+
 ## 已实现端点
 
 | 方法 | 路径 | 用途 |

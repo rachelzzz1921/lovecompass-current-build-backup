@@ -1,9 +1,12 @@
 import { createFileRoute, Link, useNavigate, useParams } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { lovecompassApi, type AttemptReport } from "@/lib/lovecompassApi";
+import { ARCHETYPES, findArchetype, getArchetypeByCode } from "@/data/archetypes";
+import type { Archetype } from "@/data/archetypes";
 import { findTest } from "@/data/tests";
 import { ScoreRing } from "@/components/ScoreRing";
+import { ArchetypeCard } from "@/components/ArchetypeCard";
 import { AbilityRadar } from "@/components/AbilityRadar";
 import { Petals } from "@/components/Petals";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -21,27 +24,11 @@ type ResultDimension = {
   score: number;
 };
 
-type ArchetypeProfile = {
-  attachment_type?: string;
-  tagline?: string;
-  description?: string;
-  matching_logic?: string;
-  radar_baseline?: Record<string, number>;
-};
-
 type ResultPayload = {
-  attachment_type?: string;
-  archetype_code?: string;
   dimensions?: ResultDimension[];
-  archetype_profile?: ArchetypeProfile;
+  archetype_code?: string;
+  archetype_gender?: string;
 };
-
-const REPORT_PLACEHOLDER_MARKERS = ["正式 AI 深度报告可由后台任务继续生成", "【AI 占位回复】", "【智谱未配置】"];
-
-function isPlaceholderReport(report?: string | null) {
-  if (!report) return true;
-  return REPORT_PLACEHOLDER_MARKERS.some((marker) => report.includes(marker));
-}
 
 type AttemptResult = {
   id: string;
@@ -55,6 +42,8 @@ type AttemptResult = {
   result_payload?: ResultPayload;
 };
 
+const REPORT_PLACEHOLDER_MARKERS = ["正式 AI 深度报告可由后台任务继续生成", "【AI 占位回复】", "【智谱未配置】"];
+
 const SELF_DIMENSION_META: Record<string, { name: string; core: string }> = {
   SA1: { name: "自我吸引感知", core: "我相信自己值得被爱吗？" },
   SA2: { name: "依恋焦虑", core: "我在关系里容易不安全感吗？" },
@@ -62,46 +51,6 @@ const SELF_DIMENSION_META: Record<string, { name: string; core: string }> = {
   SA4: { name: "自我边界", core: "我能守住自己吗？" },
   SA5: { name: "情绪调节", core: "我能好好处理关系里的情绪吗？" },
   SA6: { name: "关系投入模式", core: "我是怎么爱人的？" },
-};
-
-const RED_CHAMBER_FALLBACK: Record<string, ArchetypeProfile> = {
-  薛宝钗: {
-    attachment_type: "安全型",
-    tagline: "你是关系里最稀有的人",
-    description:
-      "清醒但不冷漠，温柔但有边界。不会因为爱一个人而失去自己，也不需要对方时刻确认才能安心。",
-    matching_logic: "情绪稳定、边界清晰、能给能收、不因爱失去自我",
-  },
-  林黛玉: {
-    attachment_type: "焦虑型",
-    tagline: "你的敏感是一种天赋，不是缺陷",
-    description: "你比任何人都更能感受到关系里的细微变化，爱得深、想得多，是因为你把感情当真。",
-    matching_logic: "高敏感、需要被确认、爱得深但安全感弱、把感情当真的人",
-  },
-  妙玉: {
-    attachment_type: "回避型",
-    tagline: "你不是不懂爱，你只是对平庸的亲密没有兴趣",
-    description: "你有极高的精神标准，不轻易让人靠近，是因为你深知自己值得真正懂你的人。",
-    matching_logic: "高冷疏离、精神标准极高、渴望亲密却主动筑墙、等到懂的人才开放",
-  },
-  史湘云: {
-    attachment_type: "混合型",
-    tagline: "你是关系里最有生命力的那种人",
-    description: "时而热烈时而需要空间，不是因为你不稳定，而是因为你足够真实。",
-    matching_logic: "时而热烈时而需要空间、情绪真实不表演、足够复杂才足够有趣",
-  },
-  王熙凤: {
-    attachment_type: "高边界安全型",
-    tagline: "你是感情里最有掌控力的人",
-    description: "清楚自己要什么，不会被情绪带着走，爱得现实但绝对忠诚。你的边界不是冷漠，是尊重。",
-    matching_logic: "掌控感强、边界极硬、爱得现实但绝对忠诚、尊重自己才能尊重感情",
-  },
-  袭人: {
-    attachment_type: "低自我高投入型",
-    tagline: "你是感情里最有温度的人",
-    description: "你的爱是具体的、日常的、落在每一个细节里的。你懂得如何让一个人感到被珍视。",
-    matching_logic: "爱得具体日常、落在细节里、温度最高、懂得让人感到被珍视",
-  },
 };
 
 function ResultPage() {
@@ -140,9 +89,7 @@ function ResultPage() {
           .then((res) => {
             if (ignore) return;
             setReport(res.report);
-            setData((current) =>
-              current ? { ...current, ai_report: res.report.content } : current,
-            );
+            setData((current) => (current ? { ...current, ai_report: res.report.content } : current));
           })
           .catch((e) => {
             if (ignore) return;
@@ -160,44 +107,32 @@ function ResultPage() {
     };
   }, [attemptId]);
 
-  if (error)
-    return (
-      <div className="min-h-screen flex items-center justify-center text-muted-foreground">
-        {error}
-      </div>
-    );
-  if (!data)
-    return (
-      <div className="min-h-screen flex items-center justify-center text-muted-foreground">
-        读取你的画像…
-      </div>
-    );
+  const normalized = useMemo(() => {
+    if (!data) return null;
+    const dimensions = normalizeSelfDimensions(data.result_payload?.dimensions, data.dimension_scores ?? data.scores);
+    const ability = toAbilityScores(dimensions, data.dimension_scores ?? data.scores);
+    const gender = normalizeGender(data.result_payload?.archetype_gender ?? data.archetype_gender);
+    const designArchetype = resolveDesignArchetype(data, ability, gender);
+    return { dimensions, ability, designArchetype };
+  }, [data]);
 
+  if (error) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">{error}</div>;
+  if (!data || !normalized) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">读取你的画像…</div>;
+
+  const { ability, designArchetype: archetype } = normalized;
   const test = findTest(data.test_id);
-  const resultPayload = (data.result_payload ?? {}) as ResultPayload;
-  const archetypeCode = String(resultPayload.archetype_code ?? data.archetype_code ?? "史湘云");
-  const profile =
-    resultPayload.archetype_profile ??
-    RED_CHAMBER_FALLBACK[archetypeCode] ??
-    RED_CHAMBER_FALLBACK.史湘云;
-  const attachmentType = resultPayload.attachment_type ?? profile.attachment_type ?? "混合型";
-  const dimensions = normalizeSelfDimensions(
-    resultPayload.dimensions,
-    data.dimension_scores ?? data.scores,
-  );
-  const axes = dimensions.map((dimension) => ({
-    key: dimension.code,
-    label: dimension.name,
-    value: dimension.score,
-  }));
-  const highlights = splitMatchingLogic(profile.matching_logic);
+  const axes = [
+    { key: "at", label: "气场表达", value: ability.at },
+    { key: "in", label: "亲密温度", value: ability.in },
+    { key: "co", label: "生活协作", value: ability.co },
+    { key: "ev", label: "成长意愿", value: ability.ev },
+    { key: "rk", label: "稳定从容", value: Math.max(0, 100 - ability.rk) },
+  ];
   const reportMarkdown = report?.content ?? data.ai_report ?? "";
 
   const share = async () => {
     try {
-      await navigator.clipboard.writeText(
-        `我的 LoveCompass 画像：${archetypeCode}（${attachmentType}）—— ${profile.tagline ?? ""}\n${window.location.href}`,
-      );
+      await navigator.clipboard.writeText(`我的婚恋画像：${archetype.emoji} ${archetype.name} —— ${archetype.tagline}\n${window.location.href}`);
       toast.success("已复制到剪贴板");
     } catch {
       toast.error("复制失败");
@@ -208,61 +143,34 @@ function ResultPage() {
     <main className="relative min-h-screen">
       <Petals count={10} />
       <header className="relative z-10 flex items-center justify-between px-6 md:px-12 pt-8">
-        <Link to="/" className="font-display text-lg text-gradient-sakura">
-          墨樱 · 婚恋画像
-        </Link>
-        <Link to="/history" className="text-xs tracking-[0.3em] text-muted-foreground">
-          我的画像 →
-        </Link>
+        <Link to="/" className="font-display text-lg text-gradient-sakura">墨樱 · 婚恋画像</Link>
+        <Link to="/history" className="text-xs tracking-[0.3em] text-muted-foreground">我的画像 →</Link>
       </header>
 
       <section className="relative z-10 max-w-5xl mx-auto px-6 md:px-12 py-12">
         <div className="text-center">
-          <div className="text-xs tracking-[0.5em] text-muted-foreground">
-            {test?.code ?? data.test_id} · {test?.title ?? "自我关系模式测试"}
-          </div>
-          <h1 className="font-display text-4xl md:text-5xl mt-3 text-gradient-sakura">
-            {archetypeCode}
-          </h1>
-          <p className="mt-2 text-foreground/75 italic">「{profile.tagline}」</p>
-          <div className="mt-4 inline-flex rounded-full border border-sakura/30 bg-sakura/10 px-4 py-2 text-sm text-foreground/80">
-            依恋类型：{attachmentType}
-          </div>
+          <div className="text-xs tracking-[0.5em] text-muted-foreground">{test?.code ?? data.test_id} · {test?.title ?? "自我关系模式测试"}</div>
+          <h1 className="font-display text-4xl md:text-5xl mt-3 text-gradient-sakura">{archetype.name}</h1>
+          <p className="mt-2 text-foreground/75 italic">「{archetype.tagline}」</p>
           <div className="mt-8 flex justify-center">
-            <ScoreRing value={Number(data.ros_index ?? 0)} label="综合指数" />
+            <ScoreRing value={Number(data.ros_index ?? average(Object.values(ability)))} label="关系展望" />
           </div>
         </div>
 
-        <div className="mt-12 bg-glass rounded-3xl p-8 border border-border/60">
-          <div className="text-xs tracking-[0.3em] text-muted-foreground">
-            红楼人格 · RED CHAMBER ARCHETYPE
-          </div>
-          <h2 className="font-display text-3xl mt-2 text-foreground">{archetypeCode}</h2>
-          <p className="mt-4 text-foreground/85 leading-8">{profile.description}</p>
-          {profile.matching_logic && (
-            <p className="mt-4 text-sm text-muted-foreground">
-              人格关键词：{profile.matching_logic}
-            </p>
-          )}
+        <div className="mt-12">
+          <ArchetypeCard a={archetype} />
         </div>
 
         <div className="mt-12 bg-glass rounded-3xl p-8">
-          <div className="text-xs tracking-[0.3em] text-muted-foreground">
-            SELF 六维画像 · YOUR RELATIONSHIP MAP
-          </div>
-          <h3 className="font-display text-2xl mt-2 text-foreground">自我关系能力雷达</h3>
+          <div className="text-xs tracking-[0.3em] text-muted-foreground">能力雷达 · YOUR ABILITY MAP</div>
+          <h3 className="font-display text-2xl mt-2 text-foreground">能力倾向</h3>
           <div className="flex flex-col md:flex-row items-center gap-8 mt-6">
             <AbilityRadar data={axes} />
-            <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-              {dimensions.map((dimension) => (
-                <div key={dimension.code} className="rounded-xl border border-border/60 p-3">
-                  <div className="text-xs text-muted-foreground">
-                    {dimension.code} · {dimension.name}
-                  </div>
-                  <div className="font-display text-2xl mt-1 text-sakura">{dimension.score}</div>
-                  {dimension.core && (
-                    <div className="mt-1 text-xs text-foreground/65">{dimension.core}</div>
-                  )}
+            <div className="flex-1 grid grid-cols-2 gap-3 text-sm">
+              {axes.map((a) => (
+                <div key={a.key} className="rounded-xl border border-border/60 p-3">
+                  <div className="text-xs text-muted-foreground">{a.label}</div>
+                  <div className="font-display text-2xl mt-1 text-sakura">{a.value}</div>
                 </div>
               ))}
             </div>
@@ -287,69 +195,39 @@ function ResultPage() {
                 </div>
               )}
               {report?.generatedAt && (
-                <div className="mb-4 text-xs tracking-[0.2em] text-muted-foreground">
-                  AI 深度报告 · {new Date(report.generatedAt).toLocaleString()}
-                </div>
+                <div className="mb-4 text-xs tracking-[0.2em] text-muted-foreground">AI 深度报告 · {new Date(report.generatedAt).toLocaleString()}</div>
               )}
               <article className="prose prose-invert max-w-none prose-headings:font-display prose-headings:text-gradient-sakura prose-h2:text-2xl prose-p:text-foreground/85 prose-li:text-foreground/85">
-                <ReactMarkdown>{reportMarkdown}</ReactMarkdown>
+                <ReactMarkdown>{reportMarkdown || archetype.description}</ReactMarkdown>
               </article>
             </TabsContent>
             <TabsContent value="strengths" className="mt-6 grid md:grid-cols-2 gap-6">
               <div>
-                <div className="text-xs tracking-[0.3em] text-muted-foreground mb-3">
-                  人格关键词
-                </div>
-                <ul className="space-y-2">
-                  {highlights.map((trait) => (
-                    <li key={trait} className="text-sm">
-                      · {trait}
-                    </li>
-                  ))}
-                </ul>
+                <div className="text-xs tracking-[0.3em] text-muted-foreground mb-3">高光特质</div>
+                <ul className="space-y-2">{archetype.traits.map((t) => <li key={t} className="text-sm">· {t}</li>)}</ul>
               </div>
               <div>
                 <div className="text-xs tracking-[0.3em] text-muted-foreground mb-3">温柔提醒</div>
-                <p className="text-sm leading-7 text-foreground/80">
-                  六维分数反映的是你在亲密关系中的当前模式，不是固定标签。后续套二、套三完成后，系统会继续叠加关系互动与择偶偏好数据，生成更完整的动态画像。
-                </p>
+                <ul className="space-y-2">{archetype.cautions.map((t) => <li key={t} className="text-sm">· {t}</li>)}</ul>
               </div>
             </TabsContent>
           </Tabs>
         </div>
 
         <div className="mt-12 flex flex-wrap gap-3 justify-center">
-          <Button
-            onClick={share}
-            className="rounded-full bg-gradient-to-r from-[oklch(0.78_0.14_350)] to-[oklch(0.55_0.18_355)] text-primary-foreground h-11 px-6"
-          >
-            复制分享
-          </Button>
-          <Button
-            variant="outline"
-            className="rounded-full h-11 px-6"
-            onClick={() => nav({ to: "/chat", search: { attemptId, analystId: "mirror" } })}
-          >
-            和分析师聊聊
-          </Button>
-          <Button
-            variant="outline"
-            className="rounded-full h-11 px-6"
-            onClick={() => nav({ to: "/tests/$id", params: { id: data.test_id } })}
-          >
-            再做一次
-          </Button>
-          <Button
-            variant="outline"
-            className="rounded-full h-11 px-6"
-            onClick={() => nav({ to: "/history" })}
-          >
-            我的历史
-          </Button>
+          <Button onClick={share} className="rounded-full bg-gradient-to-r from-[oklch(0.78_0.14_350)] to-[oklch(0.55_0.18_355)] text-primary-foreground h-11 px-6">复制分享</Button>
+          <Button variant="outline" className="rounded-full h-11 px-6" onClick={() => nav({ to: "/chat", search: { attemptId, analystId: "mirror" } })}>和分析师聊聊</Button>
+          <Button variant="outline" className="rounded-full h-11 px-6" onClick={() => nav({ to: "/tests/$id", params: { id: data.test_id } })}>再做一次</Button>
+          <Button variant="outline" className="rounded-full h-11 px-6" onClick={() => nav({ to: "/history" })}>我的历史</Button>
         </div>
       </section>
     </main>
   );
+}
+
+function isPlaceholderReport(report?: string | null) {
+  if (!report) return true;
+  return REPORT_PLACEHOLDER_MARKERS.some((marker) => report.includes(marker));
 }
 
 function normalizeSelfDimensions(rawDimensions: unknown, rawScores: unknown): ResultDimension[] {
@@ -358,29 +236,53 @@ function normalizeSelfDimensions(rawDimensions: unknown, rawScores: unknown): Re
       .map((item) => item as Partial<ResultDimension>)
       .filter((item) => item.code && Number.isFinite(Number(item.score)))
       .map((item) => {
-        const meta = SELF_DIMENSION_META[item.code as string] ?? {
-          name: item.name ?? String(item.code),
-          core: item.core ?? "",
-        };
-        return {
-          code: String(item.code),
-          name: String(item.name ?? meta.name),
-          core: item.core ?? meta.core,
-          score: clampScore(Number(item.score)),
-        };
+        const meta = SELF_DIMENSION_META[item.code as string] ?? { name: item.name ?? String(item.code), core: item.core ?? "" };
+        return { code: String(item.code), name: String(item.name ?? meta.name), core: item.core ?? meta.core, score: clampScore(Number(item.score)) };
       });
   }
+  const scoreObj = (rawScores && typeof rawScores === "object" ? rawScores : {}) as Record<string, unknown>;
+  return Object.entries(SELF_DIMENSION_META).map(([code, meta]) => ({ code, name: meta.name, core: meta.core, score: clampScore(Number(scoreObj[code] ?? 0)) }));
+}
 
-  const scoreObj = (rawScores && typeof rawScores === "object" ? rawScores : {}) as Record<
-    string,
-    unknown
-  >;
-  return Object.entries(SELF_DIMENSION_META).map(([code, meta]) => ({
-    code,
-    name: meta.name,
-    core: meta.core,
-    score: clampScore(Number(scoreObj[code] ?? 0)),
-  }));
+function resolveDesignArchetype(data: AttemptResult, ability: { at: number; in: number; co: number; ev: number; rk: number }, gender: "M" | "F" | null): Archetype {
+  const candidateCode = String(data.result_payload?.archetype_code ?? data.archetype_code ?? "");
+  const byCode = getArchetypeByCode(candidateCode);
+  if (byCode) return byCode;
+  if (candidateCode) {
+    const byName = ARCHETYPES.find((item) => item.name === candidateCode || `${item.emoji} ${item.name}` === candidateCode);
+    if (byName) return byName;
+  }
+  return findArchetype(ability, gender);
+}
+
+function normalizeGender(value: unknown): "M" | "F" | null {
+  const text = String(value ?? "").toUpperCase();
+  if (text === "M" || text === "MALE") return "M";
+  if (text === "F" || text === "FEMALE") return "F";
+  return null;
+}
+
+function toAbilityScores(dimensions: ResultDimension[], rawScores: unknown): { at: number; in: number; co: number; ev: number; rk: number } {
+  const scoreObj = (rawScores && typeof rawScores === "object" ? rawScores : {}) as Record<string, unknown>;
+  const byCode = Object.fromEntries(dimensions.map((item) => [item.code, item.score]));
+  const sa1 = num(byCode.SA1 ?? scoreObj.SA1, 68);
+  const sa2 = num(byCode.SA2 ?? scoreObj.SA2, 35);
+  const sa3 = num(byCode.SA3 ?? scoreObj.SA3, 35);
+  const sa4 = num(byCode.SA4 ?? scoreObj.SA4, 68);
+  const sa5 = num(byCode.SA5 ?? scoreObj.SA5, 68);
+  const sa6 = num(byCode.SA6 ?? scoreObj.SA6, 68);
+  return {
+    at: clampScore((sa1 * 0.7 + sa5 * 0.3)),
+    in: clampScore(((100 - sa2) * 0.45 + (100 - sa3) * 0.25 + sa6 * 0.3)),
+    co: clampScore((sa4 * 0.55 + sa6 * 0.45)),
+    ev: clampScore((sa5 * 0.6 + sa4 * 0.4)),
+    rk: clampScore((sa2 * 0.55 + sa3 * 0.45)),
+  };
+}
+
+function num(value: unknown, fallback: number): number {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
 }
 
 function clampScore(value: number): number {
@@ -388,10 +290,7 @@ function clampScore(value: number): number {
   return Math.max(0, Math.min(100, Math.round(value)));
 }
 
-function splitMatchingLogic(value: string | undefined): string[] {
-  const parts = (value ?? "")
-    .split(/[、,，]/)
-    .map((item) => item.trim())
-    .filter(Boolean);
-  return parts.length ? parts : ["真实", "敏感", "有关系觉察力"];
+function average(values: number[]): number {
+  if (!values.length) return 0;
+  return Math.round(values.reduce((sum, item) => sum + item, 0) / values.length);
 }

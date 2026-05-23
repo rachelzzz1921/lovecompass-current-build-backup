@@ -19,7 +19,7 @@ VITE_LOVECOMPASS_API_BASE_URL=http://localhost:8000
 
 ## Vercel 与智谱部署
 
-后端 FastAPI 业务在 `app/main.py`；Vercel 部署入口为 `api/main.py`（`pyproject.toml` → `api.main:app`）。`backend/vercel.json` 的 `functions` 必须指向 `api/main.py`。正式 AI 生成使用智谱适配器，生产环境需配置 `AI_PROVIDER=zhipu`、`ZHIPU_API_KEY`、`ZHIPU_BASE_URL` 与 `ZHIPU_MODEL`，其中密钥只能放在后端项目环境变量中，不能写入前端或提交到仓库。完整前后端部署变量清单见 `../docs/vercel_zhipu_deployment.md`。
+后端业务在 `app/main.py`。Vercel **FastAPI 框架模式**通过 `pyproject.toml` 的 `tool.vercel.entrypoint` 部署，**不要**在 `vercel.json` 里写 `functions.api/*`（会与框架模式冲突）。`maxDuration` 请在 Vercel 项目 Settings → Functions 里设为 60s。正式 AI 生成使用智谱适配器，生产环境需配置 `AI_PROVIDER=zhipu`、`ZHIPU_API_KEY`、`ZHIPU_BASE_URL` 与 `ZHIPU_MODEL`，其中密钥只能放在后端项目环境变量中，不能写入前端或提交到仓库。完整前后端部署变量清单见 `../docs/vercel_zhipu_deployment.md`。
 
 ## 已实现端点
 

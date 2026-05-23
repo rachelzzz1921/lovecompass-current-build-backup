@@ -10,7 +10,7 @@
 | Vercel 项目 | Root Directory | 构建命令 | 说明 |
 |-------------|----------------|----------|------|
 | `lovecompass-web`（示例名） | `frontend` | `NITRO_PRESET=vercel npm run build`（已在 `frontend/vercel.json`） | TanStack Start + Nitro |
-| `lovecompass-api`（示例名） | `backend` | 自动（`app/main.py` FastAPI + `pyproject.toml`） | FastAPI Serverless |
+| `lovecompass-api`（示例名） | `backend` | 自动（FastAPI + `app/main.py` + `pyproject.toml`） | FastAPI 单 Function |
 
 数据库：**仅使用现有 Supabase**，连接串配置在后端 Vercel 环境变量，**勿提交 `.env` 到 GitHub**。
 
@@ -42,7 +42,7 @@
 
 1. Vercel → **Add New Project** → 导入 GitHub 仓库 `lovecompass-current-build-backup`。
 2. **Root Directory** 选 `backend`。
-3. Framework Preset：**FastAPI**（或 Other；Vercel 会从 `requirements.txt` + `app/main.py` 识别）。
+3. Framework Preset：**FastAPI**（必须；不要用 Other + `functions.api/*`，会报 pattern 不匹配）。
 4. 在 **Environment Variables** 填入 [第四节](#四环境变量清单) 中后端变量（Production）。
 5. Deploy 完成后访问：  
    `https://<你的后端域名>/health` → 应返回 `{"ok":true}`。  

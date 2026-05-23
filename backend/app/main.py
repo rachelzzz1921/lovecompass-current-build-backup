@@ -63,7 +63,7 @@ def get_questions(suite_slug: str):
         questions = conn.execute(
             """
             SELECT id, external_question_id, display_order, question_type, question_text,
-                   question_payload, scoring_payload, dimension_code, weight
+                   question_payload, scoring_payload, dimension_code, weight, direction
             FROM public.test_questions
             WHERE suite_id = %s AND is_active = true
             ORDER BY display_order ASC
@@ -118,12 +118,12 @@ def verify_redemption(data: RedemptionIn):
 def submit_attempt(data: AttemptIn):
     answer_by_external = {a.externalId: a.answerPayload for a in data.answers}
     with get_conn() as conn:
-        suite = conn.execute("SELECT id, slug FROM public.test_suites WHERE slug = %s AND is_active = true", (data.suiteSlug,)).fetchone()
+        suite = conn.execute("SELECT id, slug, gender::text AS gender FROM public.test_suites WHERE slug = %s AND is_active = true", (data.suiteSlug,)).fetchone()
         if not suite:
             raise HTTPException(status_code=404, detail="测试套件不存在")
         questions = conn.execute(
             """
-            SELECT id, external_question_id, dimension_code, question_type, question_payload, scoring_payload, weight
+            SELECT id, external_question_id, dimension_code, question_type, question_payload, scoring_payload, weight, direction
             FROM public.test_questions
             WHERE suite_id = %s AND is_active = true
             ORDER BY display_order ASC
@@ -134,20 +134,43 @@ def submit_attempt(data: AttemptIn):
         missing = sorted(expected - set(answer_by_external))
         if missing:
             raise HTTPException(status_code=400, detail=f"缺少答案：{', '.join(missing[:5])}")
-        scores = summarize_scores(questions, answer_by_external)
+        scoring_model = conn.execute(
+            """
+            SELECT id, scoring_formula, type_rules, ros_config
+            FROM public.scoring_models
+            WHERE suite_id = %s AND is_active = true
+            ORDER BY updated_at DESC
+            LIMIT 1
+            """,
+            (suite["id"],),
+        ).fetchone()
+        scores = summarize_scores(questions, answer_by_external, scoring_model, suite["gender"])
+        archetype = conn.execute(
+            """
+            SELECT archetype_code, gender::text AS gender, profile_payload
+            FROM public.result_archetypes
+            WHERE suite_id = %s AND archetype_code = %s AND is_active = true
+            LIMIT 1
+            """,
+            (suite["id"], scores["archetype_code"]),
+        ).fetchone()
+        result_payload = dict(scores["result_payload"])
+        if archetype:
+            result_payload["archetype_profile"] = archetype["profile_payload"]
         attempt = conn.execute(
             """
             INSERT INTO public.test_attempts(
-              user_id, suite_id, test_id, redemption_event_id, answers, raw_answers,
-              scores, dimension_scores, archetype_code, ros_index, ai_report, status, completed_at
+              user_id, suite_id, test_id, redemption_event_id, scoring_model_id, answers, raw_answers,
+              scores, dimension_scores, archetype_code, archetype_gender, ros_index, ai_report, result_payload, status, completed_at
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'completed', now())
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'completed', now())
             RETURNING id
             """,
             (
-                DEMO_USER_ID, suite["id"], suite["slug"], data.redemptionEventId,
+                DEMO_USER_ID, suite["id"], suite["slug"], data.redemptionEventId, scoring_model["id"] if scoring_model else None,
                 Jsonb([a.model_dump() for a in data.answers]), Jsonb([a.model_dump() for a in data.answers]),
-                Jsonb(scores["dimension_scores"]), Jsonb(scores["dimension_scores"]), scores["archetype_code"], scores["ros_index"], scores["ai_report"],
+                Jsonb(scores["dimension_scores"]), Jsonb(scores["dimension_scores"]), scores["archetype_code"], archetype["gender"] if archetype else None,
+                scores["ros_index"], scores["ai_report"], Jsonb(result_payload),
             ),
         ).fetchone()
         attempt_id = attempt["id"]

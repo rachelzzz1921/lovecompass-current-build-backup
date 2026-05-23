@@ -3,10 +3,11 @@ import os
 import uuid
 from decimal import Decimal
 from typing import Any
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from psycopg.types.json import Jsonb
+from app.auth import resolve_user_id
 from app.db import get_conn
 from app.question_adapter import adapt_question
 from app.scoring import summarize_scores
@@ -20,9 +21,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-DEMO_USER_ID = os.getenv("LOVECOMPASS_DEMO_USER_ID", "00000000-0000-0000-0000-000000000001")
-
 
 REPORT_PROMPT_VERSION = "self_v1_red_chamber_20260523"
 REPORT_PLACEHOLDER_MARKERS = ("正式 AI 深度报告可由后台任务继续生成", "【AI 占位回复】", "【智谱未配置】")
@@ -256,7 +254,7 @@ def get_questions(suite_slug: str):
     }
 
 @app.post("/redemption/verify")
-def verify_redemption(data: RedemptionIn):
+def verify_redemption(data: RedemptionIn, user_id: str = Depends(resolve_user_id)):
     code = data.code.strip()
     with get_conn() as conn:
         row = conn.execute(
@@ -280,7 +278,7 @@ def verify_redemption(data: RedemptionIn):
             DO UPDATE SET metadata = public.redemption_events.metadata || EXCLUDED.metadata
             RETURNING id
             """,
-            (DEMO_USER_ID, row["suite_id"], row["code_id"], Jsonb({"source": "api_v1"})),
+            (user_id, row["suite_id"], row["code_id"], Jsonb({"source": "api_v1"})),
         ).fetchone()
         conn.execute("UPDATE public.redemption_codes SET used_count = used_count + 1 WHERE id = %s", (row["code_id"],))
         conn.commit()
@@ -289,7 +287,7 @@ def verify_redemption(data: RedemptionIn):
 
 
 @app.get("/attempts")
-def list_attempts(limit: int = 20):
+def list_attempts(limit: int = 20, user_id: str = Depends(resolve_user_id)):
     safe_limit = max(1, min(limit, 50))
     with get_conn() as conn:
         rows = conn.execute(
@@ -317,7 +315,7 @@ def list_attempts(limit: int = 20):
             ORDER BY COALESCE(ta.completed_at, ta.created_at) DESC
             LIMIT %s
             """,
-            (DEMO_USER_ID, safe_limit),
+            (user_id, safe_limit),
         ).fetchall()
     attempts = []
     for row in rows:
@@ -329,7 +327,7 @@ def list_attempts(limit: int = 20):
     return {"attempts": attempts}
 
 @app.post("/attempts")
-def submit_attempt(data: AttemptIn):
+def submit_attempt(data: AttemptIn, user_id: str = Depends(resolve_user_id)):
     answer_by_external = {a.externalId: a.answerPayload for a in data.answers}
     with get_conn() as conn:
         suite = conn.execute("SELECT id, slug, gender::text AS gender FROM public.test_suites WHERE slug = %s AND is_active = true", (data.suiteSlug,)).fetchone()
@@ -381,7 +379,7 @@ def submit_attempt(data: AttemptIn):
             RETURNING id
             """,
             (
-                DEMO_USER_ID, suite["id"], suite["slug"], data.redemptionEventId, scoring_model["id"] if scoring_model else None,
+                user_id, suite["id"], suite["slug"], data.redemptionEventId, scoring_model["id"] if scoring_model else None,
                 Jsonb([a.model_dump() for a in data.answers]), Jsonb([a.model_dump() for a in data.answers]),
                 Jsonb(scores["dimension_scores"]), Jsonb(scores["dimension_scores"]), scores["archetype_code"], archetype["gender"] if archetype else None,
                 scores["ros_index"], scores["ai_report"], Jsonb(result_payload),
@@ -404,7 +402,7 @@ def submit_attempt(data: AttemptIn):
     return {"attemptId": str(attempt_id), "status": "completed", "next": f"/analyzing?attemptId={attempt_id}"}
 
 @app.get("/attempts/{attempt_id}/result")
-def get_attempt_result(attempt_id: str):
+def get_attempt_result(attempt_id: str, user_id: str = Depends(resolve_user_id)):
     try:
         uuid.UUID(attempt_id)
     except ValueError:
@@ -415,9 +413,9 @@ def get_attempt_result(attempt_id: str):
             SELECT id, test_id, scores, archetype_code, archetype_gender, ros_index, rk_score,
                    risk_alert, ai_report, dimension_scores, result_payload, created_at, completed_at
             FROM public.test_attempts
-            WHERE id = %s
+            WHERE id = %s AND user_id = %s
             """,
-            (attempt_id,),
+            (attempt_id, user_id),
         ).fetchone()
         if not attempt:
             raise HTTPException(status_code=404, detail="画像结果不存在")
@@ -425,7 +423,7 @@ def get_attempt_result(attempt_id: str):
 
 
 @app.post("/attempts/{attempt_id}/report")
-def generate_attempt_report(attempt_id: str, refresh: bool = False):
+def generate_attempt_report(attempt_id: str, refresh: bool = False, user_id: str = Depends(resolve_user_id)):
     _safe_uuid(attempt_id)
     with get_conn() as conn:
         attempt = conn.execute(
@@ -449,7 +447,7 @@ def generate_attempt_report(attempt_id: str, refresh: bool = False):
             LEFT JOIN public.test_suites ts ON ts.id = ta.suite_id
             WHERE ta.id = %s AND ta.user_id = %s
             """,
-            (attempt_id, DEMO_USER_ID),
+            (attempt_id, user_id),
         ).fetchone()
         if not attempt:
             raise HTTPException(status_code=404, detail="画像结果不存在")
@@ -559,12 +557,13 @@ def generate_attempt_report(attempt_id: str, refresh: bool = False):
     }
 
 @app.post("/chat/message")
-def chat_message(data: ChatIn):
+def chat_message(data: ChatIn, user_id: str = Depends(resolve_user_id)):
     context = "已绑定画像" if data.attemptId else "未绑定具体画像"
     prompt = f"""
 你正在为 LoveCompass 用户进行婚恋画像解读。
 当前上下文：{context}
 attemptId：{data.attemptId or "未提供"}
+userId：{user_id}
 分析师：{data.analystId or "mirror"}
 用户问题：{data.message}
 

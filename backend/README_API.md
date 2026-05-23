@@ -2,6 +2,8 @@
 
 本目录新增 `app/` FastAPI 服务，用于承接 Lovable 前端的真实题库、作答、兑换码、结果和聊天上下文接口。服务依赖环境变量 `DATABASE_URL` 或 `SUPABASE_DB_URL` 连接 PostgreSQL/Supabase 数据库。
 
+写操作与历史记录接口需要 `Authorization: Bearer <supabase_access_token>`。服务端用 `SUPABASE_JWT_SECRET` 校验 JWT；本地可设 `LOVECOMPASS_ALLOW_DEMO_USER_FALLBACK=true` 在无 token 时回退到 `LOVECOMPASS_DEMO_USER_ID`。
+
 ## 启动
 
 ```bash

@@ -24,5 +24,6 @@ VITE_LOVECOMPASS_API_BASE_URL=http://localhost:8000
 | POST | `/redemption/verify` | 验证兑换码并返回 `redemptionEventId` |
 | POST | `/attempts` | 保存答案、生成基础评分与真实 `attemptId` |
 | GET | `/attempts/{attempt_id}/result` | 返回结果页读取的 attempt 数据 |
+| POST | `/attempts/{attempt_id}/report` | 生成或读取 AI 深度画像故事，写入 `ai_result_reports` 并回填 `test_attempts.ai_report` |
 | POST | `/chat/message` | 预留带 `attemptId` 的 AI 分析师对话入口 |
 

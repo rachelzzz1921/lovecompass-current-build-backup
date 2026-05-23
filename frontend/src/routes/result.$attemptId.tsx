@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate, useParams } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
-import { lovecompassApi } from "@/lib/lovecompassApi";
+import { lovecompassApi, type AttemptReport } from "@/lib/lovecompassApi";
 import { findTest } from "@/data/tests";
 import { ScoreRing } from "@/components/ScoreRing";
 import { AbilityRadar } from "@/components/AbilityRadar";
@@ -35,6 +35,13 @@ type ResultPayload = {
   dimensions?: ResultDimension[];
   archetype_profile?: ArchetypeProfile;
 };
+
+const REPORT_PLACEHOLDER_MARKERS = ["正式 AI 深度报告可由后台任务继续生成", "【AI 占位回复】", "【智谱未配置】"];
+
+function isPlaceholderReport(report?: string | null) {
+  if (!report) return true;
+  return REPORT_PLACEHOLDER_MARKERS.some((marker) => report.includes(marker));
+}
 
 type AttemptResult = {
   id: string;
@@ -101,13 +108,56 @@ function ResultPage() {
   const { attemptId } = useParams({ from: "/result/$attemptId" });
   const nav = useNavigate();
   const [data, setData] = useState<AttemptResult | null>(null);
+  const [report, setReport] = useState<AttemptReport | null>(null);
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let ignore = false;
+    setError(null);
+    setReport(null);
+    setReportError(null);
+    setReportLoading(false);
     lovecompassApi
       .getAttemptResult(attemptId)
-      .then((r) => setData(r.attempt as AttemptResult))
-      .catch((e) => setError((e as Error).message));
+      .then((r) => {
+        if (ignore) return;
+        const attempt = r.attempt as AttemptResult;
+        setData(attempt);
+        if (!isPlaceholderReport(attempt.ai_report)) {
+          setReport({
+            attemptId,
+            status: "succeeded",
+            content: attempt.ai_report ?? "",
+            cached: true,
+          });
+          return;
+        }
+        setReportLoading(true);
+        lovecompassApi
+          .getAttemptReport(attemptId)
+          .then((res) => {
+            if (ignore) return;
+            setReport(res.report);
+            setData((current) =>
+              current ? { ...current, ai_report: res.report.content } : current,
+            );
+          })
+          .catch((e) => {
+            if (ignore) return;
+            setReportError((e as Error).message);
+          })
+          .finally(() => {
+            if (!ignore) setReportLoading(false);
+          });
+      })
+      .catch((e) => {
+        if (!ignore) setError((e as Error).message);
+      });
+    return () => {
+      ignore = true;
+    };
   }, [attemptId]);
 
   if (error)
@@ -141,6 +191,7 @@ function ResultPage() {
     value: dimension.score,
   }));
   const highlights = splitMatchingLogic(profile.matching_logic);
+  const reportMarkdown = report?.content ?? data.ai_report ?? "";
 
   const share = async () => {
     try {
@@ -225,8 +276,23 @@ function ResultPage() {
               <TabsTrigger value="strengths">高光与提醒</TabsTrigger>
             </TabsList>
             <TabsContent value="report" className="mt-6">
+              {reportLoading && (
+                <div className="mb-4 rounded-2xl border border-sakura/20 bg-sakura/10 px-4 py-3 text-sm text-foreground/75">
+                  正在生成你的画像故事…这通常只需要几秒。
+                </div>
+              )}
+              {reportError && (
+                <div className="mb-4 rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-foreground/75">
+                  深度报告暂未生成成功，先展示基础画像：{reportError}
+                </div>
+              )}
+              {report?.generatedAt && (
+                <div className="mb-4 text-xs tracking-[0.2em] text-muted-foreground">
+                  AI 深度报告 · {new Date(report.generatedAt).toLocaleString()}
+                </div>
+              )}
               <article className="prose prose-invert max-w-none prose-headings:font-display prose-headings:text-gradient-sakura prose-h2:text-2xl prose-p:text-foreground/85 prose-li:text-foreground/85">
-                <ReactMarkdown>{data.ai_report ?? ""}</ReactMarkdown>
+                <ReactMarkdown>{reportMarkdown}</ReactMarkdown>
               </article>
             </TabsContent>
             <TabsContent value="strengths" className="mt-6 grid md:grid-cols-2 gap-6">

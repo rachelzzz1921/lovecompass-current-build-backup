@@ -1,5 +1,17 @@
 import type { AnswerDraft, TestQuestionsResponse } from "@/lib/questionTypes";
 
+export type AttemptReport = {
+  attemptId: string;
+  status: string;
+  summary?: string | null;
+  content: string;
+  reportPayload?: Record<string, unknown> | null;
+  generatedAt?: string | null;
+  modelProvider?: string | null;
+  modelName?: string | null;
+  cached?: boolean;
+};
+
 export type AttemptHistoryItem = {
   id: string;
   test_id?: string | null;
@@ -67,6 +79,11 @@ export const lovecompassApi = {
     ),
   getAttemptResult: (attemptId: string) =>
     requestJson<{ attempt: unknown }>(`/attempts/${encodeURIComponent(attemptId)}/result`),
+  getAttemptReport: (attemptId: string, refresh = false) =>
+    requestJson<{ report: AttemptReport }>(
+      `/attempts/${encodeURIComponent(attemptId)}/report${refresh ? "?refresh=true" : ""}`,
+      { method: "POST" },
+    ),
   getAttemptHistory: (limit = 20) =>
     requestJson<{ attempts: AttemptHistoryItem[] }>(
       `/attempts?limit=${encodeURIComponent(String(limit))}`,

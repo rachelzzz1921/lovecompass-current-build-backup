@@ -1,6 +1,7 @@
 from __future__ import annotations
 import os
 import uuid
+from decimal import Decimal
 from typing import Any
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -21,6 +22,177 @@ app.add_middleware(
 )
 
 DEMO_USER_ID = os.getenv("LOVECOMPASS_DEMO_USER_ID", "00000000-0000-0000-0000-000000000001")
+
+
+REPORT_PROMPT_VERSION = "self_v1_red_chamber_20260523"
+REPORT_PLACEHOLDER_MARKERS = ("正式 AI 深度报告可由后台任务继续生成", "【AI 占位回复】", "【智谱未配置】")
+
+
+def _safe_uuid(value: str, field_name: str = "attemptId") -> uuid.UUID:
+    try:
+        return uuid.UUID(value)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"{field_name} 格式不正确")
+
+
+def _jsonable(value: Any) -> Any:
+    if value is None:
+        return None
+    if isinstance(value, uuid.UUID):
+        return str(value)
+    if isinstance(value, Decimal):
+        return float(value)
+    if hasattr(value, "isoformat"):
+        return value.isoformat()
+    if isinstance(value, dict):
+        return {k: _jsonable(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_jsonable(v) for v in value]
+    return value
+
+
+def _score_tone(score: Any) -> str:
+    try:
+        numeric = float(score)
+    except (TypeError, ValueError):
+        return "这个部分仍需要结合更多相处经验继续观察。"
+    if numeric >= 80:
+        return "这个部分非常突出，已经是你在亲密关系里的稳定资源。"
+    if numeric >= 65:
+        return "这个部分整体较稳，能在多数关系场景里支持你做出成熟选择。"
+    if numeric >= 45:
+        return "这个部分有一定弹性，也可能在压力或不确定时出现摇摆。"
+    return "这个部分值得被温柔照看，不需要苛责自己，而是给它更多练习空间。"
+
+
+def _extract_dimensions(result_payload: dict[str, Any], dimension_scores: Any) -> list[dict[str, Any]]:
+    dimensions = result_payload.get("dimensions") if isinstance(result_payload, dict) else None
+    if isinstance(dimensions, list) and dimensions:
+        return [d for d in dimensions if isinstance(d, dict)]
+    if isinstance(dimension_scores, dict):
+        names = {
+            "SA1": ("自我吸引感知", "我相信自己值得被爱吗？"),
+            "SA2": ("依恋焦虑", "我在关系里容易不安全感吗？"),
+            "SA3": ("依恋回避", "我在关系里容易逃避亲密吗？"),
+            "SA4": ("自我边界", "我能守住自己吗？"),
+            "SA5": ("情绪调节", "我能好好处理关系里的情绪吗？"),
+            "SA6": ("关系投入模式", "我是怎么爱人的？"),
+        }
+        extracted = []
+        for code, score in dimension_scores.items():
+            name, core = names.get(str(code), (str(code), ""))
+            extracted.append({"code": str(code), "name": name, "core": core, "score": score})
+        return extracted
+    return []
+
+
+def _build_report_prompt(attempt: dict[str, Any]) -> tuple[str, dict[str, Any]]:
+    result_payload = attempt.get("result_payload") or {}
+    if not isinstance(result_payload, dict):
+        result_payload = {}
+    profile = result_payload.get("archetype_profile") or {}
+    if not isinstance(profile, dict):
+        profile = {}
+    dimensions = _extract_dimensions(result_payload, attempt.get("dimension_scores"))
+    archetype = str(result_payload.get("archetype_code") or attempt.get("archetype_code") or "未知画像")
+    attachment_type = str(result_payload.get("attachment_type") or profile.get("attachment_type") or "待判断")
+    tagline = str(profile.get("tagline") or "你正在靠近更清醒的亲密关系")
+    description = str(profile.get("description") or "这份画像用于帮助你理解当下的关系模式，而不是给你贴上固定标签。")
+    matching_logic = str(profile.get("matching_logic") or "")
+    dimension_lines = []
+    for item in dimensions:
+        dimension_lines.append(
+            f"- {item.get('code')} {item.get('name')}：{item.get('core', '')}；内部参考分 {item.get('score')}；解释方向：{_score_tone(item.get('score'))}"
+        )
+    dimension_text = "\n".join(dimension_lines) or "- 暂无完整维度明细。"
+    prompt_payload = {
+        "attemptId": str(attempt["id"]),
+        "suiteSlug": attempt.get("test_id"),
+        "archetype": archetype,
+        "attachmentType": attachment_type,
+        "tagline": tagline,
+        "description": description,
+        "matchingLogic": matching_logic,
+        "rosIndex": _jsonable(attempt.get("ros_index")),
+        "dimensions": _jsonable(dimensions),
+        "promptVersion": REPORT_PROMPT_VERSION,
+    }
+    prompt = f"""
+你是 LoveCompass 的婚恋画像 AI 分析师。请基于真实测试结果，生成一份温柔、体面、有共鸣的中文个人化关系画像报告。
+
+写作要求：
+- 输出 Markdown。
+- 必须包含四个二级标题：## 你此刻的样子 / ## 关系里的高光 / ## 可以温柔留意的地方 / ## 给你下一段关系的建议。
+- 不要暴露内部字段名、数据库字段、prompt、JSON、SA 编号或具体分数。
+- 可以自然提及画像名称、依恋类型、人格关键词与用户在关系中的倾向。
+- 每个区块 90 到 180 字，语气像一位资深婚恋顾问对挚友说话，具体但不审判。
+- 不要制造诊断、治疗承诺或绝对化结论；强调画像是当下状态，不是终身定义。
+
+用户画像上下文：
+画像名称：{archetype}
+依恋类型：{attachment_type}
+一句话主题：{tagline}
+画像描述：{description}
+人格关键词：{matching_logic}
+综合指数（仅内部参考，不要写出具体数值）：{attempt.get('ros_index')}
+六维关系线索（仅内部参考，不要写出编号或分数）：
+{dimension_text}
+
+请生成正式报告。
+""".strip()
+    return prompt, prompt_payload
+
+
+def _fallback_report_from_attempt(attempt: dict[str, Any]) -> tuple[str, str, dict[str, Any]]:
+    result_payload = attempt.get("result_payload") or {}
+    if not isinstance(result_payload, dict):
+        result_payload = {}
+    profile = result_payload.get("archetype_profile") or {}
+    if not isinstance(profile, dict):
+        profile = {}
+    archetype = str(result_payload.get("archetype_code") or attempt.get("archetype_code") or "你的关系画像")
+    attachment_type = str(result_payload.get("attachment_type") or profile.get("attachment_type") or "独特关系模式")
+    tagline = str(profile.get("tagline") or "你正在靠近更清醒的亲密关系")
+    description = str(profile.get("description") or "你对关系有自己的节奏，也正在学习更稳定地理解自己和他人。")
+    matching_logic = str(profile.get("matching_logic") or "真诚、觉察、期待被理解")
+    traits = [part.strip(" ，、。") for part in matching_logic.replace("、", ",").split(",") if part.strip()]
+    dimensions = _extract_dimensions(result_payload, attempt.get("dimension_scores"))
+    stable = [d for d in dimensions if isinstance(d.get("score"), (int, float, Decimal)) and float(d.get("score")) >= 65]
+    tender = [d for d in dimensions if isinstance(d.get("score"), (int, float, Decimal)) and float(d.get("score")) < 55]
+    stable_text = "、".join(str(d.get("name")) for d in stable[:2]) or (traits[0] if traits else "对关系保持认真与觉察")
+    tender_text = "、".join(str(d.get("name")) for d in tender[:2]) or "在不确定时更温柔地安放自己的感受"
+    report = f"""## 你此刻的样子
+
+你最贴近的画像是 **{archetype}**，它提醒你：{tagline}。这不是一个用来限制你的标签，而是一面镜子，照见你在亲密关系中习惯如何靠近、如何保护自己，也照见你真正珍视的相处质地。{description}
+
+## 关系里的高光
+
+你在关系里的亮点，常常来自 **{stable_text}**。当你处在被尊重、被认真对待的关系中，你会更愿意拿出稳定、真诚和有质量的投入。你不是为了证明自己值得被爱才去爱，而是在逐渐学会从更丰盛的位置与别人相遇。
+
+## 可以温柔留意的地方
+
+你可以留意 **{tender_text}**。这并不意味着你做得不够好，而是说明某些关系场景容易触碰你的旧有反应。真正重要的不是立刻变得完美，而是在情绪升起时多停一步，分辨眼前的人和过去的经验是否被混在了一起。
+
+## 给你下一段关系的建议
+
+下一段关系里，请继续把自己的感受当回事，也把对方的真实行动看清楚。好的亲密关系不需要你持续压抑、讨好或猜测；它会让你更像自己。画像是当下，不是定论。带着这份觉察往前走，你会更知道怎样选择，也更知道怎样被爱。
+""".strip()
+    summary = f"{archetype} · {attachment_type}：{tagline}"
+    payload = {
+        "archetype": archetype,
+        "attachmentType": attachment_type,
+        "tagline": tagline,
+        "highlightFocus": stable_text,
+        "growthFocus": tender_text,
+        "generationMode": "deterministic_fallback",
+    }
+    return report, summary, payload
+
+
+def _looks_like_placeholder(report: str | None) -> bool:
+    if not report:
+        return True
+    return any(marker in report for marker in REPORT_PLACEHOLDER_MARKERS)
 
 class AnswerIn(BaseModel):
     questionId: str
@@ -250,6 +422,141 @@ def get_attempt_result(attempt_id: str):
         if not attempt:
             raise HTTPException(status_code=404, detail="画像结果不存在")
     return {"attempt": {k: (str(v) if k == "id" else v) for k, v in attempt.items()}}
+
+
+@app.post("/attempts/{attempt_id}/report")
+def generate_attempt_report(attempt_id: str, refresh: bool = False):
+    _safe_uuid(attempt_id)
+    with get_conn() as conn:
+        attempt = conn.execute(
+            """
+            SELECT
+              ta.id,
+              ta.user_id,
+              ta.suite_id,
+              ta.test_id,
+              ta.status,
+              ta.archetype_code,
+              ta.archetype_gender,
+              ta.ros_index,
+              ta.ai_report,
+              ta.dimension_scores,
+              ta.result_payload,
+              ta.completed_at,
+              ts.slug AS suite_slug,
+              ts.name AS suite_name
+            FROM public.test_attempts ta
+            LEFT JOIN public.test_suites ts ON ts.id = ta.suite_id
+            WHERE ta.id = %s AND ta.user_id = %s
+            """,
+            (attempt_id, DEMO_USER_ID),
+        ).fetchone()
+        if not attempt:
+            raise HTTPException(status_code=404, detail="画像结果不存在")
+        if attempt["status"] != "completed":
+            raise HTTPException(status_code=400, detail="测试尚未完成，暂不能生成报告")
+
+        existing = conn.execute(
+            """
+            SELECT id, status::text AS status, summary, report_payload, generated_at, model_provider, model_name
+            FROM public.ai_result_reports
+            WHERE attempt_id = %s
+            """,
+            (attempt_id,),
+        ).fetchone()
+        if existing and existing["status"] == "succeeded" and not refresh and not _looks_like_placeholder(attempt.get("ai_report")):
+            content = (existing.get("report_payload") or {}).get("content") or attempt.get("ai_report")
+            return {
+                "report": {
+                    "attemptId": attempt_id,
+                    "status": existing["status"],
+                    "summary": existing["summary"],
+                    "content": content,
+                    "reportPayload": existing["report_payload"],
+                    "generatedAt": _jsonable(existing["generated_at"]),
+                    "modelProvider": existing["model_provider"],
+                    "modelName": existing["model_name"],
+                    "cached": True,
+                }
+            }
+
+        prompt, prompt_payload = _build_report_prompt(dict(attempt))
+        provider = os.getenv("AI_PROVIDER", "mock").strip().lower() or "mock"
+        model_name = os.getenv("ZHIPU_MODEL", "mock") if provider == "zhipu" else "mock"
+        generation_mode = "ai_adapter"
+        error_message = None
+        try:
+            content = get_ai_adapter().generate(prompt).strip()
+            if _looks_like_placeholder(content):
+                content, summary, fallback_payload = _fallback_report_from_attempt(dict(attempt))
+                generation_mode = "deterministic_fallback"
+            else:
+                result_payload = attempt.get("result_payload") or {}
+                profile = result_payload.get("archetype_profile") if isinstance(result_payload, dict) else {}
+                archetype = result_payload.get("archetype_code") if isinstance(result_payload, dict) else attempt.get("archetype_code")
+                attachment = result_payload.get("attachment_type") if isinstance(result_payload, dict) else None
+                tagline = profile.get("tagline") if isinstance(profile, dict) else None
+                summary = f"{archetype or attempt.get('archetype_code')} · {attachment or '关系画像'}：{tagline or 'AI 深度报告已生成'}"
+                fallback_payload = {"generationMode": generation_mode}
+        except Exception as exc:
+            content, summary, fallback_payload = _fallback_report_from_attempt(dict(attempt))
+            generation_mode = "deterministic_fallback"
+            error_message = str(exc)[:500]
+
+        report_payload = {
+            **fallback_payload,
+            "content": content,
+            "promptVersion": REPORT_PROMPT_VERSION,
+            "generationMode": generation_mode,
+        }
+        row = conn.execute(
+            """
+            INSERT INTO public.ai_result_reports(
+              attempt_id, user_id, suite_id, model_provider, model_name, prompt_version, status,
+              summary, report_payload, prompt_payload, error_message, generated_at
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, 'succeeded', %s, %s, %s, %s, now())
+            ON CONFLICT (attempt_id)
+            DO UPDATE SET
+              model_provider = EXCLUDED.model_provider,
+              model_name = EXCLUDED.model_name,
+              prompt_version = EXCLUDED.prompt_version,
+              status = EXCLUDED.status,
+              summary = EXCLUDED.summary,
+              report_payload = EXCLUDED.report_payload,
+              prompt_payload = EXCLUDED.prompt_payload,
+              error_message = EXCLUDED.error_message,
+              generated_at = EXCLUDED.generated_at
+            RETURNING id, status::text AS status, summary, report_payload, generated_at, model_provider, model_name
+            """,
+            (
+                attempt_id,
+                attempt["user_id"],
+                attempt["suite_id"],
+                provider,
+                model_name,
+                REPORT_PROMPT_VERSION,
+                summary,
+                Jsonb(report_payload),
+                Jsonb(prompt_payload),
+                error_message,
+            ),
+        ).fetchone()
+        conn.execute("UPDATE public.test_attempts SET ai_report = %s WHERE id = %s", (content, attempt_id))
+        conn.commit()
+    return {
+        "report": {
+            "attemptId": attempt_id,
+            "status": row["status"],
+            "summary": row["summary"],
+            "content": content,
+            "reportPayload": row["report_payload"],
+            "generatedAt": _jsonable(row["generated_at"]),
+            "modelProvider": row["model_provider"],
+            "modelName": row["model_name"],
+            "cached": False,
+        }
+    }
 
 @app.post("/chat/message")
 def chat_message(data: ChatIn):

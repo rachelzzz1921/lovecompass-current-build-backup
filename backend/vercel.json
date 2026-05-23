@@ -1,7 +1,13 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "api/main.py"
+    }
+  ],
   "functions": {
-    "app/main.py": {
+    "api/main.py": {
       "maxDuration": 60,
       "excludeFiles": "{scripts/**,data/**,migrations/**,docs/**,**/*.sql,**/__pycache__/**,**/*.pyc}"
     }

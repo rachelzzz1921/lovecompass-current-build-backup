@@ -150,9 +150,9 @@ def get_pool() -> ConnectionPool:
     if not database_url:
         raise RuntimeError("DATABASE_URL 或 SUPABASE_DB_URL 未配置")
     if _pool is None:
-        conn_kwargs = database_conninfo(database_url)
+        conninfo = normalize_database_url(database_url)
         _pool = ConnectionPool(
-            conninfo=conn_kwargs,
+            conninfo,
             kwargs={"row_factory": dict_row, "prepare_threshold": None},
             min_size=0,
             max_size=int(os.getenv("DATABASE_POOL_MAX_SIZE", "1")),

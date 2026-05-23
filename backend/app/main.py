@@ -114,6 +114,48 @@ def verify_redemption(data: RedemptionIn):
         conn.commit()
     return {"ok": True, "suiteSlug": row["slug"], "redemptionEventId": str(event["id"]), "redirect": f"/tests/{row['slug']}/run"}
 
+
+
+@app.get("/attempts")
+def list_attempts(limit: int = 20):
+    safe_limit = max(1, min(limit, 50))
+    with get_conn() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+              ta.id,
+              ta.test_id,
+              ta.status,
+              ta.archetype_code,
+              ta.archetype_gender,
+              ta.ros_index,
+              ta.rk_score,
+              ta.dimension_scores,
+              ta.result_payload,
+              ta.created_at,
+              ta.completed_at,
+              ts.slug AS suite_slug,
+              ts.name AS suite_name,
+              ts.gender::text AS suite_gender,
+              ts.total_questions,
+              ts.estimated_minutes
+            FROM public.test_attempts ta
+            LEFT JOIN public.test_suites ts ON ts.id = ta.suite_id
+            WHERE ta.user_id = %s
+            ORDER BY COALESCE(ta.completed_at, ta.created_at) DESC
+            LIMIT %s
+            """,
+            (DEMO_USER_ID, safe_limit),
+        ).fetchall()
+    attempts = []
+    for row in rows:
+        item = dict(row)
+        for key in ["id", "created_at", "completed_at"]:
+            if item.get(key) is not None:
+                item[key] = str(item[key])
+        attempts.append(item)
+    return {"attempts": attempts}
+
 @app.post("/attempts")
 def submit_attempt(data: AttemptIn):
     answer_by_external = {a.externalId: a.answerPayload for a in data.answers}

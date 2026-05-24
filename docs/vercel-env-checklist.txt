@@ -2,20 +2,21 @@
 # 项目 A：backend（Root = backend）
 # 项目 B：frontend（Root = frontend）
 
-# ── backend ─────────────────────────────────────────
+# ── backend（lovecompass-api-backend）────────────────
+# 已部署：https://lovecompass-api-backend.vercel.app
 DATABASE_URL=
 SUPABASE_URL=https://wjfpglsygkbpubanylug.supabase.co
 SUPABASE_PROJECT_ID=wjfpglsygkbpubanylug
 SUPABASE_JWT_SECRET=
-CORS_ORIGINS=
-# 默认允许 https://*.vercel.app 预览域名；自定义域名仍需写入 CORS_ORIGINS
+# 可选；默认已允许 https://*.vercel.app 预览。正式前端域名部署后建议补上：
+CORS_ORIGINS=https://lovecompass-web.vercel.app,http://localhost:5173
 AI_PROVIDER=zhipu
 ZHIPU_API_KEY=
 ZHIPU_BASE_URL=https://open.bigmodel.cn/api/paas/v4
 ZHIPU_MODEL=glm-4-flash
 LOVECOMPASS_ALLOW_DEMO_USER_FALLBACK=false
 
-# ── frontend ────────────────────────────────────────
+# ── frontend（新建 Vercel 项目，Root = frontend）──────
 NEXT_PUBLIC_SUPABASE_URL=https://wjfpglsygkbpubanylug.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
-VITE_LOVECOMPASS_API_BASE_URL=
+VITE_LOVECOMPASS_API_BASE_URL=https://lovecompass-api-backend.vercel.app

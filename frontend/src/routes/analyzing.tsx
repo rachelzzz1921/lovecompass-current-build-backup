@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { AuthChecking, useRequireAuth } from "@/lib/requireAuth";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { z } from "zod";
@@ -95,6 +96,7 @@ const KEYWORDS = [
 function AnalyzingPage() {
   const nav = useNavigate();
   const { attemptId, variant = "demo", to } = Route.useSearch();
+  const { pending: authPending } = useRequireAuth();
 
   const [stage, setStage] = useState(0);
   const [overall, setOverall] = useState(0); // 0–100
@@ -135,6 +137,8 @@ function AnalyzingPage() {
 
   const cur = STAGES[Math.min(stage, STAGES.length - 1)];
   const done = stage >= STAGES.length;
+
+  if (authPending) return <AuthChecking />;
 
   return (
     <main className="relative min-h-screen flex items-center justify-center px-5 py-10 overflow-hidden">

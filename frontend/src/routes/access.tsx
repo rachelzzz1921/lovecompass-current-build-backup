@@ -18,6 +18,7 @@ const SearchSchema = z.object({
 
 export const Route = createFileRoute("/access")({
   validateSearch: (s) => SearchSchema.parse(s),
+  ssr: false,
   head: () => ({
     meta: [
       { title: "兑换码验证 · MIRROR" },
@@ -66,11 +67,12 @@ function AccessPage() {
         nav({ to: "/tests/$id/run", params: { id: suiteSlug } });
       }
     } catch (e) {
-      setVerifying(false);
       const msg = (e as Error).message || "兑换码无效或已被使用";
       toast.error(msg, { description: getApiErrorHint(msg) ?? undefined });
       setCode("");
       inputRef.current?.focus();
+    } finally {
+      setVerifying(false);
     }
   };
 

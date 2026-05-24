@@ -46,7 +46,10 @@ def main() -> None:
 
     fallback = os.getenv("LOVECOMPASS_ALLOW_DEMO_USER_FALLBACK", "").strip().lower()
     if fallback in {"1", "true", "yes"}:
-        WARNINGS.append("LOVECOMPASS_ALLOW_DEMO_USER_FALLBACK is enabled (ok for local, not for production)")
+        if os.getenv("VERCEL") == "1":
+            ERRORS.append("LOVECOMPASS_ALLOW_DEMO_USER_FALLBACK must be false on Vercel")
+        else:
+            WARNINGS.append("LOVECOMPASS_ALLOW_DEMO_USER_FALLBACK is enabled (ok for local, not for production)")
 
     db_url = (os.getenv("DATABASE_URL") or "").strip()
     if db_url and ":6543" in db_url and "pgbouncer=true" not in db_url:

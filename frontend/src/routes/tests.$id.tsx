@@ -1,7 +1,6 @@
 import { createFileRoute, Link, Outlet, useNavigate, useParams, useRouterState } from "@tanstack/react-router";
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { toast } from "sonner";
 import { PRODUCTS } from "@/data/products";
 import { HintButton } from "@/components/HintButton";
 import { useAuth } from "@/hooks/useAuth";
@@ -49,7 +48,6 @@ function TestEntry() {
   const start = () => {
     const blocked = startBlockedReason();
     if (blocked) {
-      toast.info(blocked);
       if (!user) {
         nav({ to: "/auth", search: { redirect: returnPath } });
         return;
@@ -155,36 +153,47 @@ function TestEntry() {
           initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.24 }}
-          className="mt-8 bg-glass-strong rounded-3xl p-7 flex flex-col md:flex-row items-center justify-between gap-5"
+          className="mt-8 bg-glass-strong rounded-3xl p-6 md:p-7 space-y-6"
         >
-          <div className="flex items-center gap-3">
-            <span className="w-10 h-10 rounded-xl bg-[oklch(0.50_0.20_285_/_0.18)] grid place-items-center text-[oklch(0.82_0.10_285)]">
+          {/* 状态行 */}
+          <div className="flex items-start gap-3">
+            <span className="shrink-0 w-10 h-10 rounded-xl bg-[oklch(0.50_0.20_285_/_0.18)] grid place-items-center text-[oklch(0.82_0.10_285)]">
               {hasAccess ? <Sparkles className="h-5 w-5" /> : <Lock className="h-5 w-5" />}
             </span>
-            <div>
+            <div className="min-w-0">
               <div className="font-display text-lg text-foreground/95">
                 {hasAccess ? "已解锁，可以开始" : "需要兑换码解锁"}
               </div>
               <div className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
-                <ShieldCheck className="h-3 w-3" />
+                <ShieldCheck className="h-3 w-3 shrink-0" />
                 {user ? "已登录" : "开始之前请先登录"} · 答题过程不外泄
               </div>
             </div>
           </div>
 
+          {/* 版本选择 — 全宽独立区块 */}
           {isSelfProduct && (
-            <div className="w-full md:w-auto flex flex-col gap-2">
-              <div className="text-[10px] font-mono tracking-[0.3em] text-muted-foreground">选择题库版本</div>
-              <div className="flex gap-2">
+            <div className="rounded-2xl border border-border/50 bg-secondary/20 p-4 md:p-5 space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-[10px] font-mono tracking-[0.3em] text-muted-foreground">
+                  选择题库版本
+                </div>
+                {selfGender && (
+                  <span className="text-[10px] font-mono text-foreground/70">
+                    已选 · {selfGender === "female" ? "女性版" : "男性版"}
+                  </span>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-2.5">
                 {(["female", "male"] as const).map((gender) => (
                   <button
                     key={gender}
                     type="button"
                     onClick={() => setSelfGender(gender)}
-                    className={`flex-1 h-11 rounded-full border text-sm transition ${
+                    className={`h-11 rounded-xl border text-sm font-medium transition ${
                       selfGender === gender
-                        ? "border-accent bg-accent/15 text-foreground"
-                        : "border-border/60 bg-glass text-muted-foreground hover:text-foreground"
+                        ? "border-[oklch(0.68_0.18_285_/_0.7)] bg-[oklch(0.50_0.20_285_/_0.12)] text-foreground shadow-[0_0_0_1px_oklch(0.68_0.18_285_/_0.25)]"
+                        : "border-border/60 bg-glass text-muted-foreground hover:text-foreground hover:border-border"
                     }`}
                   >
                     {gender === "female" ? "女性版 · 50 题" : "男性版 · 50 题"}
@@ -192,17 +201,20 @@ function TestEntry() {
                 ))}
               </div>
               {!selfGender && (
-                <p className="text-[11px] text-muted-foreground">请先选择上方版本，再点击「开始测试」</p>
+                <p className="text-[11px] text-muted-foreground text-center">
+                  请先选择版本，再输入兑换码或开始测试
+                </p>
               )}
             </div>
           )}
 
-          <div className="flex gap-2 w-full md:w-auto">
+          {/* 操作按钮 — 全宽对齐 */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             {!hasAccess && (
               <Link
                 to="/access"
                 search={{ product: product.id, redirect: `/tests/${runSuiteSlug || product.id}/run` }}
-                className="flex-1 md:flex-none inline-flex items-center justify-center gap-1.5 px-5 h-11 rounded-full border border-border/60 bg-glass text-sm hover:bg-secondary/40"
+                className="inline-flex items-center justify-center gap-1.5 h-11 rounded-full border border-border/60 bg-glass text-sm hover:bg-secondary/40 transition"
               >
                 <Lock className="h-4 w-4" /> 输入兑换码
               </Link>
@@ -211,7 +223,8 @@ function TestEntry() {
               onClick={start}
               blocked={Boolean(blockedReason)}
               blockedHint={blockedReason ?? undefined}
-              className={`flex-1 md:flex-none inline-flex items-center justify-center gap-1.5 px-6 h-11 rounded-full text-sm font-medium bg-gradient-to-r ${a.ring} text-primary-foreground hover:opacity-95`}
+              runWhenBlocked
+              className={`inline-flex items-center justify-center gap-1.5 h-11 rounded-full text-sm font-medium bg-gradient-to-r ${a.ring} text-primary-foreground hover:opacity-95 ${hasAccess ? "sm:col-span-2" : ""}`}
             >
               {hasAccess ? "开始测试" : "去解锁"} <ArrowRight className="h-4 w-4" />
             </HintButton>

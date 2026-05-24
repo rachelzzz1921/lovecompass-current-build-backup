@@ -27,13 +27,20 @@ export function AuthChecking() {
   );
 }
 
+function currentReturnPath(state: {
+  location: { pathname: string; searchStr?: string };
+}): string {
+  const pathname = state.location.pathname;
+  const searchStr = state.location.searchStr ?? "";
+  if (!searchStr) return pathname;
+  return `${pathname}${searchStr.startsWith("?") ? searchStr : `?${searchStr}`}`;
+}
+
 /** Redirect unauthenticated users to /auth?redirect=… */
 export function useRequireAuth() {
   const nav = useNavigate();
   const { session, loading } = useAuth();
-  const returnPath = useRouterState({
-    select: (state) => `${state.location.pathname}${state.location.search}`,
-  });
+  const returnPath = useRouterState({ select: currentReturnPath });
   const [redirecting, setRedirecting] = useState(false);
   const [sessionReady, setSessionReady] = useState(false);
   const [resolvedSession, setResolvedSession] = useState(session);
@@ -53,6 +60,8 @@ export function useRequireAuth() {
   useEffect(() => {
     if (loading || !sessionReady) return;
     if (resolvedSession) return;
+    if (returnPath.startsWith("/auth")) return;
+
     setRedirecting(true);
     void nav({
       to: "/auth",

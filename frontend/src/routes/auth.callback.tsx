@@ -1,32 +1,65 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useEffect } from "react";
-import { AuthChecking, safeReturnPath } from "@/lib/requireAuth";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { z } from "zod";
+import { toast } from "sonner";
+import { AuthChecking } from "@/lib/requireAuth";
+import { takeOAuthReturn } from "@/lib/oauthReturn";
+import { completeSupabaseAuthFromUrl, getSessionWithRefresh } from "@/lib/supabaseSession";
 
-/** Legacy OAuth redirect target — forwards to /auth so old Supabase redirect URLs keep working. */
-export const Route = createFileRoute("/auth/callback")({
-  component: AuthCallbackRedirect,
+const CallbackSearchSchema = z.object({
+  code: z.string().optional(),
+  error: z.string().optional(),
+  error_description: z.string().optional(),
 });
 
-function AuthCallbackRedirect() {
+export const Route = createFileRoute("/auth/callback")({
+  validateSearch: (s) => CallbackSearchSchema.parse(s),
+  ssr: false,
+  component: OAuthCallbackPage,
+});
+
+function OAuthCallbackPage() {
+  const nav = useNavigate();
+  const [message, setMessage] = useState("正在完成 Google 登录…");
+
   useEffect(() => {
-    const current = new URL(window.location.href);
-    const redirect = safeReturnPath(current.searchParams.get("redirect") ?? undefined);
-    const next = new URL(`${window.location.origin}/auth`);
-    next.searchParams.set("redirect", redirect);
-    for (const key of ["code", "error", "error_description"]) {
-      const value = current.searchParams.get(key);
-      if (value) next.searchParams.set(key, value);
-    }
-    if (current.hash) {
-      next.hash = current.hash;
-    }
-    window.location.replace(next.toString());
-  }, []);
+    let cancelled = false;
+
+    void (async () => {
+      const returnPath = takeOAuthReturn("/");
+
+      const result = await completeSupabaseAuthFromUrl(window.location.href);
+      if (cancelled) return;
+
+      if (result.error) {
+        setMessage("登录未完成");
+        toast.error(result.error);
+        void nav({ to: "/auth", search: { redirect: returnPath } });
+        return;
+      }
+
+      const session = await getSessionWithRefresh();
+      if (cancelled) return;
+
+      if (session) {
+        void nav({ href: returnPath });
+        return;
+      }
+
+      setMessage("未能建立登录会话");
+      toast.error("Google 登录未完成，请再试一次");
+      void nav({ to: "/auth", search: { redirect: returnPath } });
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [nav]);
 
   return (
-    <main className="min-h-screen flex items-center justify-center text-sm text-muted-foreground">
+    <main className="min-h-screen flex flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
       <AuthChecking />
-      <p className="sr-only">正在跳转到登录页…</p>
+      <p>{message}</p>
     </main>
   );
 }

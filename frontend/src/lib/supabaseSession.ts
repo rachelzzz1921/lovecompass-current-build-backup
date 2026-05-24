@@ -36,27 +36,52 @@ export async function getRequiredAccessToken(): Promise<string> {
 
 export async function getSessionWithRefresh(): Promise<Session | null> {
   const { data: current } = await supabase.auth.getSession();
-  if (current.session) return current.session;
-
-  const { data: refreshed } = await supabase.auth.refreshSession();
-  return refreshed.session ?? null;
-}
-
-/** Complete Supabase OAuth return (PKCE code or implicit hash). */
-export async function completeSupabaseAuthFromUrl(url: string): Promise<{ error?: string }> {
-  const parsed = new URL(url);
-  const code = parsed.searchParams.get("code");
-
-  if (code) {
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (error) return { error: error.message };
-    return {};
+  if (current.session && !sessionNearExpiry(current.session)) {
+    return current.session;
   }
 
-  if (parsed.hash.includes("access_token") || parsed.hash.includes("error")) {
-    const { error } = await supabase.auth.getSession();
-    if (error) return { error: error.message };
-    return {};
+  const { data: refreshed, error } = await supabase.auth.refreshSession();
+  if (error) return current.session ?? null;
+  return refreshed.session ?? current.session ?? null;
+}
+
+/** Complete Supabase OAuth return (PKCE code or implicit hash). Client-only. */
+export async function completeSupabaseAuthFromUrl(url: string): Promise<{ error?: string }> {
+  const parsed = new URL(url);
+
+  const oauthError = parsed.searchParams.get("error") || parsed.searchParams.get("error_description");
+  if (oauthError) {
+    return { error: oauthError };
+  }
+
+  const code = parsed.searchParams.get("code");
+  if (code) {
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    if (!error) return {};
+
+    // detectSessionInUrl may have already exchanged the code
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (sessionData.session) return {};
+
+    return { error: error.message };
+  }
+
+  if (parsed.hash.includes("access_token")) {
+    const hashParams = new URLSearchParams(parsed.hash.replace(/^#/, ""));
+    const access_token = hashParams.get("access_token");
+    const refresh_token = hashParams.get("refresh_token");
+    if (access_token && refresh_token) {
+      const { error } = await supabase.auth.setSession({ access_token, refresh_token });
+      if (error) return { error: error.message };
+      return {};
+    }
+  }
+
+  if (parsed.hash.includes("error")) {
+    const hashParams = new URLSearchParams(parsed.hash.replace(/^#/, ""));
+    const description = hashParams.get("error_description") || hashParams.get("error");
+    return { error: description || "OAuth 登录失败" };
   }
 
   return {};

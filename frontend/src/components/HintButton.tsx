@@ -5,6 +5,8 @@ import { cn } from "@/lib/utils";
 type HintButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   blocked?: boolean;
   blockedHint?: string;
+  /** When true, still invoke onClick after showing the hint (e.g. navigate to login/access). */
+  runWhenBlocked?: boolean;
   children: ReactNode;
 };
 
@@ -12,6 +14,7 @@ type HintButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 export function HintButton({
   blocked,
   blockedHint,
+  runWhenBlocked = false,
   onClick,
   className,
   children,
@@ -25,6 +28,7 @@ export function HintButton({
       onClick={(event) => {
         if (blocked) {
           if (blockedHint) toast.info(blockedHint);
+          if (runWhenBlocked) onClick?.(event);
           return;
         }
         onClick?.(event);

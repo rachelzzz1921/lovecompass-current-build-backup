@@ -161,7 +161,24 @@ cd frontend && npm install && npm run dev
 
 ## 六、Supabase Dashboard 手动项
 
+- **Authentication → URL Configuration**
+  - **Site URL**：前端 Vercel 正式域名（例如 `https://lovecompass-web.vercel.app`）
+  - **Redirect URLs** 增加：
+    - `https://<前端域名>/auth**`
+    - `http://localhost:5173/auth**`
+  - Google OAuth：Authentication → Providers → Google 启用，并在 Google Cloud Console 配置相同 redirect URI
 - **Authentication → Email → Leaked password protection**：建议开启（MCP 无法代配）。
+
+部署后可用仓库脚本快速验收：
+
+```bash
+chmod +x scripts/smoke-production.sh
+BACKEND_URL=https://lovecompass-api-backend.vercel.app \
+FRONTEND_URL=https://<你的前端域名> \
+./scripts/smoke-production.sh
+```
+
+后端配置探针：`GET /health?config=1` 可查看 `jwtSecret` 等是否已配置（不泄露密钥）。
 
 ---
 

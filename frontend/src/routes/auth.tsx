@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate, useSearch } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useNavigate, useRouterState, useSearch } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { z } from "zod";
@@ -8,26 +8,32 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { ArrowLeft, Mail, Lock, Sparkles, ShieldCheck } from "lucide-react";
 import { safeReturnPath } from "@/lib/requireAuth";
+import { oauthCallbackUrl, stashOAuthReturn } from "@/lib/oauthReturn";
 import { completeSupabaseAuthFromUrl, getSessionWithRefresh } from "@/lib/supabaseSession";
 
 const AuthSearchSchema = z.object({
   redirect: z.string().optional(),
+  code: z.string().optional(),
+  error: z.string().optional(),
+  error_description: z.string().optional(),
 });
 
 export const Route = createFileRoute("/auth")({
   validateSearch: (s) => AuthSearchSchema.parse(s),
+  ssr: false,
   head: () => ({
     meta: [
       { title: "登录 · MIRROR" },
       { name: "description", content: "登录 MIRROR，开启你的 AI 关系画像。" },
     ],
   }),
-  component: AuthPage,
+  component: AuthRouteShell,
 });
 
-/** OAuth must land on a route that exists in production (/auth handles PKCE code exchange). */
-function oauthReturnUrl(returnPath: string) {
-  return `${window.location.origin}/auth?redirect=${encodeURIComponent(safeReturnPath(returnPath))}`;
+function AuthRouteShell() {
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  if (pathname.startsWith("/auth/callback")) return <Outlet />;
+  return <AuthPage />;
 }
 
 function AuthPage() {
@@ -89,7 +95,7 @@ function AuthPage() {
           email,
           password: pw,
           options: {
-            emailRedirectTo: oauthReturnUrl(returnPath),
+            emailRedirectTo: oauthCallbackUrl(),
           },
         });
         if (error) throw error;
@@ -115,10 +121,11 @@ function AuthPage() {
   const google = async () => {
     setLoading(true);
     try {
+      stashOAuthReturn(returnPath);
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: oauthReturnUrl(returnPath),
+          redirectTo: oauthCallbackUrl(),
         },
       });
       if (error) throw error;

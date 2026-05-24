@@ -31,7 +31,10 @@ def resolve_user_id(authorization: Annotated[str | None, Header()] = None) -> st
                 audience="authenticated",
             )
         except jwt.PyJWTError as exc:
-            raise HTTPException(status_code=401, detail="无效或过期的登录令牌") from exc
+            raise HTTPException(
+                status_code=401,
+                detail="无效或过期的登录令牌，请重新登录",
+            ) from exc
         sub = payload.get("sub")
         if not sub:
             raise HTTPException(status_code=401, detail="登录令牌缺少用户标识")

@@ -229,8 +229,19 @@ class ChatIn(BaseModel):
     message: str = Field(min_length=1)
 
 @app.get("/health")
-def health(db: bool = False):
-    """Liveness probe. Pass ?db=1 to verify DATABASE_URL connectivity (use after Vercel deploy)."""
+def health(db: bool = False, config: bool = False):
+    """Liveness probe. ?db=1 checks DATABASE_URL; ?config=1 reports non-secret config flags."""
+    if config:
+        fallback = os.getenv("LOVECOMPASS_ALLOW_DEMO_USER_FALLBACK", "").strip().lower()
+        return {
+            "ok": True,
+            "config": {
+                "databaseUrl": bool((os.getenv("DATABASE_URL") or "").strip()),
+                "jwtSecret": bool((os.getenv("SUPABASE_JWT_SECRET") or "").strip()),
+                "corsVercelPreviews": _cors_allow_vercel_previews(),
+                "demoUserFallback": fallback in {"1", "true", "yes"},
+            },
+        }
     if not db:
         return {"ok": True}
     try:

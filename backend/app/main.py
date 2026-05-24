@@ -24,6 +24,9 @@ from app.chat_context import (
 from app.admin import router as admin_router
 from app.core_traits import attach_core_traits_to_payload
 from app.profile_center import rebuild_and_cache_portrait
+from app.ros_router import create_relation_session, link_partner_to_session
+from app.ros_router import router as ros_router
+from app.ros_scoring import is_ros_suite, summarize_ros_scores
 
 
 def _cors_origins() -> list[str]:
@@ -41,6 +44,7 @@ def _cors_allow_vercel_previews() -> bool:
 
 app = FastAPI(title="LoveCompass API", version="0.1.0")
 app.include_router(admin_router)
+app.include_router(ros_router)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins(),
@@ -230,6 +234,7 @@ class AnswerIn(BaseModel):
 class AttemptIn(BaseModel):
     suiteSlug: str
     redemptionEventId: str | None = None
+    partnerRelationCode: str | None = None
     answers: list[AnswerIn]
 
 class RedemptionIn(BaseModel):
@@ -437,33 +442,52 @@ def submit_attempt(data: AttemptIn, user_id: str = Depends(resolve_user_id)):
             """,
             (suite["id"],),
         ).fetchone()
-        scores = summarize_scores(questions, answer_by_external, scoring_model, suite["gender"])
-        archetype = conn.execute(
-            """
-            SELECT archetype_code, gender::text AS gender, profile_payload
-            FROM public.result_archetypes
-            WHERE suite_id = %s AND archetype_code = %s AND is_active = true
-            LIMIT 1
-            """,
-            (suite["id"], scores["archetype_code"]),
-        ).fetchone()
+        ros_suite = is_ros_suite(suite["slug"])
+        partner_code = (data.partnerRelationCode or "").strip().upper() or None
+
+        if ros_suite:
+            if not data.redemptionEventId and not partner_code:
+                raise HTTPException(status_code=400, detail="ROS 测评需要兑换码或伴侣关系码")
+            scores = summarize_ros_scores(
+                questions,
+                answer_by_external,
+                scoring_model,
+                gender=suite["gender"],
+            )
+            archetype = None
+        else:
+            scores = summarize_scores(questions, answer_by_external, scoring_model, suite["gender"])
+            archetype = conn.execute(
+                """
+                SELECT archetype_code, gender::text AS gender, profile_payload
+                FROM public.result_archetypes
+                WHERE suite_id = %s AND archetype_code = %s AND is_active = true
+                LIMIT 1
+                """,
+                (suite["id"], scores["archetype_code"]),
+            ).fetchone()
+
         result_payload = dict(scores["result_payload"])
         if archetype:
             result_payload["archetype_profile"] = archetype["profile_payload"]
+
         attempt = conn.execute(
             """
             INSERT INTO public.test_attempts(
               user_id, suite_id, test_id, redemption_event_id, scoring_model_id, answers, raw_answers,
-              scores, dimension_scores, archetype_code, archetype_gender, ros_index, ai_report, result_payload, status, completed_at
+              scores, dimension_scores, archetype_code, archetype_gender, ros_index, rk_score, ai_report,
+              result_payload, partner_relation_code, status, completed_at
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'completed', now())
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'completed', now())
             RETURNING id
             """,
             (
                 user_id, suite["id"], suite["slug"], data.redemptionEventId, scoring_model["id"] if scoring_model else None,
                 Jsonb([a.model_dump() for a in data.answers]), Jsonb([a.model_dump() for a in data.answers]),
-                Jsonb(scores["dimension_scores"]), Jsonb(scores["dimension_scores"]), scores["archetype_code"], archetype["gender"] if archetype else None,
-                scores["ros_index"], scores["ai_report"], Jsonb(result_payload),
+                Jsonb(scores["dimension_scores"]), Jsonb(scores["dimension_scores"]), scores["archetype_code"],
+                archetype["gender"] if archetype else suite["gender"],
+                scores["ros_index"], scores.get("rk_score"), scores["ai_report"], Jsonb(result_payload),
+                partner_code,
             ),
         ).fetchone()
         attempt_id = attempt["id"]
@@ -479,19 +503,61 @@ def submit_attempt(data: AttemptIn, user_id: str = Depends(resolve_user_id)):
             )
         if data.redemptionEventId:
             conn.execute("UPDATE public.redemption_events SET attempt_id = %s WHERE id = %s", (attempt_id, data.redemptionEventId))
-        result_payload = attach_core_traits_to_payload(
-            conn,
-            attempt_id,
-            result_payload,
-            scores["dimension_scores"],
-        )
-        conn.execute(
-            "UPDATE public.test_attempts SET result_payload = %s WHERE id = %s",
-            (Jsonb(result_payload), attempt_id),
-        )
+
+        if ros_suite:
+            from app.ros_couple import attempt_snapshot
+
+            if partner_code:
+                link_partner_to_session(
+                    conn,
+                    code=partner_code,
+                    partner_attempt_id=attempt_id,
+                    partner_user_id=user_id,
+                )
+            else:
+                relation_code = scores.get("relation_code") or result_payload.get("relationCode")
+                create_relation_session(
+                    conn,
+                    code=str(relation_code),
+                    initiator_attempt_id=attempt_id,
+                    initiator_user_id=user_id,
+                    initiator_snapshot=attempt_snapshot(
+                        {
+                            "id": attempt_id,
+                            "user_id": user_id,
+                            "dimension_scores": scores["dimension_scores"],
+                            "ros_index": scores["ros_index"],
+                            "result_payload": result_payload,
+                        }
+                    ),
+                )
+        elif not ros_suite:
+            result_payload = attach_core_traits_to_payload(
+                conn,
+                attempt_id,
+                result_payload,
+                scores["dimension_scores"],
+            )
+            conn.execute(
+                "UPDATE public.test_attempts SET result_payload = %s WHERE id = %s",
+                (Jsonb(result_payload), attempt_id),
+            )
+
         rebuild_and_cache_portrait(conn, user_id)
         conn.commit()
-    return {"attemptId": str(attempt_id), "status": "completed", "next": f"/analyzing?attemptId={attempt_id}"}
+
+    next_path = f"/analyzing?attemptId={attempt_id}"
+    if ros_suite:
+        next_path = f"/result/ros/{attempt_id}"
+    response: dict[str, Any] = {
+        "attemptId": str(attempt_id),
+        "status": "completed",
+        "next": next_path,
+    }
+    if ros_suite:
+        response["relationCode"] = scores.get("relation_code") or result_payload.get("relationCode")
+        response["productSet"] = "ROS"
+    return response
 
 @app.get("/attempts/{attempt_id}/result")
 def get_attempt_result(attempt_id: str, user_id: str = Depends(resolve_user_id)):

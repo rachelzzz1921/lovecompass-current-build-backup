@@ -231,7 +231,25 @@
 - 题目、选项、权重、关系类型判定、阶段规则 → **入库 JSONB**，不写死在 Python/前端  
 - 评分服务读取 `scoring_models` 中 `ROS_V3` 配置执行计算  
 - AI 报告 / 聊天读取：ROS 五维 + 套一 SELF 六维 + 依恋类型 → 双层分析  
-- 关系码、双人合并、邀请链路 → 待 V2 业务 API 实现（规范已定义，表结构见 `relation_pairs` 等迁移）
+
+**已实现 API（V2.1 后端）**
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| POST | `/attempts` | `suiteSlug=s02_ros_*` 时走 ROS 评分；可选 `partnerRelationCode` 免费配对 |
+| GET | `/ros/attempts/{attemptId}/single` | 单人 ROS 结果（对齐前端 `mockROS` 结构） |
+| GET | `/ros/codes/{code}` | 校验关系码 / 邀请预览 |
+| GET | `/ros/couple/{code}` | 双人报告（双方参与者可访问） |
+| POST | `/ros/story/analyze` | 阶段 Tab 曲线 / 里程碑 AI 小分析（无 AI 时走模板兜底） |
+
+**数据库**
+
+| 表/字段 | 说明 |
+|---|---|
+| `ros_relation_sessions` | 关系码、发起方/伴侣 attempt、双人 payload |
+| `test_attempts.relation_code` | 发起人生成的 ROS-XXXX-XXXX |
+| `test_attempts.partner_relation_code` | 伴侣输入的对方关系码 |
+| 迁移 | `migrations/202605250001_ros_relation_sessions.sql` |
 
 **与套一联动**
 
@@ -248,3 +266,4 @@ AI 分析师 / 报告       →  SELF + ROS 叠加解读
 | 日期 | 说明 |
 |---|---|
 | 2026-05-24 | 初版：由产品原则 JSON 整理为后台规范文档，对齐现有 `suite2_ros_*.json` 题库 |
+| 2026-05-25 | 后端：ROS 专用评分、关系码会话、双人合并 API、`ros_relation_sessions` 迁移 |

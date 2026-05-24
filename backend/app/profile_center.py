@@ -72,7 +72,7 @@ def summarize_attempt(row: dict[str, Any]) -> dict[str, Any]:
     except (TypeError, ValueError):
         index_value = None
 
-    return {
+    summary = {
         "attemptId": str(row.get("id") or ""),
         "productSet": product_set,
         "suiteSlug": row.get("suite_slug"),
@@ -91,6 +91,25 @@ def summarize_attempt(row: dict[str, Any]) -> dict[str, Any]:
         "completedAt": str(row.get("completed_at") or row.get("created_at") or ""),
         "hasAiReport": bool(row.get("ai_report")),
     }
+
+    if product_set == "ROS" and isinstance(result_payload, dict):
+        rel_type = result_payload.get("relationshipType") or {}
+        stage = result_payload.get("relationshipStage") or {}
+        resonance = result_payload.get("resonance") or {}
+        summary.update(
+            {
+                "relationshipType": rel_type.get("name"),
+                "relationshipTypeKey": rel_type.get("key"),
+                "relationshipStage": stage.get("name"),
+                "relationshipStageId": stage.get("id"),
+                "relationCode": result_payload.get("relationCode") or row.get("relation_code"),
+                "resonanceTier": resonance.get("tier"),
+                "tagline": rel_type.get("one_liner") or summary.get("tagline"),
+                "description": rel_type.get("description") or summary.get("description"),
+            }
+        )
+
+    return summary
 
 
 def compute_completeness(latest_by_set: dict[str, dict[str, Any] | None]) -> dict[str, Any]:

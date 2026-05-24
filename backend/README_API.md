@@ -33,3 +33,25 @@ VITE_LOVECOMPASS_API_BASE_URL=http://localhost:8000
 | POST | `/attempts/{attempt_id}/report` | 生成或读取 AI 深度画像故事，写入 `ai_result_reports` 并回填 `test_attempts.ai_report` |
 | POST | `/chat/message` | 预留带 `attemptId` 的 AI 分析师对话入口 |
 
+## 管理后台 API（需 `profiles.role = admin`）
+
+| 方法 | 路径 | 用途 |
+|---|---|---|
+| GET | `/admin/me` | 校验管理员身份 |
+| GET | `/admin/stats` | 运营概览统计 |
+| GET | `/admin/suites` | 测试套件列表 |
+| GET | `/admin/redemption/codes` | 兑换码列表（筛选/分页） |
+| POST | `/admin/redemption/codes` | 批量生成兑换码 |
+| PATCH | `/admin/redemption/codes/{id}` | 启停/更新兑换码 |
+| GET | `/admin/redemption/events` | 兑换记录 |
+| GET | `/admin/users` | 用户列表 |
+| GET | `/admin/users/{id}` | 用户详情 + 测试/兑换 |
+| GET | `/admin/attempts` | 测试记录列表 |
+| GET | `/admin/analysts` | AI 顾问列表 |
+| GET | `/admin/analysts/{slug}` | 顾问详情 |
+| PATCH | `/admin/analysts/{slug}` | 更新顾问配置 |
+
+前端管理页：`/admin`（概览）、`/admin/codes`、`/admin/users`、`/admin/analysts`。
+
+开通管理员：在 Supabase SQL Editor 执行 `UPDATE public.profiles SET role = 'admin' WHERE email = '你的邮箱';`
+

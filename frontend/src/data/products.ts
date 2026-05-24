@@ -38,13 +38,14 @@ export const PRODUCTS: Product[] = [
     title: "具体恋情评估",
     subtitle: "你们之间，到底怎么样",
     description:
-      "心里有一个具体的人才能作答。AT 吸引 / IN 亲密 / CO 协作 / EV 成长 / RK 风险 五层全覆盖，AI 自动叠加 SELF 数据做双层分析。",
+      "心里有一个具体的人才能作答。AT 吸引 / IN 亲密 / CO 协作 / EV 成长 / RK 风险 五层全覆盖，完成后生成关系码邀请 TA 解锁双人报告。入口：/ros/start",
     duration: "约 12 分钟",
-    questionCount: "80 题",
+    questionCount: "60 题",
     status: "locked",
     badge: "PAID · 兑换码解锁",
     accent: "cyan",
     dimensions: ["吸引力", "亲密度", "协作度", "成长性", "风险信号"],
+    resultPath: "/ros/start",
   },
   {
     id: "mate",

@@ -301,6 +301,16 @@ def get_ros_single_result(attempt_id: str, user_id: str = Depends(resolve_user_i
         session = _fetch_session_by_code(conn, code) if code else None
 
     single = payload if isinstance(payload, dict) else {}
+    if isinstance(single, dict) and single.get("layers") and not single.get("layerDetails"):
+        layer_scores = {
+            str(item.get("code", "")).upper(): float(item.get("score") or item.get("displayScore") or 0)
+            for item in (single.get("layers") or [])
+            if isinstance(item, dict)
+        }
+        if layer_scores:
+            from app.ros_scoring import _build_layer_details
+
+            single = {**single, "layerDetails": _build_layer_details(layer_scores)}
     return {
         "ok": True,
         "attemptId": attempt_id,
@@ -355,6 +365,7 @@ def analyze_story(data: StoryAnalyzeIn):
         )
 
     return {
+        "mode": "template",
         "curveInsight": curve_insight,
         "milestoneInsight": milestone_insight,
         "trend": {"label": trend_label},

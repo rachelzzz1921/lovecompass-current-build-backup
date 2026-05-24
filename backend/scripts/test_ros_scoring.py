@@ -96,6 +96,8 @@ def test_ros_single_scoring_has_display_floor() -> None:
     assert payload["relationshipType"]["name"]
     assert 1 <= payload["relationshipStage"]["id"] <= 9
     assert len(payload["insights"]) == 3
+    assert payload.get("layerDetails") and "in" in payload["layerDetails"]
+    assert payload["layers"][0].get("displaySummary")
     print("ros single ok", {
         "ros_index": scores["ros_index"],
         "type": payload["relationshipType"]["name"],

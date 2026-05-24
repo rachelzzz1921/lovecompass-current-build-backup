@@ -6,6 +6,7 @@ from statistics import mean
 from typing import Any
 
 from app.scoring import _clamp, answer_to_numeric
+from app.chat_prompt_layers import score_band_label
 
 ROS_LAYER_CODES = ("AT", "IN", "CO", "EV", "RK")
 ROS_LAYER_LABELS = {
@@ -334,6 +335,43 @@ def _build_insights(layer_scores: dict[str, float], relationship_type: dict[str,
     ]
 
 
+def _build_layer_details(layer_scores: dict[str, float]) -> dict[str, dict[str, Any]]:
+    """Per-layer narrative for UI — no fabricated sub-dimension scores."""
+    details: dict[str, dict[str, Any]] = {}
+    for code in ROS_LAYER_CODES:
+        key = code.lower()
+        score = round(layer_scores.get(code, 0))
+        summary = score_band_label(score)
+        label = ROS_LAYER_LABELS[code]
+        if code == "RK":
+            if score >= 65:
+                watch = "风险信号偏高——争执容易升级，需要先降温度再谈事。"
+                bright = "你愿意正视问题，而不是假装没事。"
+            elif score >= 45:
+                watch = "有些敏感点还没被双方真正看见，容易反复触发。"
+                bright = "整体仍在可控区间，适合建立修复仪式。"
+            else:
+                watch = "留意小摩擦累积，但不必过度警觉。"
+                bright = "安全感基础相对稳，可以慢慢加深联结。"
+        elif score >= 75:
+            watch = f"{label}还有微调空间，别把它当成永远不变。"
+            bright = f"{label}（{summary}）是你们现在最稳的支点。"
+        elif score >= 55:
+            watch = f"{label}在消耗与滋养之间摇摆，值得单独聊一次。"
+            bright = f"{label}不算差——{summary}。"
+        else:
+            watch = f"{label}是当前最需要温柔补强的区域。"
+            bright = "你愿意认真看这段关系，这本身就是投入。"
+        details[key] = {
+            "displaySummary": summary,
+            "read": f"{label}：{summary}。",
+            "watch": watch,
+            "bright": bright,
+            "tags": [label, summary.split("，")[0][:8]],
+        }
+    return details
+
+
 def _build_ros_result_payload(
     *,
     layer_scores: dict[str, float],
@@ -358,6 +396,7 @@ def _build_ros_result_payload(
         for code in ROS_LAYER_CODES
     ]
     stage_name = STAGE_NAMES[stage_id - 1] if 1 <= stage_id <= 9 else STAGE_NAMES[3]
+    layer_details = _build_layer_details(layer_scores)
     return {
         "model": "ROS_V3",
         "productSet": "ROS",
@@ -382,9 +421,11 @@ def _build_ros_result_payload(
                 "name": ROS_LAYER_LABELS[code],
                 "score": layer_scores.get(code, 0),
                 "displayScore": round(layer_scores.get(code, 0)),
+                "displaySummary": score_band_label(layer_scores.get(code, 0)),
             }
             for code in ROS_LAYER_CODES
         ],
+        "layerDetails": layer_details,
         "insights": insights,
         "prescription": {
             "warmup": _prescription_warmup(stage_id, time_tag, display_index),

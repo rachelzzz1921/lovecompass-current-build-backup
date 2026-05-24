@@ -28,11 +28,22 @@ export type RelType = {
   description: string;
 };
 
+export type RosLayerDetail = {
+  displaySummary: string;
+  read: string;
+  watch: string;
+  bright: string;
+  tags: string[];
+};
+
 export type RosSingleResult = {
   code: string;
   type: RelType;
   stageId: number;
+  timeTag?: string | null;
+  timeLabel?: string | null;
   dims: RosDim[];
+  layerDetails?: Partial<Record<RosDim["key"], RosLayerDetail>>;
   insights: { kind: "edge" | "watch" | "advice"; title: string; body: string }[];
   resonance?: { score: number; tier: string; desc: string };
   prescription?: {

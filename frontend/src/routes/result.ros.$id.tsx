@@ -6,7 +6,7 @@ import {
   Star, AlertCircle, Lightbulb, Compass, Bot, Share2,
 } from "lucide-react";
 import { toast } from "sonner";
-import { REL_STAGES, type RosSingleResult } from "@/data/rosTypes";
+import { REL_STAGES, type RosLayerDetail, type RosSingleResult } from "@/data/rosTypes";
 import { ApiErrorPanel } from "@/components/ApiErrorPanel";
 import { formatApiErrorMessage } from "@/lib/apiErrors";
 import { mapApiSingleToRosResult } from "@/lib/mapRosResult";
@@ -24,65 +24,7 @@ export const Route = createFileRoute("/result/ros/$id")({
   component: RosResultPage,
 });
 
-// ---- subdim data (UI-only) ----
-const SUB = {
-  at: [
-    { label: "外在化学", value: 86 },
-    { label: "性格吸引", value: 80 },
-    { label: "气味相投", value: 78 },
-  ],
-  in: [
-    { label: "表达顺畅度", value: 60 },
-    { label: "倾听质量", value: 52 },
-    { label: "冲突修复", value: 56 },
-  ],
-  co: [
-    { label: "节奏相合", value: 70 },
-    { label: "价值观重叠", value: 62 },
-    { label: "生活习惯", value: 60 },
-  ],
-  ev: [
-    { label: "未来共识", value: 52 },
-    { label: "成长方向", value: 58 },
-  ],
-  rk: [
-    { label: "情绪触发", value: 46 },
-    { label: "信任脆弱", value: 38 },
-  ],
-} as const;
-
-const LAYER_DETAIL: Record<string, { tags: string[]; bright: string; watch: string; read: string }> = {
-  at: {
-    tags: ["化学反应真", "外形对味", "气场互补"],
-    bright: "见到对方时身体先于脑子反应——这种心跳感不是装的。",
-    watch: "新鲜感总会褪色，别只靠吸引维系。",
-    read: "化学反应是真实的——这是关系最难造假的底色，把它当礼物，不要当全部。",
-  },
-  in: {
-    tags: ["小摩擦多", "修复慢半拍", "等对方先开口"],
-    bright: "你们能聊到深夜不困——只要状态对，话题永远不缺。",
-    watch: "争执后习惯各自消化，缺一个『谁先靠近』的默契。",
-    read: "日常沟通正在悄悄消耗你们，需要一点固定的修复仪式。",
-  },
-  co: {
-    tags: ["节奏对得上", "价值观重叠多", "细节磨合中"],
-    bright: "对『重要的事』看法很一致，吵也吵不出根本分歧。",
-    watch: "生活习惯上的小差异容易被放大成情绪。",
-    read: "节奏对得上，但在生活细节上还要再耐心一点。",
-  },
-  ev: {
-    tags: ["有未来感", "节奏待对齐", "成长方向一致"],
-    bright: "对长期方向有共识，不是只活在当下。",
-    watch: "『下一步』什么时候发生，还没真正聊过。",
-    read: "未来感还在搭建中——先把『下一步』摆到桌面上聊清。",
-  },
-  rk: {
-    tags: ["情绪易触发", "敏感", "信任在恢复"],
-    bright: "你愿意把脆弱说出口——这本身就是一种信任。",
-    watch: "一些旧伤还没被对方真正看见，容易反复发作。",
-    read: "敏感的部分要被看见，而不是被压下去。",
-  },
-};
+// ---- layer accordion uses API layerDetails (no mock sub-dims) ----
 
 function healthColor(v: number) {
   if (v >= 80) return "oklch(0.68 0.18 285)"; // violet
@@ -161,7 +103,7 @@ function RosResultPage() {
             <div className="flex-[3] min-w-0">
               <span className="inline-block text-[10px] font-mono px-2 py-1 rounded-full"
                 style={{ background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                在一起 · 1年 4 个月
+                {r.timeLabel ?? "这段关系 · ROS"}
               </span>
               <div className="mt-3 flex items-baseline gap-2">
                 <span className="font-display text-[52px] leading-none font-semibold text-white tabular-nums tracking-tight">{resonance}</span>
@@ -212,7 +154,7 @@ function RosResultPage() {
         </section>
 
         {/* 五维手风琴 */}
-        <FiveLayerAccordion dims={r.dims} />
+        <FiveLayerAccordion dims={r.dims} layerDetails={r.layerDetails} />
 
         {/* AI 洞察时间线 */}
         <InsightTimeline items={r.insights} />
@@ -427,7 +369,7 @@ function StageCurve({ currentId }: { currentId: number }) {
 }
 
 // ---------- 五维手风琴 ----------
-const LAYER_META: { key: keyof typeof SUB; code: string; label: string }[] = [
+const LAYER_META: { key: RosSingleResult["dims"][0]["key"]; code: string; label: string }[] = [
   { key: "at", code: "AT", label: "吸引基础" },
   { key: "in", code: "IN", label: "互动质量" },
   { key: "co", code: "CO", label: "兼容程度" },
@@ -435,7 +377,23 @@ const LAYER_META: { key: keyof typeof SUB; code: string; label: string }[] = [
   { key: "rk", code: "RK", label: "风险信号" },
 ];
 
-function FiveLayerAccordion({ dims }: { dims: RosSingleResult["dims"] }) {
+function fallbackLayerDetail(label: string, value: number): RosLayerDetail {
+  return {
+    displaySummary: value >= 65 ? "表现稳定" : "还在发展阶段",
+    read: `${label}：基于你的作答综合评估。`,
+    bright: "你愿意认真看这段关系，这本身就是投入。",
+    watch: "把感受说具体，比猜更有用。",
+    tags: [label],
+  };
+}
+
+function FiveLayerAccordion({
+  dims,
+  layerDetails,
+}: {
+  dims: RosSingleResult["dims"];
+  layerDetails?: RosSingleResult["layerDetails"];
+}) {
   const [open, setOpen] = useState<string | null>("at");
   const valueOf = (k: string) => dims.find((d) => d.key === k)?.value ?? 0;
 
@@ -449,10 +407,11 @@ function FiveLayerAccordion({ dims }: { dims: RosSingleResult["dims"] }) {
           const c = healthColor(v);
           const isOpen = open === m.key;
           const filled = Math.round(v / 10);
-          const detail = LAYER_DETAIL[m.key];
+          const detail = layerDetails?.[m.key] ?? fallbackLayerDetail(m.label, v);
           return (
             <div key={m.key} className={i > 0 ? "border-t border-white/[0.06]" : ""}>
               <button
+                type="button"
                 onClick={() => setOpen(isOpen ? null : m.key)}
                 className="w-full flex items-center gap-3 p-4 text-left hover:bg-white/[0.02] transition"
               >
@@ -467,6 +426,7 @@ function FiveLayerAccordion({ dims }: { dims: RosSingleResult["dims"] }) {
                   <div className="font-mono text-[11px] mt-1 tracking-tight" style={{ color: c, opacity: 0.85 }}>
                     {Array.from({ length: 10 }).map((_, j) => (j < filled ? "■" : "□")).join("")}
                   </div>
+                  <p className="text-[11px] text-white/50 mt-1">{detail.displaySummary}</p>
                 </div>
                 <ChevronDown className="h-4 w-4 text-white/40 transition"
                   style={{ transform: isOpen ? "rotate(180deg)" : "none" }} />
@@ -481,7 +441,6 @@ function FiveLayerAccordion({ dims }: { dims: RosSingleResult["dims"] }) {
                     className="overflow-hidden"
                   >
                     <div className="px-4 pb-4 pl-8">
-                      {/* tags */}
                       <div className="flex flex-wrap gap-1.5 pt-1">
                         {detail.tags.map((t) => (
                           <span key={t} className="text-[10px] px-2 py-0.5 rounded-full"
@@ -490,23 +449,6 @@ function FiveLayerAccordion({ dims }: { dims: RosSingleResult["dims"] }) {
                           </span>
                         ))}
                       </div>
-
-                      {/* subdims */}
-                      <div className="space-y-2 mt-3">
-                        {SUB[m.key].map((s) => (
-                          <div key={s.label} className="flex items-center gap-3">
-                            <div className="text-[11px] text-white/55 w-20 shrink-0">{s.label}</div>
-                            <div className="flex-1 h-[3px] rounded-full bg-white/[0.08] overflow-hidden">
-                              <motion.div initial={{ width: 0 }} animate={{ width: `${s.value}%` }}
-                                transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-                                className="h-full rounded-full" style={{ background: healthColor(s.value) }} />
-                            </div>
-                            <div className="text-[11px] font-mono text-white/75 w-7 text-right tabular-nums">{s.value}</div>
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* bright / watch two-line */}
                       <div className="mt-3 grid grid-cols-1 gap-1.5">
                         <div className="flex gap-2 text-[11px] leading-relaxed">
                           <span className="shrink-0 text-[9px] font-mono mt-0.5 px-1.5 py-0.5 rounded"
@@ -519,7 +461,6 @@ function FiveLayerAccordion({ dims }: { dims: RosSingleResult["dims"] }) {
                           <span className="text-white/75">{detail.watch}</span>
                         </div>
                       </div>
-
                       <div className="h-px bg-white/[0.08] my-3" />
                       <p className="text-xs text-white/60 leading-relaxed">{detail.read}</p>
                     </div>

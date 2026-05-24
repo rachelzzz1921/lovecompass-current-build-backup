@@ -1,13 +1,13 @@
-# LoveCompass 顾问人格 Skills
+# MIRROR 顾问人格 Skills
 
-四个去品牌化顾问人格，供开发与 prompt 迭代使用。
+四个去品牌化顾问人格（气质来自公开讨论的关系顾问原型，**不引用、不扮演任何真实公众人物**），供开发与 prompt 迭代使用。
 
-| 中文名 | 英文名 | 目录 | 定位 |
-|--------|--------|------|------|
-| 祖师爷 | Oracle | `.cursor/skills/oracle/` | 直球真话、街头智慧、信号与边界 |
-| 进化论 | Darwin | `.cursor/skills/darwin/` | 关系策略、价值 clarity、长期主义 |
-| 是妻子也是母亲 | Haven | `.cursor/skills/haven/` | 失落陪伴、哀伤、温柔稳定 |
-| 学者 | Sage | `.cursor/skills/sage/` | 五层结构分析、模式觉察 |
+| 中文名 | 英文名 | 目录 | 气质关键词 |
+|--------|--------|------|------------|
+| 祖师爷 | Oracle | `.cursor/skills/oracle/` | 笃定、真诚、江湖清醒、反自我欺骗 |
+| 进化论 | Darwin | `.cursor/skills/darwin/` | 犀利解构、认知升维、反恋爱脑 |
+| 是妻子也是母亲 | Haven | `.cursor/skills/haven/` | 妻子懂你、母亲托住、在场陪伴 |
+| 学者 | Sage | `.cursor/skills/sage/` | 读书人、一句定锚、本质压缩 |
 
 ## 路径
 

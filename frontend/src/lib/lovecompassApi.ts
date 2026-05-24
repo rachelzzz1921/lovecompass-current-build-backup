@@ -55,6 +55,96 @@ export type AttemptHistoryItem = {
   estimated_minutes?: number | null;
 };
 
+export type PortraitAttemptSummary = {
+  attemptId: string;
+  productSet: "SELF" | "ROS" | "MATE" | string;
+  suiteSlug?: string | null;
+  suiteName?: string | null;
+  suiteGender?: string | null;
+  status?: string | null;
+  archetypeCode?: string | null;
+  attachmentType?: string | null;
+  tagline?: string | null;
+  description?: string | null;
+  index?: number | null;
+  rkScore?: number | null;
+  dimensionScores?: Record<string, number>;
+  coreTraits?: Array<{
+    icon: "shield" | "key" | "eye" | string;
+    title: string;
+    body: string;
+    highlight?: boolean;
+  }>;
+  dimensions?: Array<{ code?: string; name?: string; score?: number }>;
+  completedAt?: string;
+  hasAiReport?: boolean;
+};
+
+export type PortraitProduct = {
+  id: "self" | "ros" | "mate";
+  productSet: "SELF" | "ROS" | "MATE";
+  code: string;
+  title: string;
+  subtitle: string;
+  status: "completed" | "locked";
+  attemptCount: number;
+  latest?: PortraitAttemptSummary | null;
+  history: PortraitAttemptSummary[];
+};
+
+export type UserPortrait = {
+  user: {
+    id: string;
+    email?: string | null;
+    displayName?: string | null;
+    avatarUrl?: string | null;
+  };
+  completeness: {
+    percent: number;
+    label: string;
+    breakdown: Array<{
+      productSet: string;
+      productId: string;
+      code: string;
+      title: string;
+      weight: number;
+      status: string;
+      attemptId?: string | null;
+      completedAt?: string | null;
+    }>;
+  };
+  primary: {
+    attemptId?: string | null;
+    productSet?: string | null;
+    archetypeCode?: string | null;
+    attachmentType?: string | null;
+    tagline?: string | null;
+    description?: string | null;
+    index?: number | null;
+    suiteName?: string | null;
+    completedAt?: string | null;
+  };
+  selfProfile: {
+    attemptId?: string | null;
+    archetypeCode?: string | null;
+    attachmentType?: string | null;
+    tagline?: string | null;
+    index?: number | null;
+    dimensionScores?: Record<string, number>;
+    dimensions?: Array<{ code?: string; name?: string; score?: number }>;
+    coreTraits?: PortraitAttemptSummary["coreTraits"];
+  };
+  products: PortraitProduct[];
+  timeline: PortraitAttemptSummary[];
+  stats: {
+    totalAttempts: number;
+    chatSessions: number;
+    lastChatAt?: string | null;
+    boundAttemptId?: string | null;
+  };
+  updatedAt?: string | null;
+};
+
 const API_BASE =
   (import.meta.env.VITE_LOVECOMPASS_API_BASE_URL as string | undefined)?.replace(/\/$/, "") ?? "";
 
@@ -150,6 +240,8 @@ export const lovecompassApi = {
       undefined,
       true,
     ),
+  getProfilePortrait: () =>
+    requestJson<{ portrait: UserPortrait }>("/profile/portrait", undefined, true),
   sendChatMessage: (data: { attemptId?: string; analystId?: string; message: string }) =>
     requestJson<ChatMessageResponse>(
       "/chat/message",

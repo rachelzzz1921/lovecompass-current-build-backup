@@ -37,6 +37,12 @@ export type AttemptResultInput = {
       matching_logic?: string;
       radar_baseline?: Record<string, number>;
     };
+    core_traits?: Array<{
+      icon: "shield" | "key" | "eye";
+      title: string;
+      body: string;
+      highlight?: boolean;
+    }>;
   };
   ai_report?: string | null;
 };
@@ -77,11 +83,22 @@ function normalizeDimensions(input: AttemptResultInput): ScoredDimension[] {
 }
 
 function buildCoreTraits(
+  payload: NonNullable<AttemptResultInput["result_payload"]>,
   profile: NonNullable<AttemptResultInput["result_payload"]>["archetype_profile"],
   attachment: string,
   dimensions: ScoredDimension[],
   greyZone: boolean,
 ): CoreTrait[] {
+  const fromAnswers = payload.core_traits;
+  if (fromAnswers?.length) {
+    return fromAnswers.map((trait) => ({
+      icon: trait.icon,
+      title: trait.title,
+      body: trait.body,
+      highlight: trait.highlight,
+    }));
+  }
+
   const sorted = [...dimensions].sort((a, b) => b.rawScore - a.rawScore);
   const highest = sorted[0];
   const lowest = sorted[sorted.length - 1];
@@ -243,7 +260,7 @@ export function mapAttemptToSelfResult(input: AttemptResultInput): SelfResult {
     matches: buildMatches(attachment),
     insights: buildInsights(attachment, dimensions, profile, greyZone),
     behaviors: buildBehaviors(attachment),
-    coreTraits: buildCoreTraits(profile, attachment, dimensions, greyZone),
+    coreTraits: buildCoreTraits(payload, profile, attachment, dimensions, greyZone),
     character: {
       emoji: CHARACTER_EMOJI[name] ?? "🪞",
       name,

@@ -21,6 +21,8 @@ from app.chat_context import (
     save_message,
     summarize_context,
 )
+from app.core_traits import attach_core_traits_to_payload
+from app.profile_center import rebuild_and_cache_portrait
 
 
 def _cors_origins() -> list[str]:
@@ -394,6 +396,15 @@ def list_attempts(limit: int = 20, user_id: str = Depends(resolve_user_id)):
         attempts.append(item)
     return {"attempts": attempts}
 
+
+@app.get("/profile/portrait")
+def get_profile_portrait(user_id: str = Depends(resolve_user_id)):
+    with get_conn() as conn:
+        portrait = rebuild_and_cache_portrait(conn, user_id)
+        conn.commit()
+    return {"portrait": _jsonable(portrait)}
+
+
 @app.post("/attempts")
 def submit_attempt(data: AttemptIn, user_id: str = Depends(resolve_user_id)):
     answer_by_external = {a.externalId: a.answerPayload for a in data.answers}
@@ -466,6 +477,17 @@ def submit_attempt(data: AttemptIn, user_id: str = Depends(resolve_user_id)):
             )
         if data.redemptionEventId:
             conn.execute("UPDATE public.redemption_events SET attempt_id = %s WHERE id = %s", (attempt_id, data.redemptionEventId))
+        result_payload = attach_core_traits_to_payload(
+            conn,
+            attempt_id,
+            result_payload,
+            scores["dimension_scores"],
+        )
+        conn.execute(
+            "UPDATE public.test_attempts SET result_payload = %s WHERE id = %s",
+            (Jsonb(result_payload), attempt_id),
+        )
+        rebuild_and_cache_portrait(conn, user_id)
         conn.commit()
     return {"attemptId": str(attempt_id), "status": "completed", "next": f"/analyzing?attemptId={attempt_id}"}
 
@@ -487,6 +509,18 @@ def get_attempt_result(attempt_id: str, user_id: str = Depends(resolve_user_id))
         ).fetchone()
         if not attempt:
             raise HTTPException(status_code=404, detail="画像结果不存在")
+        result_payload = attempt.get("result_payload") or {}
+        if not isinstance(result_payload, dict):
+            result_payload = {}
+        if not result_payload.get("core_traits"):
+            result_payload = attach_core_traits_to_payload(
+                conn,
+                attempt_id,
+                result_payload,
+                attempt.get("dimension_scores"),
+            )
+        attempt = dict(attempt)
+        attempt["result_payload"] = result_payload
     return {"attempt": {k: (str(v) if k == "id" else v) for k, v in attempt.items()}}
 
 

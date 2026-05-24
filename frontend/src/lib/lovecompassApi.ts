@@ -4,6 +4,7 @@ import { getRequiredAccessToken } from "@/lib/supabaseSession";
 
 export type ChatContext = {
   attemptId: string;
+  productSet?: "SELF" | "ROS" | "MATE" | string;
   suiteSlug?: string | null;
   suiteName?: string | null;
   archetype: string;
@@ -13,8 +14,39 @@ export type ChatContext = {
   matchingLogic?: string | null;
   rosIndex?: number | null;
   completedAt?: string | null;
-  dimensions?: Array<{ code?: string; name?: string; score?: number }>;
+  dimensions?: Array<{ code?: string; name?: string; score?: number; displaySummary?: string }>;
   hasAiReport?: boolean;
+};
+
+export type ChatProfileSuite = {
+  productSet: string;
+  productId?: string;
+  code?: string;
+  title?: string;
+  status: "completed" | "locked";
+  attemptId?: string | null;
+  headline?: string | null;
+  metaLine?: string | null;
+  dimensionCount: number;
+  hasAiReport?: boolean;
+  completedAt?: string | null;
+};
+
+export type ChatProfileSnapshot = {
+  completeness: UserPortrait["completeness"];
+  suites: ChatProfileSuite[];
+  updatedAt?: string | null;
+};
+
+export type ChatContextResponse = {
+  ok: boolean;
+  bound: boolean;
+  context: ChatContext | null;
+  profile?: ChatProfileSnapshot | null;
+};
+
+export type ChatSyncProfileResponse = ChatContextResponse & {
+  acknowledgment: string;
 };
 
 export type ChatMessageResponse = {
@@ -280,9 +312,15 @@ export const lovecompassApi = {
       true,
     ),
   getChatContext: (attemptId?: string) =>
-    requestJson<{ ok: boolean; bound: boolean; context: ChatContext | null }>(
+    requestJson<ChatContextResponse>(
       `/chat/context${attemptId ? `?attemptId=${encodeURIComponent(attemptId)}` : ""}`,
       undefined,
+      true,
+    ),
+  syncChatProfile: () =>
+    requestJson<ChatSyncProfileResponse>(
+      "/chat/sync-profile",
+      { method: "POST" },
       true,
     ),
   triageChat: (message: string) =>

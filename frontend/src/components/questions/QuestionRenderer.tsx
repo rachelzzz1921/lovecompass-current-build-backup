@@ -14,6 +14,9 @@ type Props = {
 const optionKey = (opt: QuestionOption, index: number) =>
   opt.key || String.fromCharCode(65 + index);
 
+const optionStorageIndex = (opt: QuestionOption, displayIndex: number) =>
+  opt.storageIndex ?? displayIndex;
+
 function resolveTierLabel(
   value: number,
   tierLabels?: Array<{ range: [number, number]; label: string }>,
@@ -276,7 +279,12 @@ export function QuestionRenderer({ question, value, onChange }: Props) {
             <button
               key={key}
               data-testid="option-answer"
-              onClick={() => onChange({ optionKey: key, optionIndex: i })}
+              onClick={() =>
+                onChange({
+                  optionKey: key,
+                  optionIndex: optionStorageIndex(opt, i),
+                })
+              }
               className={`group w-full text-left flex items-start gap-3.5 p-3.5 rounded-xl border transition-all duration-200 ${active ? "border-[oklch(0.68_0.18_285_/_0.75)] bg-[oklch(0.50_0.20_285_/_0.14)] glow-violet" : "border-border/70 hover:border-[oklch(0.68_0.18_285_/_0.55)] hover:bg-[oklch(0.50_0.20_285_/_0.07)]"} ${binary ? "min-h-28" : ""}`}
             >
               <span

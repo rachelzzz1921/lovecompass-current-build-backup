@@ -1,11 +1,12 @@
 import { createFileRoute, Link, useParams } from "@tanstack/react-router";
 import { motion, AnimatePresence } from "framer-motion";
 import { useEffect, useState } from "react";
-import { ArrowLeft, Bot, ChevronDown, ChevronLeft, ChevronRight, Lock, RefreshCw, Share2, Sparkles } from "lucide-react";
+import { ArrowLeft, Bot, ChevronDown, ChevronLeft, ChevronRight, RefreshCw, Share2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import type { MateLensCard, MateNavId, MateResult, MateTimelineNode } from "@/data/mateTypes";
 import { MATE_NAV_SECTIONS } from "@/data/mateTypes";
 import { RadarChart } from "@/components/RadarChart";
+import { AiReportSection } from "@/components/AiReportSection";
 import { ApiErrorPanel } from "@/components/ApiErrorPanel";
 import { formatApiErrorMessage } from "@/lib/apiErrors";
 import { mapApiSingleToMateResult } from "@/lib/mapMateResult";
@@ -458,32 +459,8 @@ function MateResultView({ result }: { result: MateResult }) {
           </div>
         </section>
 
-        {/* Deep archive */}
-        <section className="scroll-mt-8">
-          <div
-            className="rounded-3xl p-6 text-center"
-            style={{
-              background: `linear-gradient(145deg, rgba(255,255,255,0.04), ${ROSE.glow})`,
-              border: `1px dashed ${ROSE.chipBorder}`,
-            }}
-          >
-            <Lock className="h-5 w-5 mx-auto text-white/40" />
-            <h3 className="font-display text-lg text-white mt-3">{result.deepArchive.title}</h3>
-            <ul className="mt-4 space-y-2 text-sm text-white/65">
-              {result.deepArchive.items.map((item) => (
-                <li key={item}>✓ {item}</li>
-              ))}
-            </ul>
-            <Link
-              to="/chat"
-              search={chatRouteSearch(result.attemptId)}
-              className="inline-flex items-center gap-2 mt-5 px-5 h-10 rounded-full text-sm font-medium"
-              style={{ background: ROSE.chip, color: ROSE.chipText, border: `1px solid ${ROSE.chipBorder}` }}
-            >
-              <Sparkles className="h-4 w-4" /> {result.deepArchive.cta}
-            </Link>
-          </div>
-        </section>
+        {/* AI report */}
+        <AiReportSection attemptId={id} title="AI · 择偶深度报告" />
 
         {/* CTAs */}
         <div className="grid grid-cols-2 gap-3 pt-2">

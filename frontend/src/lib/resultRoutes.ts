@@ -85,6 +85,11 @@ export function parseBackendNextPath(next: string | null | undefined): ResultRou
   if (!next) return null;
   const path = next.startsWith("http") ? new URL(next).pathname + new URL(next).search : next;
 
+  const coupleMatch = path.match(/\/result\/ros\/couple\/([^/?]+)/);
+  if (coupleMatch) {
+    return { to: "/result/ros/couple/$code", params: { code: coupleMatch[1] } };
+  }
+
   const mateMatch = path.match(/\/result\/mate\/([^/?]+)/);
   if (mateMatch) return { to: "/result/mate/$id", params: { id: mateMatch[1] } };
 

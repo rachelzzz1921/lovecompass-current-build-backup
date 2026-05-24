@@ -8,6 +8,7 @@ import {
 import { toast } from "sonner";
 import { REL_STAGES, type RosLayerDetail, type RosSingleResult } from "@/data/rosTypes";
 import { ApiErrorPanel } from "@/components/ApiErrorPanel";
+import { AiReportSection } from "@/components/AiReportSection";
 import { formatApiErrorMessage } from "@/lib/apiErrors";
 import { mapApiSingleToRosResult } from "@/lib/mapRosResult";
 import { lovecompassApi } from "@/lib/lovecompassApi";
@@ -209,6 +210,8 @@ function RosResultPage() {
             </button>
           </div>
         </section>
+
+        <AiReportSection attemptId={id} title="AI · 关系深度报告" variant="dark" />
 
         {/* 底部 CTA */}
         <section className="grid grid-cols-2 gap-3">

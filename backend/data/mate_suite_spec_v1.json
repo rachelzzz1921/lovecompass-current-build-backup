@@ -309,8 +309,7 @@
     "femaleQuestionBank": "backend/data/suite3_mate_female.json",
     "maleQuestionBank": "backend/data/suite3_mate_male.json",
     "importSql": [
-      "backend/data/004_import_suite3_mate_female.sql",
-      "backend/data/004_import_suite3_mate_male.sql"
+      "backend/data/004_import_s02_s03_question_banks.sql"
     ],
     "analysisPhraseLibrary": "backend/data/analysis_phrase_library_v1.json"
   }

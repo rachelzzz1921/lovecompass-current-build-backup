@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <defs>
+    <linearGradient id="mirror-grad" x1="4" y1="4" x2="28" y2="28" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#8B7FE8"/>
+      <stop offset="1" stop-color="#6EC4E8"/>
+    </linearGradient>
+  </defs>
+  <rect width="32" height="32" rx="7" fill="url(#mirror-grad)"/>
+  <path
+    fill="#1A1520"
+    d="M8.5 22V10h2.8l3.2 6.4L17.7 10H20.5v12h-2.4v-7.1L14.2 22h-1.9l-3.9-7.1V22H8.5z"
+  />
+</svg>

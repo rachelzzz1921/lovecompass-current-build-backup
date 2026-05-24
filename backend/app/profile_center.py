@@ -4,6 +4,8 @@ from typing import Any
 
 from psycopg.types.json import Jsonb
 
+from app.report_utils import looks_like_placeholder_report
+
 PRODUCT_SETS: tuple[str, ...] = ("SELF", "ROS", "MATE")
 
 PRODUCT_META: dict[str, dict[str, Any]] = {
@@ -89,7 +91,7 @@ def summarize_attempt(row: dict[str, Any]) -> dict[str, Any]:
         "coreTraits": profile_bits["coreTraits"][:3],
         "dimensions": profile_bits["dimensions"],
         "completedAt": str(row.get("completed_at") or row.get("created_at") or ""),
-        "hasAiReport": bool(row.get("ai_report")),
+        "hasAiReport": not looks_like_placeholder_report(row.get("ai_report")),
         "primaryMetric": None,
         "primaryMetricLabel": None,
     }

@@ -5,6 +5,8 @@ export type QuestionOption = {
   text: string;
   sub?: string | null;
   icon?: string | null;
+  /** Original index in stored option list — used when submitting after shuffle. */
+  storageIndex?: number;
 };
 
 export type QuestionUi = {

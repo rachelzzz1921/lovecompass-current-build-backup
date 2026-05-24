@@ -13,7 +13,9 @@ from app.question_adapter import adapt_question
 from app.scoring import summarize_scores
 from app.ai_adapter import get_ai_adapter
 from app.chat_context import (
+    build_chat_profile_bundle,
     build_chat_prompt,
+    build_profile_sync_acknowledgment,
     get_or_create_session,
     load_recent_messages,
     resolve_analyst_row,
@@ -34,7 +36,7 @@ from app.universal_redemption import (
     resolve_suite_slug as resolve_universal_suite_slug,
 )
 from app.mate_router import router as mate_router
-from app.mate_scoring import is_mate_suite, summarize_mate_scores
+from app.mate_scoring import is_mate_suite, load_mate_result_profiles, summarize_mate_scores
 from app.suite_context import build_suite_report_prompt, fallback_suite_report
 
 
@@ -464,6 +466,23 @@ def submit_attempt(data: AttemptIn, user_id: str = Depends(resolve_user_id)):
         missing = sorted(expected - set(answer_by_external))
         if missing:
             raise HTTPException(status_code=400, detail=f"缺少答案：{', '.join(missing[:5])}")
+        if data.redemptionEventId:
+            try:
+                event_uuid = uuid.UUID(str(data.redemptionEventId))
+            except ValueError as exc:
+                raise HTTPException(status_code=400, detail="兑换记录无效") from exc
+            event_row = conn.execute(
+                """
+                SELECT re.id, re.suite_id
+                FROM public.redemption_events re
+                WHERE re.id = %s AND re.user_id = %s
+                """,
+                (event_uuid, user_id),
+            ).fetchone()
+            if not event_row:
+                raise HTTPException(status_code=400, detail="兑换记录无效或无权使用")
+            if event_row["suite_id"] != suite["id"]:
+                raise HTTPException(status_code=400, detail="兑换码与当前题库不匹配，请重新验证兑换码")
         scoring_model = conn.execute(
             """
             SELECT id, scoring_formula, type_rules, ros_config
@@ -491,11 +510,13 @@ def submit_attempt(data: AttemptIn, user_id: str = Depends(resolve_user_id)):
         elif mate_suite:
             if not data.redemptionEventId:
                 raise HTTPException(status_code=400, detail="MATE 测评需要兑换码")
+            mate_profiles = load_mate_result_profiles(conn, suite["id"], suite["gender"])
             scores = summarize_mate_scores(
                 questions,
                 answer_by_external,
                 scoring_model,
                 gender=suite["gender"],
+                result_profiles=mate_profiles,
             )
             archetype = None
         else:
@@ -642,12 +663,14 @@ def get_attempt_result(attempt_id: str, user_id: str = Depends(resolve_user_id))
         if not isinstance(result_payload, dict):
             result_payload = {}
         if not result_payload.get("core_traits"):
-            result_payload = attach_core_traits_to_payload(
-                conn,
-                attempt_id,
-                result_payload,
-                attempt.get("dimension_scores"),
-            )
+            suite_slug = str(attempt.get("test_id") or "")
+            if not is_ros_suite(suite_slug) and not is_mate_suite(suite_slug):
+                result_payload = attach_core_traits_to_payload(
+                    conn,
+                    attempt_id,
+                    result_payload,
+                    attempt.get("dimension_scores"),
+                )
         attempt = dict(attempt)
         attempt["result_payload"] = result_payload
     return {"attempt": {k: (str(v) if k == "id" else v) for k, v in attempt.items()}}
@@ -801,13 +824,31 @@ def generate_attempt_report(attempt_id: str, refresh: bool = False, user_id: str
 
 @app.get("/chat/context")
 def chat_context(attemptId: str | None = None, user_id: str = Depends(resolve_user_id)):
-    """Return bound test result summary for the chat sidebar."""
+    """Return bound test result summary and cross-suite profile for the chat sidebar."""
     with get_conn() as conn:
-        attempt = resolve_attempt(conn, user_id, attemptId)
-    if not attempt:
-        return {"ok": True, "bound": False, "context": None}
-    summary = summarize_context(attempt)
-    return {"ok": True, "bound": True, "context": summary}
+        bundle = build_chat_profile_bundle(conn, user_id, attemptId, refresh=False)
+    return {
+        "ok": True,
+        "bound": bundle["bound"],
+        "context": bundle["context"],
+        "profile": bundle["profile"],
+    }
+
+
+@app.post("/chat/sync-profile")
+def chat_sync_profile(user_id: str = Depends(resolve_user_id)):
+    """Rebuild portrait cache and return a user-visible sync acknowledgment for chat."""
+    with get_conn() as conn:
+        bundle = build_chat_profile_bundle(conn, user_id, refresh=True)
+        acknowledgment = build_profile_sync_acknowledgment(bundle["portrait"])
+        conn.commit()
+    return {
+        "ok": True,
+        "bound": bundle["bound"],
+        "context": bundle["context"],
+        "profile": bundle["profile"],
+        "acknowledgment": acknowledgment,
+    }
 
 
 @app.post("/chat/triage")

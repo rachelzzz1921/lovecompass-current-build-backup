@@ -57,7 +57,14 @@ ros_count="$(python3 -c "import json,sys; print(len(json.load(sys.stdin).get('qu
 pass "GET /tests/s02_ros_female/questions ($ros_count items)"
 
 echo ""
-echo "4. Auth guard (expect 401 without token)"
+echo "4. MATE question bank"
+mate_q="$(curl -fsS "$BACKEND_URL/tests/s03_mate_female/questions")"
+mate_count="$(python3 -c "import json,sys; print(len(json.load(sys.stdin).get('questions',[])))" <<<"$mate_q")"
+[[ "$mate_count" == "80" ]] || fail "expected 80 MATE questions, got $mate_count"
+pass "GET /tests/s03_mate_female/questions ($mate_count items)"
+
+echo ""
+echo "5. Auth guard (expect 401 without token)"
 status="$(curl -sS -o /dev/null -w '%{http_code}' -X POST "$BACKEND_URL/redemption/verify" \
   -H 'Content-Type: application/json' \
   -d '{"code":"LC-E2E-F-20260523","product":"self"}')"
@@ -66,7 +73,7 @@ pass "POST /redemption/verify without Bearer → 401"
 
 if [[ -n "$FRONTEND_URL" ]]; then
   echo ""
-  echo "5. Frontend"
+  echo "6. Frontend"
   front_status="$(curl -sS -o /dev/null -w '%{http_code}' "$FRONTEND_URL/")"
   [[ "$front_status" == "200" ]] || fail "frontend home returned $front_status"
   pass "GET $FRONTEND_URL/ → $front_status"
@@ -76,7 +83,7 @@ if [[ -n "$FRONTEND_URL" ]]; then
   pass "GET /tests/self → $tests_status"
 else
   echo ""
-  echo "5. Frontend (skipped — set FRONTEND_URL to check)"
+  echo "6. Frontend (skipped — set FRONTEND_URL to check)"
 fi
 
 echo ""

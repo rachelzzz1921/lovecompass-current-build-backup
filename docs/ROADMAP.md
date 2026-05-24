@@ -161,7 +161,7 @@ flowchart TB
 *Estimated: 3–4 sessions*
 
 ### Database / 数据
-- [ ] 导入 `004_import_suite3_mate_*.sql`
+- [x] 导入 `004_import_s02_s03_question_banks.sql`（ROS + MATE 合并 import）
 - [ ] 确认 80 题与 `mate_suite_spec_v1.json` 一致（修正 products 文案 60→80）
 
 ### 后端

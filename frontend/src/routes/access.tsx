@@ -8,6 +8,7 @@ import { ArrowLeft, Lock, KeyRound, Sparkles, ShieldCheck, Mail } from "lucide-r
 import { PRODUCTS } from "@/data/products";
 import { markProductAccess } from "@/lib/accessGate";
 import { lovecompassApi } from "@/lib/lovecompassApi";
+import { resetPresentationSeed } from "@/lib/shufflePresentation";
 import {
   getStoredMateGender,
   getStoredRosGender,
@@ -101,6 +102,14 @@ function AccessPage() {
       const productId = resolveProductId(verifiedSuiteSlug);
       markProductAccess(productId, verifiedSuiteSlug, res.redemptionEventId);
       toast.success("解锁成功");
+
+      const redirectPath = (res.redirect ?? "").replace(/^https?:\/\/[^/]+/, "");
+      const runMatch = redirectPath.match(/^\/tests\/([^/]+)\/run\/?$/);
+      if (runMatch) {
+        resetPresentationSeed(runMatch[1]);
+        nav({ to: "/tests/$id/run", params: { id: runMatch[1] } });
+        return;
+      }
 
       if (productId === "ros") {
         nav({ to: "/ros/start" });

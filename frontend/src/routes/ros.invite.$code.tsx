@@ -1,13 +1,15 @@
 import { createFileRoute, Link, useNavigate, useParams } from "@tanstack/react-router";
 import { motion } from "framer-motion";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ArrowRight, Heart, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { markPartnerRosAccess } from "@/lib/accessGate";
 import { formatApiErrorMessage } from "@/lib/apiErrors";
 import { lovecompassApi } from "@/lib/lovecompassApi";
 import { AuthChecking, useRequireAuth } from "@/lib/requireAuth";
-import { getStoredRosGender, ROS_SUITE_SLUGS, setStoredRosGender } from "@/lib/suiteSlugs";
+import { getStoredRosGender, ROS_SUITE_SLUGS, setStoredRosGender, type RosGender } from "@/lib/suiteSlugs";
+import { resetPresentationSeed } from "@/lib/shufflePresentation";
 
 export const Route = createFileRoute("/ros/invite/$code")({
   ssr: false,
@@ -24,17 +26,22 @@ function InvitePage() {
   const { code } = useParams({ from: "/ros/invite/$code" });
   const nav = useNavigate();
   const { pending: authPending } = useRequireAuth();
+  const [gender, setGender] = useState<RosGender>(() => getStoredRosGender() ?? "female");
+  const [submitting, setSubmitting] = useState(false);
 
   const start = async () => {
+    setSubmitting(true);
     try {
       const normalized = code.trim().toUpperCase();
       await lovecompassApi.previewRelationCode(normalized);
-      const gender = getStoredRosGender() || "female";
       setStoredRosGender(gender);
       markPartnerRosAccess(normalized, ROS_SUITE_SLUGS[gender]);
+      resetPresentationSeed(ROS_SUITE_SLUGS[gender]);
       void nav({ to: "/tests/$id/run", params: { id: ROS_SUITE_SLUGS[gender] } });
     } catch (e) {
       toast.error(formatApiErrorMessage(e));
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -66,13 +73,34 @@ function InvitePage() {
             <div className="text-[10px] tracking-[0.3em] text-muted-foreground font-mono mb-2">PARTNER CODE</div>
             <div className="font-mono text-2xl tracking-[0.3em] text-gradient-cyan">{code.toUpperCase()}</div>
           </div>
-          <Button onClick={() => void start()}
-            className="w-full h-12 bg-gradient-to-r from-[oklch(0.55_0.20_285)] to-[oklch(0.50_0.18_200)] text-white">
-            开始我的 60 题 <ArrowRight className="h-4 w-4 ml-2" />
+
+          <div>
+            <p className="text-xs text-muted-foreground mb-2.5 text-center">选择你的题库版本</p>
+            <div className="grid grid-cols-2 gap-2.5">
+              {(["female", "male"] as const).map((g) => (
+                <button
+                  key={g}
+                  type="button"
+                  onClick={() => setGender(g)}
+                  className={`h-11 rounded-xl border text-sm font-medium transition ${
+                    gender === g
+                      ? "border-[oklch(0.82_0.14_200_/_0.7)] bg-[oklch(0.55_0.16_200_/_0.12)] text-foreground"
+                      : "border-border/60 bg-glass text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {g === "female" ? "女性版 · 62 题" : "男性版 · 62 题"}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <Button
+            onClick={() => void start()}
+            disabled={submitting}
+            className="w-full h-12 bg-gradient-to-r from-[oklch(0.55_0.20_285)] to-[oklch(0.50_0.18_200)] text-white"
+          >
+            {submitting ? "验证中…" : "开始我的测评"} <ArrowRight className="h-4 w-4 ml-2" />
           </Button>
-          <p className="text-[11px] text-muted-foreground text-center">
-            开始前可在 <Link to="/ros/start" className="underline">ROS 开始页</Link> 选择男女版本
-          </p>
         </motion.div>
       </section>
     </main>

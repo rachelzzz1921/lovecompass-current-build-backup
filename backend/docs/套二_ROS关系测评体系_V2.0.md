@@ -224,7 +224,7 @@
 | 结构化 JSON | `backend/data/ros_suite_spec_v2.json` |
 | 女版题库 + 评分规则 | `backend/data/suite2_ros_female.json` |
 | 男版题库 + 评分规则 | `backend/data/suite2_ros_male.json` |
-| 导入 SQL | `backend/data/004_import_suite2_ros_*.sql` |
+| 导入 SQL | `backend/data/004_import_s02_s03_question_banks.sql` |
 
 **开发约定**
 

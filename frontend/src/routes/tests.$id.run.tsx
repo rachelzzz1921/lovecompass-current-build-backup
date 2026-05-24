@@ -24,6 +24,7 @@ import {
   setStoredSelfGender,
 } from "@/lib/suiteSlugs";
 import type { AnswerDraft, AnswerPayload, ApiQuestion } from "@/lib/questionTypes";
+import { prepareQuestionsForPresentation } from "@/lib/shufflePresentation";
 
 export const Route = createFileRoute("/tests/$id/run")({
   ssr: false,
@@ -138,9 +139,9 @@ function TestRun() {
       .getQuestions(suiteSlug)
       .then((res) => {
         if (cancelled) return;
-        const sorted = [...res.questions].sort((a, b) => a.order - b.order);
-        setQuestions(sorted);
-        if (sorted[0]) setQuestionStartedAt((prev) => ({ ...prev, [sorted[0].id]: Date.now() }));
+        const presented = prepareQuestionsForPresentation(res.questions, suiteSlug);
+        setQuestions(presented);
+        if (presented[0]) setQuestionStartedAt((prev) => ({ ...prev, [presented[0].id]: Date.now() }));
       })
       .catch((e) => {
         if (!cancelled) setError(formatApiErrorMessage(e));
@@ -252,12 +253,19 @@ function TestRun() {
         return;
       }
 
+      setFinishing(true);
       const submitPromise = lovecompassApi.submitAttempt({
         suiteSlug,
         redemptionEventId,
         partnerRelationCode: null,
         answers: payload,
       });
+
+      if (productSet === "ROS") {
+        const res = await submitPromise;
+        void nav(routeAfterAttemptSubmit(res, { productSet: "ROS" }));
+        return;
+      }
 
       beginPendingAttemptSubmit({ promise: submitPromise, productSet });
       void nav({ to: "/analyzing", search: { productSet, pending: true } });

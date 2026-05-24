@@ -13,7 +13,6 @@ export type Product = {
   badge: string;
   accent: "violet" | "cyan" | "rose";
   dimensions: string[];
-  resultPath?: string;
 };
 
 export const PRODUCTS: Product[] = [
@@ -30,7 +29,6 @@ export const PRODUCTS: Product[] = [
     badge: "CODE · 兑换码解锁",
     accent: "violet",
     dimensions: ["亲密需求", "情绪表达", "独立倾向", "沟通风格", "冲突处理", "承诺意愿"],
-    resultPath: "/result/self/demo",
   },
   {
     id: "ros",
@@ -40,12 +38,11 @@ export const PRODUCTS: Product[] = [
     description:
       "心里有一个具体的人才能作答。AT 吸引 / IN 亲密 / CO 协作 / EV 成长 / RK 风险 五层全覆盖，完成后生成关系码邀请 TA 解锁双人报告。入口：/ros/start",
     duration: "约 12 分钟",
-    questionCount: "60 题",
+    questionCount: "62 题",
     status: "locked",
     badge: "PAID · 兑换码解锁",
     accent: "cyan",
     dimensions: ["吸引力", "亲密度", "协作度", "成长性", "风险信号"],
-    resultPath: "/ros/start",
   },
   {
     id: "mate",
@@ -60,6 +57,5 @@ export const PRODUCTS: Product[] = [
     badge: "PAID · 兑换码解锁",
     accent: "rose",
     dimensions: ["吸引力资产", "情感价值", "现实自主", "关系成熟度", "风险净值"],
-    resultPath: "/tests/mate",
   },
 ];

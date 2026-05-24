@@ -2,8 +2,9 @@ import { createFileRoute, Link, Outlet, useNavigate, useParams, useRouterState }
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
-import { hasProductAccess } from "@/lib/accessGate";
+import { hasProductAccess, clearProductUnlock } from "@/lib/accessGate";
 import { findProductByRouteId, inferGenderFromSuiteSlug, testEntryRouteId } from "@/lib/resultRoutes";
+import { HintButton } from "@/components/HintButton";
 import {
   getStoredMateGender,
   getStoredSelfGender,
@@ -14,6 +15,7 @@ import {
   type MateGender,
   type SelfGender,
 } from "@/lib/suiteSlugs";
+import { resetPresentationSeed } from "@/lib/shufflePresentation";
 import { ArrowLeft, ArrowRight, Clock, Layers, Sparkles, Lock, ShieldCheck } from "lucide-react";
 
 export const Route = createFileRoute("/tests/$id")({
@@ -101,6 +103,7 @@ function TestEntry() {
     if (isMateProduct && mateGender) {
       setStoredMateGender(mateGender);
     }
+    resetPresentationSeed(runSuiteSlug);
     nav({ to: "/tests/$id/run", params: { id: runSuiteSlug } });
   };
 
@@ -229,7 +232,14 @@ function TestEntry() {
                   <button
                     key={gender}
                     type="button"
-                    onClick={() => (isSelfProduct ? setSelfGender(gender) : setMateGender(gender))}
+                    onClick={() => {
+                      const current = isSelfProduct ? selfGender : mateGender;
+                      if (current && current !== gender) {
+                        clearProductUnlock(product.id);
+                      }
+                      if (isSelfProduct) setSelfGender(gender);
+                      else setMateGender(gender);
+                    }}
                     className={`h-11 rounded-xl border text-sm font-medium transition ${
                       selected
                         ? "border-[oklch(0.68_0.18_285_/_0.7)] bg-[oklch(0.50_0.20_285_/_0.12)] text-foreground shadow-[0_0_0_1px_oklch(0.68_0.18_285_/_0.25)]"

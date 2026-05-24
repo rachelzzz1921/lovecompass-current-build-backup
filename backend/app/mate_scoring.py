@@ -127,13 +127,37 @@ def is_mate_suite(suite_slug: str | None) -> bool:
     return "mate" in raw or "s03" in raw
 
 
-def _load_result_profiles(gender: str) -> dict[str, Any]:
+def _load_result_profiles_from_file(gender: str) -> dict[str, Any]:
     filename = "suite3_mate_female.json" if gender == "female" else "suite3_mate_male.json"
     path = DATA_DIR / filename
     if not path.exists():
         return {}
     bank = json.loads(path.read_text(encoding="utf-8"))
     return bank.get("result_profiles") or {}
+
+
+def load_mate_result_profiles(conn: Any, suite_id: Any, gender: str) -> dict[str, Any]:
+    """Load MATE position copy from DB; fall back to local JSON in dev."""
+    rows = conn.execute(
+        """
+        SELECT archetype_code, profile_payload
+        FROM public.result_archetypes
+        WHERE suite_id = %s AND is_active = true
+        ORDER BY display_order ASC
+        """,
+        (suite_id,),
+    ).fetchall()
+    if rows:
+        profiles: dict[str, Any] = {}
+        for row in rows:
+            payload = row.get("profile_payload") or {}
+            profiles[str(row["archetype_code"])] = dict(payload) if isinstance(payload, dict) else {}
+        return profiles
+    return _load_result_profiles_from_file(gender)
+
+
+def _load_result_profiles(gender: str) -> dict[str, Any]:
+    return _load_result_profiles_from_file(gender)
 
 
 def _normalize_question_score_to_100(question: dict[str, Any], numeric: float) -> float:
@@ -705,6 +729,7 @@ def summarize_mate_scores(
     *,
     gender: str = "female",
     profile_payload: dict[str, Any] | None = None,
+    result_profiles: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     type_rules = (scoring_model or {}).get("type_rules") or {}
     scoring_formula = (scoring_model or {}).get("scoring_formula") or {}
@@ -719,7 +744,7 @@ def summarize_mate_scores(
         axis_x, axis_y, module_scores, type_rules, gender
     )
 
-    profiles = _load_result_profiles(gender)
+    profiles = result_profiles if result_profiles is not None else _load_result_profiles(gender)
     profile = dict(profiles.get(position_name) or {})
     if profile_payload:
         profile = {**profile, **profile_payload}

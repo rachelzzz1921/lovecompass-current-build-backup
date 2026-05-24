@@ -23,9 +23,12 @@
 
 | 检查项 | 预期 |
 |--------|------|
-| `test_suites` | 2 条（`s01_self_female`, `s01_self_male`） |
-| `test_questions` | 100 |
-| `redemption_codes` | 至少 E2E 测试码（可选） |
+| `test_suites` | 6 条（`s01_self_*`、`s02_ros_*`、`s03_mate_*`） |
+| `test_questions` | SELF 50×2 + ROS 62×2 + MATE 80×2（以 import SQL 为准） |
+| `scoring_models` | 每套件至少 1 条活跃模型 |
+| `redemption_codes` | SELF 种子码 + 可选 `MIRROR-ALL-ACCESS` 影子码（migration step 12） |
+
+**必跑 import（新环境）：** `data/001_import_question_banks.sql` + `data/004_import_s02_s03_question_banks.sql`。完整顺序见 `backend/migrations/README.md`（13 步）。
 
 **连接串建议：**
 

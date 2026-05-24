@@ -19,13 +19,12 @@ import { Check, Sparkles } from "lucide-react";
 
 const searchSchema = z.object({
   attemptId: z.string().optional(),
-  variant: z.string().optional(),
   to: z.string().optional(),
   productSet: z.enum(["SELF", "ROS", "MATE"]).optional(),
   pending: z.coerce.boolean().optional(),
 });
 
-type WorkState = "submitting" | "ready" | "error" | "demo";
+type WorkState = "submitting" | "ready" | "error";
 
 export const Route = createFileRoute("/analyzing")({
   validateSearch: (search) => searchSchema.parse(search),
@@ -43,7 +42,6 @@ function AnalyzingPage() {
   const nav = useNavigate();
   const {
     attemptId: initialAttemptId,
-    variant = "demo",
     to,
     productSet: searchProductSet,
     pending: searchPending,
@@ -57,9 +55,11 @@ function AnalyzingPage() {
     initialAttemptId ?? null,
   );
   const [workState, setWorkState] = useState<WorkState>(
-    searchPending ? "submitting" : initialAttemptId ? "ready" : "demo",
+    searchPending ? "submitting" : initialAttemptId ? "ready" : "error",
   );
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(
+    searchPending || initialAttemptId ? null : "缺少分析会话，请从测试页提交后再进入。",
+  );
   const [stage, setStage] = useState(0);
   const [overall, setOverall] = useState(0);
   const workStartedRef = useRef(false);
@@ -112,7 +112,8 @@ function AnalyzingPage() {
       return;
     }
 
-    setWorkState("demo");
+    setWorkState("error");
+    setErrorMessage("缺少分析会话，请从测试页提交后再进入。");
   }, [searchPending, initialAttemptId, profile.stages.length]);
 
   /* —— 已有 attemptId 时补全 productSet —— */
@@ -138,7 +139,7 @@ function AnalyzingPage() {
   useEffect(() => {
     if (workState === "error") return;
     if (done) return;
-    if (stage >= lastStageIdx && workState !== "ready" && workState !== "demo") return;
+    if (stage >= lastStageIdx && workState !== "ready") return;
 
     const t = setTimeout(() => setStage((s) => s + 1), profile.stages[stage].dur);
     return () => clearTimeout(t);
@@ -182,7 +183,7 @@ function AnalyzingPage() {
     let cancelled = false;
 
     const finish = async () => {
-      await new Promise((resolve) => setTimeout(resolve, workState === "demo" ? 650 : 380));
+      await new Promise((resolve) => setTimeout(resolve, 380));
       if (cancelled) return;
 
       const explicit = parseBackendNextPath(to ?? undefined);
@@ -204,11 +205,8 @@ function AnalyzingPage() {
             return;
           }
           void nav({ to: "/result/$attemptId", params: { attemptId: resolvedAttemptId } });
-          return;
         }
       }
-
-      void nav({ to: "/result/self/$variant", params: { variant } });
     };
 
     void finish();
@@ -220,7 +218,6 @@ function AnalyzingPage() {
     workState,
     nav,
     to,
-    variant,
     resolvedAttemptId,
     resolvedProductSet,
     searchProductSet,

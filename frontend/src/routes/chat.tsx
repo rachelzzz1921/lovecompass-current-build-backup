@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
-import { lovecompassApi, type ChatContext } from "@/lib/lovecompassApi";
+import { lovecompassApi, type ChatContext, type ChatProfileSnapshot } from "@/lib/lovecompassApi";
 import { resultRouteFromSuiteSlug } from "@/lib/resultRoutes";
 import { formatApiErrorMessage } from "@/lib/apiErrors";
 import { AuthChecking, useRequireAuth } from "@/lib/requireAuth";
@@ -16,7 +16,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Send, Sparkles } from "lucide-react";
+import { ArrowLeft, RefreshCw, Send, Sparkles } from "lucide-react";
 
 const searchSchema = z.object({
   attemptId: z.string().optional(),
@@ -44,7 +44,10 @@ function ChatPage() {
   const [active, setActive] = useState<Counselor>(() => getCounselor(analystIdFromUrl));
   const [boundAttemptId, setBoundAttemptId] = useState<string | undefined>(attemptIdFromUrl);
   const [chatContext, setChatContext] = useState<ChatContext | null>(null);
+  const [profileSnapshot, setProfileSnapshot] = useState<ChatProfileSnapshot | null>(null);
   const [contextLoading, setContextLoading] = useState(true);
+  const [syncingProfile, setSyncingProfile] = useState(false);
+  const [profileSyncedAt, setProfileSyncedAt] = useState<number | null>(null);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [thinking, setThinking] = useState(false);
@@ -66,10 +69,11 @@ function ChatPage() {
         if (ignore) return;
         if (res.context?.attemptId) setBoundAttemptId(res.context.attemptId);
         setChatContext(res.bound ? res.context : null);
+        setProfileSnapshot(res.profile ?? null);
         setMessages([
           {
             role: "ai",
-            text: buildCounselorGreeting(counselor, res.bound, res.context),
+            text: buildCounselorGreeting(counselor, res.bound, res.context, res.profile ?? null),
             ts: Date.now(),
           },
         ]);
@@ -77,10 +81,11 @@ function ChatPage() {
       .catch(() => {
         if (ignore) return;
         setChatContext(null);
+        setProfileSnapshot(null);
         setMessages([
           {
             role: "ai",
-            text: buildCounselorGreeting(counselor, false, null),
+            text: buildCounselorGreeting(counselor, false, null, null),
             ts: Date.now(),
           },
         ]);
@@ -96,6 +101,10 @@ function ChatPage() {
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, thinking]);
+
+  const profileBound = Boolean(profileSnapshot?.completeness.percent || chatContext);
+  const completedSuiteCount =
+    profileSnapshot?.suites.filter((s) => s.status === "completed").length ?? (chatContext ? 1 : 0);
 
   const send = async (text: string) => {
     const trimmed = text.trim();
@@ -131,12 +140,44 @@ function ChatPage() {
   const switchCounselor = (c: Counselor) => {
     setActive(c);
     setTriageHint(null);
-    setMessages([{ role: "ai", text: buildCounselorGreeting(c, Boolean(chatContext), chatContext), ts: Date.now() }]);
+    setMessages([
+      {
+        role: "ai",
+        text: buildCounselorGreeting(c, profileBound, chatContext, profileSnapshot),
+        ts: Date.now(),
+      },
+    ]);
     nav({
       to: "/chat",
       search: { analystId: c.id, attemptId: boundAttemptId },
       replace: true,
     });
+  };
+
+  const syncProfileToAi = async () => {
+    if (syncingProfile || thinking) return;
+    setSyncingProfile(true);
+    try {
+      const res = await lovecompassApi.syncChatProfile();
+      setProfileSnapshot(res.profile ?? null);
+      if (res.context) {
+        setChatContext(res.context);
+        if (res.context.attemptId) setBoundAttemptId(res.context.attemptId);
+      }
+      setProfileSyncedAt(Date.now());
+      setMessages((m) => [
+        ...m,
+        { role: "user", text: "【同步我的全部测评画像】", ts: Date.now() },
+        { role: "ai", text: res.acknowledgment, ts: Date.now() + 1 },
+      ]);
+    } catch (error) {
+      setMessages((m) => [
+        ...m,
+        { role: "ai", text: formatApiErrorMessage(error), ts: Date.now() },
+      ]);
+    } finally {
+      setSyncingProfile(false);
+    }
   };
 
   const runTriage = async () => {
@@ -157,7 +198,6 @@ function ChatPage() {
 
   if (authPending) return <AuthChecking />;
 
-  const profileBound = Boolean(chatContext);
   const avatarGrad = counselorAvatarGradient(active.accent);
 
   return (
@@ -217,45 +257,63 @@ function ChatPage() {
               <p className="text-[11px] text-foreground/70 leading-relaxed px-1">{triageHint}</p>
             ) : null}
 
-            <div className="bg-glass rounded-2xl p-4 mt-4">
-              <div className="text-[10px] font-mono tracking-[0.3em] text-muted-foreground mb-2">// CONTEXT</div>
+            <div className="bg-glass rounded-2xl p-4 mt-4 space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-[10px] font-mono tracking-[0.3em] text-muted-foreground">// CONTEXT</div>
+                {profileSnapshot ? (
+                  <span className="text-[10px] font-mono text-foreground/70 tabular-nums">
+                    {profileSnapshot.completeness.percent}%
+                  </span>
+                ) : null}
+              </div>
+
               {contextLoading ? (
                 <p className="text-[12px] text-muted-foreground">正在读取你的测试画像…</p>
-              ) : profileBound && chatContext ? (
-                <div className="space-y-2 text-[12px] text-foreground/75 leading-relaxed">
-                  <p>
-                    <span className="text-muted-foreground">画像 · </span>
-                    <span className="text-foreground">{chatContext.archetype}</span>
-                    {chatContext.attachmentType ? ` · ${chatContext.attachmentType}` : ""}
+              ) : profileBound && profileSnapshot ? (
+                <>
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    {profileSnapshot.completeness.label}
+                    {completedSuiteCount > 0 ? ` · 已完成 ${completedSuiteCount} 套` : ""}
                   </p>
-                  {chatContext.tagline ? <p className="italic">「{chatContext.tagline}」</p> : null}
-                  {chatContext.suiteName ? (
-                    <p>
-                      <span className="text-muted-foreground">来源 · </span>
-                      {chatContext.suiteName}
+                  <div className="space-y-2">
+                    {profileSnapshot.suites.map((suite) => (
+                      <div
+                        key={suite.productSet}
+                        className={`rounded-xl border px-3 py-2 text-[11px] leading-relaxed ${
+                          suite.status === "completed"
+                            ? "border-[oklch(0.68_0.18_285_/_0.35)] bg-[oklch(0.50_0.20_285_/_0.06)]"
+                            : "border-border/50 bg-secondary/10 text-muted-foreground"
+                        }`}
+                      >
+                        <div className="font-mono text-[10px] tracking-[0.15em] text-muted-foreground">
+                          {suite.code ?? suite.productSet}
+                        </div>
+                        {suite.status === "completed" ? (
+                          <>
+                            <div className="text-foreground/90 mt-0.5">{suite.headline}</div>
+                            {suite.metaLine ? (
+                              <div className="text-muted-foreground mt-0.5">{suite.metaLine}</div>
+                            ) : null}
+                            <div className="text-[10px] font-mono text-muted-foreground mt-1">
+                              {suite.dimensionCount} 维已就绪
+                              {suite.hasAiReport ? " · 含 AI 报告" : ""}
+                            </div>
+                          </>
+                        ) : (
+                          <div className="mt-0.5">尚未完成</div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  {chatContext ? (
+                    <p className="text-[10px] text-muted-foreground font-mono">
+                      当前主绑定 · {chatContext.suiteName ?? chatContext.productSet ?? "最新测评"}
                     </p>
                   ) : null}
-                  {chatContext.dimensions?.length ? (
-                    <p className="text-[11px] text-muted-foreground font-mono">
-                      {chatContext.dimensions.length} 维 SELF 数据已注入
-                      {chatContext.hasAiReport ? " · 含 AI 报告" : ""}
-                    </p>
-                  ) : null}
-                  {boundAttemptId ? (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        nav(resultRouteFromSuiteSlug(chatContext?.suiteSlug, boundAttemptId))
-                      }
-                      className="text-[11px] text-[oklch(0.82_0.14_200)] hover:underline"
-                    >
-                      查看完整结果页 →
-                    </button>
-                  ) : null}
-                </div>
+                </>
               ) : (
                 <div className="space-y-2 text-[12px] text-foreground/70 leading-relaxed">
-                  <p>尚未绑定测试画像。请先完成 SELF 测试，顾问才能基于你的六维分数与红楼人格原型作答。</p>
+                  <p>尚未绑定测试画像。完成 SELF / ROS / MATE 任一套后，可一键同步给 AI 顾问。</p>
                   <button
                     type="button"
                     onClick={() => nav({ to: "/tests/self" })}
@@ -265,6 +323,35 @@ function ChatPage() {
                   </button>
                 </div>
               )}
+
+              <button
+                type="button"
+                onClick={() => void syncProfileToAi()}
+                disabled={syncingProfile || thinking || contextLoading || !profileBound}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-[oklch(0.68_0.18_285_/_0.45)] bg-[oklch(0.50_0.20_285_/_0.12)] px-3 py-2.5 text-[12px] font-medium text-foreground/90 hover:bg-[oklch(0.50_0.20_285_/_0.18)] transition disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${syncingProfile ? "animate-spin" : ""}`} />
+                {syncingProfile ? "正在同步…" : "同步全部测评到 AI"}
+              </button>
+              {profileSyncedAt ? (
+                <p className="text-[10px] font-mono text-muted-foreground text-center">
+                  上次同步 · {new Date(profileSyncedAt).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })}
+                </p>
+              ) : profileBound ? (
+                <p className="text-[10px] text-muted-foreground/80 leading-relaxed text-center">
+                  完成新测试后点一次，确保顾问读到最新分数
+                </p>
+              ) : null}
+
+              {boundAttemptId && chatContext ? (
+                <button
+                  type="button"
+                  onClick={() => nav(resultRouteFromSuiteSlug(chatContext?.suiteSlug, boundAttemptId))}
+                  className="block w-full text-center text-[11px] text-[oklch(0.82_0.14_200)] hover:underline"
+                >
+                  查看完整结果页 →
+                </button>
+              ) : null}
             </div>
           </aside>
 
@@ -282,7 +369,11 @@ function ChatPage() {
                 <div className="text-[11px] text-muted-foreground">{active.title} · ONLINE</div>
               </div>
               <span className="hidden md:inline-flex chip chip-cyan font-mono">
-                {profileBound ? "PROFILE · BOUND" : "PROFILE · NONE"}
+                {profileBound
+                  ? completedSuiteCount >= 3
+                    ? "PROFILE · FULL"
+                    : `PROFILE · ${completedSuiteCount}/3`
+                  : "PROFILE · NONE"}
               </span>
             </div>
 

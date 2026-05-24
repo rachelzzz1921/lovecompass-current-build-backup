@@ -69,10 +69,12 @@ Settings → Build & Development → **Install Command / Build Command** 留空�
 
 ## 推荐用户流程（部署后自测）
 
+**三套题库：** SELF（50）· ROS（62）· MATE（80）。新环境需跑完 `backend/migrations/README.md` 全部 13 步，含 `004_import_s02_s03_question_banks.sql` 与万能码 migration step 12。
+
 1. `/auth` 登录（邮箱或 Google）
-2. `/tests/self` → 选 **女性版/男性版** → 点「去解锁」
-3. `/access` 输入兑换码（测试推荐：`LOVE-COMPASS`；女性 `LOVE-MIRROR-26` / 男性 `LOVE-NORTH-26`）
-4. 答完 50 题 → **生成画像** → `/analyzing` → `/result/:attemptId`
+2. **SELF：** `/tests/self` → 选版本 → `/access` 兑换（`LOVE-COMPASS` / `LOVE-MIRROR-26` / `LOVE-NORTH-26`）→ 答完 → `/analyzing` → `/result/:id`
+3. **ROS/MATE 通用码：** `/access?product=ros|mate` 输入 `MIRROR-ALL-ACCESS`（需后端 `LOVECOMPASS_UNIVERSAL_CODE` + DB 影子码）
+4. **ROS 双人：** 发起人 `/ros/start` → 答完得关系码 → 伴侣 `/ros/invite/:code` 选性别后作答
 
 ---
 
@@ -80,8 +82,12 @@ Settings → Build & Development → **Install Command / Build Command** 留空�
 
 ```bash
 chmod +x scripts/smoke-production.sh
-FRONTEND_URL=https://lovecompass-web.vercel.app ./scripts/smoke-production.sh
+BACKEND_URL=https://lovecompass-api-backend.vercel.app \
+FRONTEND_URL=https://lovecompass-web.vercel.app \
+./scripts/smoke-production.sh
 ```
+
+覆盖：health · SELF/ROS/MATE 题库条数 · 未登录兑换 401 · 可选前端首页。
 
 ---
 

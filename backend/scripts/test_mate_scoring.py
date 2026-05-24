@@ -7,6 +7,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.mate_scoring import is_mate_suite, summarize_mate_scores
+from app.scoring import answer_to_numeric
 
 
 def _load_bank(gender: str = "female") -> dict:
@@ -64,6 +65,18 @@ def _mid_answers(questions: list[dict]) -> dict[str, dict]:
         else:
             answers[ext] = {"value": 3}
     return answers
+
+
+def test_rank_first_scoring() -> None:
+    question = {
+        "question_type": "rank",
+        "scoring_payload": {
+            "method": "rank_self_awareness",
+            "score_map": {"a_first": 85, "b_first": 75, "c_first": 70, "d_first": 50},
+        },
+    }
+    assert answer_to_numeric(question, {"orderedItemIds": ["b", "a", "c", "d"]}) == 75.0
+    assert answer_to_numeric(question, {"orderedItemIds": ["a", "b", "c", "d"]}) == 85.0
 
 
 def test_mate_suite_detection() -> None:

@@ -127,8 +127,36 @@ export function counselorAvatarGradient(accent: CounselorAccent): string {
   return ACCENT_AVATAR[accent];
 }
 
-export function buildCounselorGreeting(counselor: Counselor, bound: boolean, ctx: { archetype?: string; attachmentType?: string | null; suiteName?: string | null; tagline?: string | null } | null): string {
+import type { ChatContext, ChatProfileSnapshot } from "@/lib/lovecompassApi";
+
+export function buildCounselorGreeting(
+  counselor: Counselor,
+  bound: boolean,
+  ctx: {
+    archetype?: string;
+    attachmentType?: string | null;
+    suiteName?: string | null;
+    tagline?: string | null;
+    productSet?: string | null;
+  } | null,
+  profile: ChatProfileSnapshot | null,
+): string {
   const who = `${counselor.name} · ${counselor.englishName} ${counselor.emoji}`;
+  const completed = profile?.suites.filter((s) => s.status === "completed").length ?? 0;
+  if (bound && profile && completed > 0) {
+    const pct = profile.completeness.percent;
+    const suiteLines = profile.suites
+      .filter((s) => s.status === "completed")
+      .map((s) => `· ${s.code ?? s.productSet}：${s.headline}`)
+      .join("\n");
+    const latestHint =
+      ctx && ctx.archetype
+        ? `\n\n最近一次测评（${ctx.suiteName ?? ctx.productSet ?? "最新"}）：**${ctx.archetype}**${
+            ctx.attachmentType ? `（${ctx.attachmentType}）` : ""
+          }${ctx.tagline ? `\n「${ctx.tagline}」` : ""}`
+        : "";
+    return `你好，我是 ${who}，MIRROR 的${counselor.title}。\n\n我已读取你的测评画像（完整度 ${pct}%）：\n${suiteLines}${latestHint}\n\n点左侧「同步全部测评到 AI」可刷新最新分数。${counselor.tagline}。你可以直接问我，或点下面的快捷问题。`;
+  }
   if (ctx && bound) {
     const tagline = ctx.tagline ? `\n「${ctx.tagline}」` : "";
     const attach = ctx.attachmentType ? `（${ctx.attachmentType}）` : "";
@@ -137,5 +165,5 @@ export function buildCounselorGreeting(counselor: Counselor, bound: boolean, ctx
   if (bound) {
     return `你好，我是 ${who}，${counselor.title}。\n\n我已读取你的最新测试画像。${counselor.tagline}。`;
   }
-  return `你好，我是 ${who}，MIRROR 的${counselor.title}。\n\n你还没有可绑定的测试画像。建议先完成 SELF 测试；完成后我会结合你的六维分数与红楼人格原型来回答。\n\n${counselor.description}`;
+  return `你好，我是 ${who}，MIRROR 的${counselor.title}。\n\n你还没有可绑定的测试画像。建议先完成 SELF 测试；完成后点「同步全部测评到 AI」，我会结合你的分数与维度作答。\n\n${counselor.description}`;
 }

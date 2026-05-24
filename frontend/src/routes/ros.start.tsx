@@ -15,6 +15,7 @@ import {
   setStoredRosGender,
   type RosGender,
 } from "@/lib/suiteSlugs";
+import { resetPresentationSeed } from "@/lib/shufflePresentation";
 
 export const Route = createFileRoute("/ros/start")({
   ssr: false,
@@ -73,6 +74,7 @@ function RosStartPage() {
         markProductAccess("ros", res.suiteSlug || suiteSlug, res.redemptionEventId);
       }
 
+      resetPresentationSeed(suiteSlug);
       void nav({ to: "/tests/$id/run", params: { id: suiteSlug } });
     } catch (e) {
       toast.error(formatApiErrorMessage(e));

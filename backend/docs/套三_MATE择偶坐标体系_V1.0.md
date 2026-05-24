@@ -341,7 +341,7 @@ AI 生成时读取：`profiles.portrait_cache` 中的 SELF 摘要 + 本次 MATE 
 | 体系规范（本文） | `backend/docs/套三_MATE择偶坐标体系_V1.0.md` |
 | 结构化 JSON | `backend/data/mate_suite_spec_v1.json` |
 | 女/男题库 + 评分 + 定位文案 | `suite3_mate_*.json` |
-| 导入 SQL | `004_import_suite3_mate_*.sql` |
+| 导入 SQL | `backend/data/004_import_s02_s03_question_banks.sql` |
 | 三套共用话术词库 | `analysis_phrase_library_v1.json` |
 | 词库使用说明 | `三套题分析话术与词库复用指南.md` |
 

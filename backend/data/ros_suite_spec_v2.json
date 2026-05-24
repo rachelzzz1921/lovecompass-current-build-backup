@@ -212,8 +212,7 @@
     "femaleQuestionBank": "backend/data/suite2_ros_female.json",
     "maleQuestionBank": "backend/data/suite2_ros_male.json",
     "importSql": [
-      "backend/data/004_import_suite2_ros_female.sql",
-      "backend/data/004_import_suite2_ros_male.sql"
+      "backend/data/004_import_s02_s03_question_banks.sql"
     ]
   }
 }

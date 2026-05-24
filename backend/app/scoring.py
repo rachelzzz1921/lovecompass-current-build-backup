@@ -62,8 +62,19 @@ def answer_to_numeric(question: dict[str, Any], answer_payload: dict[str, Any]) 
         return float(idx + 1)
 
     if qtype == "rank" and "orderedItemIds" in answer_payload:
-        ordered = answer_payload.get("orderedItemIds") or []
+        ordered = [str(x) for x in (answer_payload.get("orderedItemIds") or [])]
         method = scoring.get("method") or scoring.get("type")
+        score_map = scoring.get("score_map") or scoring.get("scoreMap") or {}
+        if ordered and score_map:
+            first_id = ordered[0].lower()
+            mapped = score_map.get(f"{first_id}_first")
+            if mapped is None:
+                for key, val in score_map.items():
+                    if str(key).lower() == f"{first_id}_first":
+                        mapped = val
+                        break
+            if mapped is not None:
+                return float(mapped)
         if method == "rank_position":
             key_item = str(scoring.get("key_item") or "")
             score_map = scoring.get("score_map") or scoring.get("scoreMap") or {}
@@ -156,6 +167,7 @@ def _build_result_payload(
     }
     return {
         "model": "SELF_V1_ROS_V3",
+        "productSet": "SELF",
         "attachment_type": attachment_type,
         "archetype_code": archetype_code,
         "dimensions": [

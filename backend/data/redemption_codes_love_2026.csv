@@ -1,0 +1,6 @@
+batch_name,suite_slug,code,kind,max_uses,expires_at,is_active,note
+LOVE-COMPASS-2026,s01_self_female,LOVE-COMPASS,common,999999,,true,主测试码 · 女性自我关系（推荐）
+LOVE-MIRROR-2026,s01_self_female,LOVE-MIRROR-26,common,999999,,true,镜映码 · 女性版
+LOVE-NORTH-2026,s01_self_male,LOVE-NORTH-26,common,999999,,true,北极星码 · 男性版
+E2E-20260523,s01_self_female,LC-E2E-F-20260523,common,999999,,true,旧版 E2E 女性码（仍有效）
+E2E-20260523,s01_self_male,LC-E2E-M-20260523,common,999999,,true,旧版 E2E 男性码（仍有效）

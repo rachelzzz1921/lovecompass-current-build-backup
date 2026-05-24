@@ -136,7 +136,7 @@ function AccessPage() {
               inputMode="text"
               autoCapitalize="characters"
               maxLength={CODE_MAX_LENGTH}
-              placeholder="例如 LC-E2E-F-20260523"
+              placeholder="例如 LOVE-COMPASS"
               className="w-full h-14 rounded-2xl px-4 text-center font-mono text-lg md:text-xl uppercase bg-secondary/30 border border-border/60 transition-all outline-none caret-[oklch(0.82_0.14_200)] focus:border-[oklch(0.82_0.14_200_/_0.7)] focus:glow-cyan placeholder:text-muted-foreground/45"
             />
             <div className="mt-4 h-[3px] rounded-full bg-secondary/40 overflow-hidden">

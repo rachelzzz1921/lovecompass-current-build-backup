@@ -71,7 +71,7 @@ Settings → Build & Development → **Install Command / Build Command** 留空�
 
 1. `/auth` 登录（邮箱或 Google）
 2. `/tests/self` → 选 **女性版/男性版** → 点「去解锁」
-3. `/access` 输入兑换码（测试：`LC-E2E-F-20260523` / `LC-E2E-M-20260523`）
+3. `/access` 输入兑换码（测试推荐：`LOVE-COMPASS`；女性 `LOVE-MIRROR-26` / 男性 `LOVE-NORTH-26`）
 4. 答完 50 题 → **生成画像** → `/analyzing` → `/result/:attemptId`
 
 ---

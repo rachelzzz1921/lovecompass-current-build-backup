@@ -236,7 +236,7 @@ class RedemptionIn(BaseModel):
 
 class ChatIn(BaseModel):
     attemptId: str | None = None
-    analystId: str | None = "mirror"
+    analystId: str | None = "sage"
     message: str = Field(min_length=1)
 
 @app.get("/health")

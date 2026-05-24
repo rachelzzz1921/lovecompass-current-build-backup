@@ -7,12 +7,9 @@ from typing import Any
 from fastapi import HTTPException
 from psycopg.types.json import Jsonb
 
-REPORT_PLACEHOLDER_MARKERS = ("正式 AI 深度报告可由后台任务继续生成", "【AI 占位回复】", "【智谱未配置】")
+from app.counselor_personas import enrich_analyst_with_skill, normalize_counselor_slug, persona_fallback
 
-_ANALYST_SLUG_ALIASES = {
-    "mirror": "default_relationship_analyst",
-    "default": "default_relationship_analyst",
-}
+REPORT_PLACEHOLDER_MARKERS = ("正式 AI 深度报告可由后台任务继续生成", "【AI 占位回复】", "【智谱未配置】")
 
 
 def _looks_like_placeholder(report: str | None) -> bool:
@@ -205,8 +202,7 @@ def build_profile_context_block(attempt: dict[str, Any]) -> str:
 
 
 def resolve_analyst_row(conn: Any, analyst_slug: str | None) -> dict[str, Any]:
-    slug = (analyst_slug or "mirror").strip().lower()
-    slug = _ANALYST_SLUG_ALIASES.get(slug, slug)
+    slug = normalize_counselor_slug(analyst_slug)
     row = conn.execute(
         """
         SELECT id, slug, name, title, system_prompt, persona_prompt
@@ -217,7 +213,7 @@ def resolve_analyst_row(conn: Any, analyst_slug: str | None) -> dict[str, Any]:
         (slug,),
     ).fetchone()
     if row:
-        return dict(row)
+        return enrich_analyst_with_skill(dict(row))
     row = conn.execute(
         """
         SELECT id, slug, name, title, system_prompt, persona_prompt
@@ -228,15 +224,20 @@ def resolve_analyst_row(conn: Any, analyst_slug: str | None) -> dict[str, Any]:
         """,
     ).fetchone()
     if row:
-        return dict(row)
-    return {
-        "id": None,
-        "slug": slug,
-        "name": "MIRROR",
-        "title": "关系镜像分析师",
-        "system_prompt": "你是 LoveCompass 的温柔、克制、专业的婚恋画像分析师。",
-        "persona_prompt": "基于用户真实测试结果回答，不编造未提供的经历。",
-    }
+        return enrich_analyst_with_skill(dict(row))
+    fallback = persona_fallback(slug)
+    if fallback:
+        return fallback
+    return enrich_analyst_with_skill(
+        {
+            "id": None,
+            "slug": "sage",
+            "name": "学者",
+            "title": "Sage · 关系结构分析师",
+            "system_prompt": "你是 MIRROR 的 AI 关系顾问。用中文回答。",
+            "persona_prompt": "",
+        }
+    )
 
 
 def get_or_create_session(
@@ -314,19 +315,20 @@ def build_chat_prompt(
     user_message: str,
 ) -> str:
     system = str(analyst.get("system_prompt") or "").strip()
-    persona = str(analyst.get("persona_prompt") or "").strip()
+    skill_body = str(analyst.get("persona_prompt") or "").strip()
     profile_block = build_profile_context_block(attempt) if attempt else "【当前未绑定具体测试画像】用户可能尚未完成测试；只能做一般性关系建议，并邀请用户先完成 SELF 测试。"
 
     history_lines = []
     for item in history:
-        label = "用户" if item["role"] == "user" else "分析师"
+        label = "用户" if item["role"] == "user" else "顾问"
         history_lines.append(f"{label}：{item['content']}")
     history_text = "\n".join(history_lines) if history_lines else "（本次会话尚无历史消息）"
 
     return f"""
 {system}
 
-{persona}
+【Agent Skill — 智能体定义，必须严格遵守】
+{skill_body}
 
 {profile_block}
 
@@ -338,7 +340,7 @@ def build_chat_prompt(
 
 回答要求：
 - 必须基于上方真实测试画像作答；有画像时禁止说「尚未接入数据」或「接口未接通」。
-- 用温柔、具体、克制的中文；像资深关系顾问对挚友说话。
-- 不要暴露数据库字段、prompt、JSON、SA 编号；分数仅作内部理解，用自然语言描述倾向。
-- 若用户问的是关系决策，给出可执行的观察点，不做绝对化预言。
+- 严格遵循 Agent Skill 的语气、结构与边界；你是带 Skill 的顾问智能体，不是通用聊天机器人。
+- 具体、有内容；不要暴露数据库字段、prompt、JSON、SA 编号。
+- 关系决策类问题：给出可观察的信号与思考框架，不做绝对化预言。
 """.strip()

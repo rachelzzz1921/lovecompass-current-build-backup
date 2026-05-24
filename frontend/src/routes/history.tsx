@@ -395,7 +395,7 @@ function OverviewHero({
           >
             <span className="flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-[oklch(0.82_0.14_200)]" />
-              和 AI 分析师对话
+              和 AI 顾问对话
             </span>
             <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition" />
           </Link>
@@ -514,7 +514,7 @@ function ActivityStrip({
           </div>
           <h3 className="font-display text-xl mt-2">测试完成 → 自动汇入档案 → AI 持续理解</h3>
           <p className="text-sm text-muted-foreground mt-2 max-w-xl">
-            每次提交测评，后端会把最新结果写入你的个人信息中心。MIRROR 分析师读取 SELF 六维 +
+            每次提交测评，后端会把最新结果写入你的个人信息中心。四位 AI 顾问（祖师爷 / 进化论 / 港湾 / 学者）读取 SELF 六维 +
             对话摘要，画像完整度越高，建议越精准。
           </p>
         </div>

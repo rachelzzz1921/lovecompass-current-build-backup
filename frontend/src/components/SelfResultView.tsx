@@ -394,7 +394,7 @@ export function SelfResultView({
             className="rounded-xl h-12 bg-glass border-border/60 text-foreground"
           >
             <Link to="/chat" search={chatRouteSearch(attemptId)}>
-              <MessageCircle className="mr-2 h-4 w-4" /> 找 AI 分析师聊聊
+              <MessageCircle className="mr-2 h-4 w-4" /> 和 AI 顾问聊聊
             </Link>
           </Button>
           <Button onClick={share}

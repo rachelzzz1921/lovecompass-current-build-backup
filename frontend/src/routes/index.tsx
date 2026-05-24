@@ -8,6 +8,7 @@ import { HintButton } from "@/components/HintButton";
 import { Lock, ArrowRight, Sparkles, MessageSquare, Brain, Layers, Repeat, Heart, AlertTriangle, MessageCircle, ChevronLeft, ChevronRight, Menu, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { chatRouteSearch } from "@/lib/chatRouteSearch";
+import { COUNSELORS } from "@/lib/counselors";
 
 function scrollToId(id: string) {
   document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -341,16 +342,22 @@ function Home() {
               <Sparkles className="h-7 w-7 text-[oklch(0.10_0.018_270)]" />
             </div>
             <div className="flex-1">
-              <div className="font-mono text-[10px] tracking-[0.35em] text-muted-foreground">// YOUR AI ANALYST</div>
-              <h3 className="font-display text-2xl md:text-3xl mt-1.5 text-gradient-violet">MIRROR · 关系镜像分析师</h3>
+              <div className="font-mono text-[10px] tracking-[0.35em] text-muted-foreground">// MIRROR · AI COUNSELORS</div>
+              <h3 className="font-display text-2xl md:text-3xl mt-1.5 text-gradient-violet">四位 AI 关系顾问</h3>
               <p className="mt-3 text-sm text-foreground/75 leading-relaxed max-w-2xl">
-                我读取你完成的所有测评 + 每次对话的摘要，在后台持续更新你的"人格档案"。
-                每次你回来，我比上次更懂你一点——这是一份会进化的镜子，不是一次性的报告。
+                完成 SELF 测试后，画像会注入对话。每位顾问都是带独立 Skill 的智能体——直球洞察、策略分析、结构看见或温柔陪伴。
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
-                <span className="chip chip-violet font-mono">MIRROR · ONLINE</span>
-                <span className="chip font-mono opacity-70">EMBER · SOON</span>
-                <span className="chip font-mono opacity-70">ATLAS · SOON</span>
+                {COUNSELORS.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => nav({ to: "/chat", search: chatRouteSearch(undefined, c.id) })}
+                    className="chip chip-violet font-mono hover:opacity-90 transition"
+                  >
+                    {c.emoji} {c.name} · {c.englishName}
+                  </button>
+                ))}
               </div>
             </div>
             <Button

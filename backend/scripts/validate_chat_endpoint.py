@@ -48,7 +48,7 @@ def main() -> None:
         "/chat/message",
         json={
             "attemptId": attempt_id,
-            "analystId": "mirror",
+            "analystId": "sage",
             "message": "请用三句话总结我的关系画像，并给一个下一步建议。",
         },
     )

@@ -18,6 +18,7 @@ import { formatApiErrorMessage, getApiErrorHint } from "@/lib/apiErrors";
 import { AuthChecking, useRequireAuth } from "@/lib/requireAuth";
 
 export const Route = createFileRoute("/history")({
+  ssr: false,
   head: () => ({
     meta: [
       { title: "个人信息中心 · MIRROR" },

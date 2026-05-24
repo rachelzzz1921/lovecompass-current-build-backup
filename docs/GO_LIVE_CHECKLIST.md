@@ -83,3 +83,4 @@ FRONTEND_URL=https://lovecompass-web.vercel.app ./scripts/smoke-production.sh
 | 没进兑换码页 | 旧版 self=free 或未 redeploy | 拉最新 frontend redeploy |
 | 点「开始」无反应 | 旧版 disabled 按钮 | 最新版会 toast + 跳转登录/兑换 |
 | 前端构建跑 `pip install` | Root Directory 错选 `backend`，或 Build 设置误填后端命令 | Root 改为 `frontend`；清空 Install/Build 覆盖项后 Redeploy |
+| 登录报 Invalid login credentials | 密码不对；或注册时 Email 登录未开启导致未真正完成注册 | 用「忘记密码」重置；或使用下方测试账号 / Google 登录 |

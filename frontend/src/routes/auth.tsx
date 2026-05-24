@@ -10,6 +10,7 @@ import { ArrowLeft, Mail, Lock, Sparkles, ShieldCheck } from "lucide-react";
 import { safeReturnPath } from "@/lib/requireAuth";
 import { oauthCallbackUrl, stashOAuthReturn } from "@/lib/oauthReturn";
 import { completeSupabaseAuthFromUrl, getSessionWithRefresh } from "@/lib/supabaseSession";
+import { formatAuthError, normalizeAuthEmail } from "@/lib/authErrors";
 
 const AuthSearchSchema = z.object({
   redirect: z.string().optional(),
@@ -89,10 +90,11 @@ function AuthPage() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    const normalizedEmail = normalizeAuthEmail(email);
     try {
       if (mode === "signup") {
         const { data, error } = await supabase.auth.signUp({
-          email,
+          email: normalizedEmail,
           password: pw,
           options: {
             emailRedirectTo: oauthCallbackUrl(),
@@ -106,13 +108,38 @@ function AuthPage() {
           toast.success("验证邮件已发送，请查收邮箱完成注册后再登录");
         }
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password: pw });
+        const { error } = await supabase.auth.signInWithPassword({
+          email: normalizedEmail,
+          password: pw,
+        });
         if (error) throw error;
         toast.success("欢迎回到 MIRROR");
         goNext();
       }
     } catch (err) {
-      toast.error((err as Error).message);
+      toast.error(formatAuthError((err as Error).message, mode));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const forgotPassword = async () => {
+    const normalizedEmail = normalizeAuthEmail(email);
+    if (!normalizedEmail) {
+      toast.error("请先填写注册邮箱");
+      return;
+    }
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
+        redirectTo: oauthCallbackUrl(),
+      });
+      if (error) throw error;
+      toast.success("重置邮件已发送", {
+        description: "请查收邮箱并按链接设置新密码（若无邮件，请检查垃圾箱）",
+      });
+    } catch (err) {
+      toast.error(formatAuthError((err as Error).message, "login"));
     } finally {
       setLoading(false);
     }
@@ -216,9 +243,21 @@ function AuthPage() {
               </div>
             </div>
             <div>
-              <label className="text-[10px] font-mono tracking-[0.3em] text-muted-foreground" htmlFor="pw">
-                PASSWORD
-              </label>
+              <div className="flex items-center justify-between">
+                <label className="text-[10px] font-mono tracking-[0.3em] text-muted-foreground" htmlFor="pw">
+                  PASSWORD
+                </label>
+                {mode === "login" ? (
+                  <button
+                    type="button"
+                    onClick={() => void forgotPassword()}
+                    disabled={loading}
+                    className="text-[10px] font-mono tracking-[0.12em] text-muted-foreground hover:text-foreground transition"
+                  >
+                    忘记密码？
+                  </button>
+                ) : null}
+              </div>
               <div className="relative mt-1.5">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import urllib.error
 import urllib.request
 from typing import Annotated, Any
@@ -26,8 +27,14 @@ def auth_version() -> str:
     return _AUTH_VERSION
 
 
+_SUPABASE_URL_RE = re.compile(r"https?://[\w.-]+\.supabase\.co", re.IGNORECASE)
+
+
 def _supabase_url() -> str:
     raw = (os.getenv("SUPABASE_URL") or "").strip().strip('"').strip("'")
+    match = _SUPABASE_URL_RE.search(raw)
+    if match:
+        return match.group(0).rstrip("/")
     lowered = raw.lower()
     for prefix in ("value:", "value："):
         if lowered.startswith(prefix):
@@ -38,10 +45,8 @@ def _supabase_url() -> str:
     raw = raw.rstrip("/")
     if raw.endswith("/auth/v1"):
         raw = raw[: -len("/auth/v1")].rstrip("/")
-    if raw and not raw.startswith(("http://", "https://")):
-        # Recover when only the host/path was pasted without a scheme.
-        if "supabase.co" in raw:
-            raw = f"https://{raw.lstrip('/')}"
+    if raw and not raw.startswith(("http://", "https://")) and "supabase.co" in raw:
+        raw = f"https://{raw.lstrip('/')}"
     return raw
 
 

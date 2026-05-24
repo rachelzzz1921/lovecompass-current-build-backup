@@ -6,7 +6,6 @@ import type { CharacterReveal, MatchType, SelfResult } from "@/data/mockResult";
 import { RadarChart } from "@/components/RadarChart";
 import { DimensionBars } from "@/components/DimensionBars";
 import { ScoreOrb } from "@/components/ScoreOrb";
-import { CountUp } from "@/components/CountUp";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
@@ -217,7 +216,9 @@ export function SelfResultView({
                           transition={{ duration: 2.4, delay: 0.6 + i * 0.15, repeat: Infinity, repeatDelay: 3 }}
                         />
                         <span className="text-foreground/80 flex-1">{d.label}</span>
-                        <CountUp to={d.value} duration={1.2} className="font-mono tabular-nums text-foreground/90" />
+                        <span className="text-[11px] text-muted-foreground text-right max-w-[9rem] leading-snug">
+                          {d.displaySummary ?? String(d.value)}
+                        </span>
                       </motion.div>
                     ))}
                   </div>

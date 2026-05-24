@@ -1,5 +1,13 @@
 // 前端展示用的 mock 结果数据 —— 真正的数据由后端 server function 返回，结构与此一致即可替换。
-export type Dimension = { key: string; label: string; value: number; color: string };
+export type Dimension = {
+  key: string;
+  label: string;
+  value: number;
+  color: string;
+  /** 套一 scoreDisplayRules 描述性文案，禁止向用户暴露难堪原话 */
+  displaySummary?: string;
+  coreQuestion?: string;
+};
 export type MatchType = { code: string; name: string; pct: number; tagline: string; top?: boolean };
 export type Insight = { kind: "strength" | "watch" | "match" | "growth"; title: string; body: string };
 

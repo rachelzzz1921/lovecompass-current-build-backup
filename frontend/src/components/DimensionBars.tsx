@@ -20,7 +20,9 @@ export function DimensionBars({ data }: { data: Dim[] }) {
               }}
             />
           </div>
-          <div className="font-mono text-xs text-foreground/85 w-9 text-right tabular-nums">{d.value}</div>
+          <div className="font-mono text-xs text-foreground/85 w-28 text-right leading-snug">
+            {d.displaySummary ?? d.value}
+          </div>
         </div>
       ))}
     </div>

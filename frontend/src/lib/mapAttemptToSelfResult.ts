@@ -6,39 +6,19 @@ import type {
   MatchType,
   SelfResult,
 } from "@/data/mockResult";
-
-const DIMENSION_COLORS: Record<string, string> = {
-  SA1: "oklch(0.68 0.18 285)",
-  SA2: "oklch(0.78 0.15 165)",
-  SA3: "oklch(0.72 0.18 360)",
-  SA4: "oklch(0.82 0.14 75)",
-  SA5: "oklch(0.82 0.14 200)",
-  SA6: "oklch(0.82 0.10 285)",
-};
-
-const CHARACTER_EMOJI: Record<string, string> = {
-  薛宝钗: "🪬",
-  林黛玉: "🌸",
-  妙玉: "🕯️",
-  史湘云: "🎐",
-  王熙凤: "👑",
-  袭人: "🌺",
-  贾探春: "🌿",
-  贾宝玉: "🎭",
-  柳湘莲: "🌊",
-  贾雨村: "📜",
-  北静王: "🏯",
-  蒋玉菡: "🎵",
-};
-
-const ATTACHMENT_BADGE: Record<string, string> = {
-  安全型: "你的依恋类型",
-  焦虑型: "你的依恋类型",
-  回避型: "你的依恋类型",
-  混合型: "你的依恋类型",
-  高边界安全型: "你的依恋类型",
-  低自我高投入型: "你的依恋类型",
-};
+import {
+  BEHAVIORS_BY_ATTACHMENT,
+  CHARACTER_EMOJI,
+  growthAdviceForAttachment,
+  isAttachmentGreyZone,
+  MATCH_BY_ATTACHMENT,
+  normalizeDimensionScore,
+  positiveFramingForAttachment,
+  scoreDisplaySummary,
+  SELF_DIMENSION_BY_CODE,
+  SELF_DIMENSIONS,
+  type SelfDimensionCode,
+} from "@/data/selfSuiteSpec";
 
 export type AttemptResultInput = {
   test_id?: string;
@@ -55,183 +35,186 @@ export type AttemptResultInput = {
       tagline?: string;
       description?: string;
       matching_logic?: string;
+      radar_baseline?: Record<string, number>;
     };
   };
   ai_report?: string | null;
 };
 
-function clampScore(value: number): number {
-  if (!Number.isFinite(value)) return 0;
-  return Math.max(0, Math.min(100, Math.round(value)));
+type ScoredDimension = Dimension & {
+  rawScore: number;
+  coreQuestion: string;
+};
+
+function rawScores(input: AttemptResultInput): Record<string, number> {
+  if (input.dimension_scores && typeof input.dimension_scores === "object") {
+    return input.dimension_scores;
+  }
+  const fromPayload = input.result_payload?.dimensions ?? [];
+  return Object.fromEntries(fromPayload.map((d) => [d.code, Number(d.score)]));
 }
 
-function displayScore(code: string, score: number): number {
-  if (code === "SA2" || code === "SA3") return clampScore(100 - score);
-  return clampScore(score);
-}
+function normalizeDimensions(input: AttemptResultInput): ScoredDimension[] {
+  const scores = rawScores(input);
+  const payloadDims = input.result_payload?.dimensions ?? [];
 
-function normalizeDimensions(input: AttemptResultInput): Dimension[] {
-  const raw =
-    input.result_payload?.dimensions ??
-    Object.entries(input.dimension_scores ?? {}).map(([code, score]) => ({
-      code,
-      name: code,
-      score: Number(score),
-    }));
-
-  return raw.map((item) => ({
-    key: item.code,
-    label: item.name,
-    value: displayScore(item.code, Number(item.score)),
-    color: DIMENSION_COLORS[item.code] ?? "oklch(0.68 0.18 285)",
-  }));
+  return SELF_DIMENSIONS.map((spec) => {
+    const payloadItem = payloadDims.find((d) => d.code === spec.code);
+    const rawScore = normalizeDimensionScore(
+      spec.code,
+      Number(scores[spec.code] ?? payloadItem?.score ?? 0),
+    );
+    return {
+      key: spec.code,
+      label: spec.name,
+      coreQuestion: spec.coreQuestion,
+      value: rawScore,
+      rawScore,
+      color: spec.color,
+      displaySummary: scoreDisplaySummary(rawScore),
+    };
+  });
 }
 
 function buildCoreTraits(
   profile: NonNullable<AttemptResultInput["result_payload"]>["archetype_profile"],
-  dimensions: Dimension[],
+  attachment: string,
+  dimensions: ScoredDimension[],
+  greyZone: boolean,
 ): CoreTrait[] {
-  const sorted = [...dimensions].sort((a, b) => b.value - a.value);
-  const top = sorted[0];
-  const mid = sorted[Math.floor(sorted.length / 2)] ?? top;
-  const low = sorted[sorted.length - 1];
+  const sorted = [...dimensions].sort((a, b) => b.rawScore - a.rawScore);
+  const highest = sorted[0];
+  const lowest = sorted[sorted.length - 1];
+  const description = profile?.description ?? "";
+  const sentences = description.split(/(?<=[。！？])/).map((s) => s.trim()).filter(Boolean);
 
-  return [
+  const traits: CoreTrait[] = [
     {
       icon: "shield",
       highlight: true,
-      title: top ? `${top.label}是你最鲜明的底色` : "你在关系里有自己的节奏",
+      title: highest ? `${highest.label}：${highest.displaySummary}` : "你在关系里有清晰的自我底色",
       body:
-        profile?.description ??
-        "你的画像来自 SELF 六维模型——不是标签，而是理解你在亲密关系里如何靠近、如何撤退、如何爱人。",
+        sentences[0] ??
+        `${highest?.coreQuestion ?? "你在关系里的模式"} —— 这是套一 SELF 六维里与你最贴近的一维。`,
     },
     {
       icon: "key",
-      title: profile?.attachment_type ? `${profile.attachment_type}的相处方式` : "你的依恋底色",
-      body:
-        profile?.matching_logic ??
-        "你在关系里既需要被理解，也需要保留自己的空间。找到节奏同频的人，会比勉强适配更省力。",
+      title: `${attachment}的相处节奏`,
+      body: profile?.matching_logic
+        ? `${profile.matching_logic}。${positiveFramingForAttachment(attachment)}`
+        : positiveFramingForAttachment(attachment),
     },
     {
       icon: "eye",
-      title: low ? `${low.label}值得被温柔看见` : "还有一些面在慢慢展开",
-      body: low
-        ? `这一维（${low.value}）不是缺陷，而是你在压力或不确定时最容易摇摆的地方——给它练习，而不是苛责。`
-        : "随着你完成更多测试与对话，MIRROR 会持续更新这份画像。",
-    },
-    {
-      icon: "shield",
-      title: mid ? `${mid.label}是你的弹性带` : "你的关系弹性",
-      body: `在「${mid?.label ?? "日常相处"}」上，你往往能在坚持自我与照顾对方之间找到中间地带。`,
-    },
-  ].slice(0, 3) as CoreTrait[];
-}
-
-function buildBehaviors(name: string, attachment?: string): Behavior[] {
-  return [
-    {
-      scene: "第一次见面",
-      title: "你不会急着把所有自己交出去",
-      body: `作为「${name}」型的人，你更习惯先观察、再打开——对方是否安全、是否同频，往往比第一印象更重要。`,
-    },
-    {
-      scene: "发生冲突时",
-      title: attachment?.includes("回避") ? "你会先拉开距离，再回来谈" : "你会先把情绪降下来",
-      body:
-        attachment?.includes("焦虑")
-          ? "冲突容易触发你的不安全感，你可能会更想确认对方还在——学会先说感受，比反复求证更有效。"
-          : "你倾向保护关系不被情绪烧坏，但别让对方误读为冷淡；一句「我在，只是需要先冷静」会很有帮助。",
-    },
-    {
-      scene: "喜欢一个人时",
-      title: "你的喜欢落在细节里",
-      body: `你的「${name}」式温柔，往往体现在具体、日常、可感知的小事上——这比华丽的告白更接近真实的你。`,
+      title: lowest ? `${lowest.label}：${lowest.displaySummary}` : "还有一些面在展开",
+      body: greyZone
+        ? `${lowest?.coreQuestion ?? "你的依恋维度"} 目前处于套一体系定义的「临界状态」—— 不是定论，而是提醒你有更大的弹性空间。`
+        : `${lowest?.coreQuestion ?? "这一维"} 不是缺陷。${scoreDisplaySummary(lowest?.rawScore ?? 0)}，值得被温柔看见而不是被否定。`,
     },
   ];
+
+  return traits;
 }
 
-function buildInsights(dimensions: Dimension[], payload?: AttemptResultInput["result_payload"]): Insight[] {
-  const sorted = [...dimensions].sort((a, b) => b.value - a.value);
-  const top = sorted[0];
-  const low = sorted[sorted.length - 1];
+function buildBehaviors(attachment: string): Behavior[] {
+  return BEHAVIORS_BY_ATTACHMENT[attachment] ?? BEHAVIORS_BY_ATTACHMENT["安全型"];
+}
+
+function buildInsights(
+  attachment: string,
+  dimensions: ScoredDimension[],
+  profile: NonNullable<AttemptResultInput["result_payload"]>["archetype_profile"],
+  greyZone: boolean,
+): Insight[] {
+  const sorted = [...dimensions].sort((a, b) => b.rawScore - a.rawScore);
+  const highest = sorted[0];
+  const lowest = sorted[sorted.length - 1];
+  const matches = MATCH_BY_ATTACHMENT[attachment] ?? [];
 
   return [
     {
       kind: "strength",
       title: "你的高光",
-      body: top
-        ? `${top.label}（${top.value}）是你当前最稳定的关系资源——在多数场景里，它都在支持你做出更成熟的选择。`
-        : "你已经在关系里积累了不少可依靠的内在资源。",
+      body: highest
+        ? `在「${highest.label}」上，${highest.displaySummary}。套一里这一维对应：${highest.coreQuestion}`
+        : "你在关系里已经有可依靠的稳定资源。",
     },
     {
       kind: "watch",
       title: "可以温柔留意",
-      body: low
-        ? `${low.label}（${low.value}）相对偏低——在压力或不确定时，这里最容易出现摇摆，值得被看见而不是被否定。`
-        : "留意那些让你反复内耗的模式，它们往往指向真正需要被照顾的部分。",
+      body: greyZone
+        ? `你的 SA2/SA3 至少有一维落在 45–60 的灰色地带—— 主类型仍成立，但依恋模式还在过渡区，不必用单一标签限制自己。`
+        : lowest
+          ? `「${lowest.label}」${lowest.displaySummary}。${positiveFramingForAttachment(attachment)}`
+          : "留意那些反复出现的内耗模式，它们往往指向真正需要被照顾的部分。",
     },
     {
       kind: "match",
       title: "匹配建议",
-      body:
-        payload?.archetype_profile?.matching_logic ??
-        "优先找能读懂你节奏、也愿意一起练习沟通的人——同频比完美更重要。",
+      body: matches[0]
+        ? `与你同体系判断最同频的是 ${matches[0].name}（${matches[0].pct}% 参考契合）。${matches[0].tagline}。`
+        : profile?.matching_logic ?? "优先找能读懂你节奏、也愿意一起练习沟通的人。",
     },
     {
       kind: "growth",
       title: "下一段关系里",
-      body: "练习先说感受、再讲道理。当你愿意先暴露一点脆弱，对方往往会用更多柔软回应你。",
+      body: growthAdviceForAttachment(attachment),
     },
   ];
 }
 
-function buildMatches(payload?: AttemptResultInput["result_payload"]): MatchType[] {
-  const logic = payload?.archetype_profile?.matching_logic ?? "情绪稳定、边界清晰、能给你安全感的人";
-  const parts = logic.split(/[、，,；;]/).map((s) => s.trim()).filter(Boolean);
-  const names = parts.slice(0, 3);
-  while (names.length < 3) {
-    names.push(["滋养型伴侣", "稳定型伴侣", "探索型伴侣"][names.length] ?? "同频伴侣");
-  }
-  const pcts = [88, 79, 71];
-  return names.map((name, index) => ({
+function buildMatches(attachment: string): MatchType[] {
+  const presets = MATCH_BY_ATTACHMENT[attachment] ?? MATCH_BY_ATTACHMENT["安全型"];
+  return presets.map((item, index) => ({
     code: `M-${index + 1}`,
-    name: name.length > 12 ? `${name.slice(0, 11)}…` : name,
-    pct: pcts[index] ?? 70,
-    tagline: index === 0 ? "与当前画像最同频" : "值得继续观察的相处类型",
+    name: item.name,
+    pct: item.pct,
+    tagline: item.tagline,
     top: index === 0,
   }));
 }
 
 function buildCharacterReasons(
   name: string,
-  dimensions: Dimension[],
-  payload?: AttemptResultInput["result_payload"],
+  attachment: string,
+  dimensions: ScoredDimension[],
+  profile: NonNullable<AttemptResultInput["result_payload"]>["archetype_profile"],
 ): Array<{ title: string; body: string; highlight?: boolean }> {
-  const sorted = [...dimensions].sort((a, b) => b.value - a.value);
-  const top = sorted[0];
-  const low = sorted[sorted.length - 1];
-  const profile = payload?.archetype_profile;
+  const baseline = profile?.radar_baseline ?? {};
+  const deltas = dimensions
+    .map((d) => ({
+      dim: d,
+      delta: d.rawScore - normalizeDimensionScore(d.key, Number(baseline[d.key as SelfDimensionCode] ?? d.rawScore)),
+    }))
+    .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
+
+  const closest = deltas[0]?.dim;
+  const contrasting = deltas[deltas.length - 1]?.dim;
+
   return [
     {
       highlight: true,
-      title: `同样的「${payload?.attachment_type ?? profile?.attachment_type ?? "关系"}」底色`,
-      body:
-        profile?.description ??
-        `${name}在关系里有一种可被依靠的稳定感——你的 ${top?.label ?? "核心维度"}（${top?.value ?? "—"}）也指向类似的方向。`,
+      title: `同样的「${attachment}」人格底色`,
+      body: profile?.description ?? `${name} 在红楼人格谱系里，代表的是 ${attachment} 的关系模式。`,
     },
     {
-      title: "同样把柔软藏在克制后面",
-      body: low
-        ? `你在 ${low.label}（${low.value}）上的表达偏克制——不是不在乎，而是习惯先把自己处理好，再把结果交出去。`
-        : "你不擅长大张旗鼓地表达，但你的在场本身就是一种语言。",
+      title: closest ? `在「${closest.label}」上，你和她的轨迹相近` : "你们在关系里都有可被识别的稳定模式",
+      body: closest
+        ? `套一雷达基准里，${name} 型在 ${closest.key} 有典型轮廓；你目前是「${closest.displaySummary}」，这与该原型的核心逻辑一致。`
+        : profile?.matching_logic ?? "你们的相似不在表演，而在相处结构。",
     },
     {
-      title: "同样懂得关系需要节奏",
-      body:
-        profile?.matching_logic ??
-        "你知道什么时候靠近、什么时候保留边界——这是成熟关系里非常稀缺的能力。",
+      title: contrasting ? `在「${contrasting.label}」上，你有自己的变体` : "你并不是课本式的人物复刻",
+      body: contrasting
+        ? `${contrasting.coreQuestion} 对你而言是「${contrasting.displaySummary}」。这正是真人比标签更生动的地方。`
+        : "体系给你方向，不是牢笼。",
     },
   ];
+}
+
+function attachmentCodeLabel(attachment: string, greyZone: boolean): string {
+  const base = `SELF · ${attachment.toUpperCase().replace(/\s+/g, " ")}`;
+  return greyZone ? `${base} · GREY ZONE` : base;
 }
 
 export function mapAttemptToSelfResult(input: AttemptResultInput): SelfResult {
@@ -239,30 +222,35 @@ export function mapAttemptToSelfResult(input: AttemptResultInput): SelfResult {
   const profile = payload.archetype_profile ?? {};
   const name = String(payload.archetype_code ?? input.archetype_code ?? "你的关系画像");
   const attachment = String(profile.attachment_type ?? payload.attachment_type ?? "独特关系模式");
+  const scores = rawScores(input);
+  const greyZone = isAttachmentGreyZone(scores);
   const dimensions = normalizeDimensions(input);
-  const overallScore = clampScore(Number(input.ros_index ?? average(dimensions.map((d) => d.value))));
+  const overallScore = normalizeDimensionScore(
+    "SA1",
+    Number(input.ros_index ?? average(dimensions.map((d) => d.rawScore))),
+  );
 
   return {
     archetype: {
-      badge: ATTACHMENT_BADGE[attachment] ?? "你的关系画像",
+      badge: "你的依恋类型",
       name,
-      code: `SELF · ${attachment.toUpperCase().replace(/\s+/g, " ")}`,
+      code: attachmentCodeLabel(attachment, greyZone),
       tagline: profile.tagline ?? "这是一面会进化的关系镜子。",
-      description: profile.description ?? "你的画像来自 SELF 测试与六维模型评分。",
+      description: profile.description ?? "你的画像来自套一 SELF 六维模型与红楼人格原型匹配。",
     },
     overallScore,
     dimensions,
-    matches: buildMatches(payload),
-    insights: buildInsights(dimensions, payload),
-    behaviors: buildBehaviors(name, attachment),
-    coreTraits: buildCoreTraits(profile, dimensions),
+    matches: buildMatches(attachment),
+    insights: buildInsights(attachment, dimensions, profile, greyZone),
+    behaviors: buildBehaviors(attachment),
+    coreTraits: buildCoreTraits(profile, attachment, dimensions, greyZone),
     character: {
       emoji: CHARACTER_EMOJI[name] ?? "🪞",
       name,
-      pinyin: `${name.toUpperCase()} · ${attachment}`,
+      pinyin: `${name} · ${attachment}`,
       archetypeLine: profile.tagline ?? "在红楼梦的世界里，你也有对应的人格原型。",
       quote: profile.description ?? "这不是固定标签，而是理解你关系模式的一扇窗。",
-      reasons: buildCharacterReasons(name, dimensions, payload),
+      reasons: buildCharacterReasons(name, attachment, dimensions, profile),
     },
     lockedTeasers: [
       {

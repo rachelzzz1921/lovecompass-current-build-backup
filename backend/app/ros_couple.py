@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.json_utils import coerce_dict, jsonable
 from app.ros_scoring import (
     ROS_LAYER_CODES,
     ROS_LAYER_LABELS,
@@ -172,8 +173,8 @@ def build_couple_payload(
     scoring_formula: dict[str, Any],
     type_rules: dict[str, Any],
 ) -> dict[str, Any]:
-    you_payload = initiator.get("result_payload") or {}
-    ta_payload = partner.get("result_payload") or {}
+    you_payload = coerce_dict(initiator.get("result_payload"))
+    ta_payload = coerce_dict(partner.get("result_payload"))
     you_layers = _normalize_layer_scores(initiator.get("dimension_scores"))
     ta_layers = _normalize_layer_scores(partner.get("dimension_scores"))
 
@@ -304,22 +305,21 @@ def build_couple_payload(
 
 
 def _attachment_from_attempt(attempt: dict[str, Any]) -> str | None:
-    payload = attempt.get("result_payload") or {}
-    if isinstance(payload, dict):
-        attachment = payload.get("attachment_type")
-        if attachment:
-            return str(attachment)
-    return None
+    payload = coerce_dict(attempt.get("result_payload"))
+    attachment = payload.get("attachment_type")
+    return str(attachment) if attachment else None
 
 
 def attempt_snapshot(attempt: dict[str, Any]) -> dict[str, Any]:
-    payload = attempt.get("result_payload") or {}
-    return {
-        "attemptId": str(attempt.get("id") or ""),
-        "userId": str(attempt.get("user_id") or ""),
-        "dimensionScores": attempt.get("dimension_scores") or {},
-        "rosIndex": attempt.get("ros_index"),
-        "relationshipType": (payload or {}).get("relationshipType"),
-        "relationshipStage": (payload or {}).get("relationshipStage"),
-        "timeTag": (payload or {}).get("timeTag"),
-    }
+    payload = coerce_dict(attempt.get("result_payload"))
+    return jsonable(
+        {
+            "attemptId": str(attempt.get("id") or ""),
+            "userId": str(attempt.get("user_id") or ""),
+            "dimensionScores": attempt.get("dimension_scores") or {},
+            "rosIndex": attempt.get("ros_index"),
+            "relationshipType": payload.get("relationshipType"),
+            "relationshipStage": payload.get("relationshipStage"),
+            "timeTag": payload.get("timeTag"),
+        }
+    )

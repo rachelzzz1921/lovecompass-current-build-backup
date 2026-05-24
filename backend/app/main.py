@@ -314,11 +314,11 @@ def get_questions(suite_slug: str):
             raise HTTPException(status_code=404, detail="测试套件不存在或未启用")
         questions = conn.execute(
             """
-            SELECT id, external_question_id, display_order, question_type, question_text,
-                   question_payload, scoring_payload, dimension_code, weight, direction
-            FROM public.test_questions
-            WHERE suite_id = %s AND is_active = true
-            ORDER BY display_order ASC
+            SELECT tq.id, tq.external_question_id, tq.display_order, tq.question_type, tq.question_text,
+                   tq.question_payload, tq.scoring_payload, tq.dimension_code, tq.weight, tq.direction
+            FROM public.test_questions tq
+            WHERE tq.suite_id = %s AND tq.is_active = true
+            ORDER BY tq.display_order ASC
             """,
             (suite["id"],),
         ).fetchall()
@@ -420,16 +420,17 @@ def get_profile_portrait(user_id: str = Depends(resolve_user_id)):
 @app.post("/attempts")
 def submit_attempt(data: AttemptIn, user_id: str = Depends(resolve_user_id)):
     answer_by_external = {a.externalId: a.answerPayload for a in data.answers}
+    pending_partner_link: tuple[str, uuid.UUID, str] | None = None
     with get_conn() as conn:
         suite = conn.execute("SELECT id, slug, gender::text AS gender FROM public.test_suites WHERE slug = %s AND is_active = true", (data.suiteSlug,)).fetchone()
         if not suite:
             raise HTTPException(status_code=404, detail="测试套件不存在")
         questions = conn.execute(
             """
-            SELECT id, external_question_id, dimension_code, question_type, question_payload, scoring_payload, weight, direction
-            FROM public.test_questions
-            WHERE suite_id = %s AND is_active = true
-            ORDER BY display_order ASC
+            SELECT tq.id, tq.external_question_id, tq.dimension_code, tq.question_type, tq.question_payload, tq.scoring_payload, tq.weight, tq.direction
+            FROM public.test_questions tq
+            WHERE tq.suite_id = %s AND tq.is_active = true
+            ORDER BY tq.display_order ASC
             """,
             (suite["id"],),
         ).fetchall()
@@ -513,12 +514,7 @@ def submit_attempt(data: AttemptIn, user_id: str = Depends(resolve_user_id)):
             from app.ros_couple import attempt_snapshot
 
             if partner_code:
-                link_partner_to_session(
-                    conn,
-                    code=partner_code,
-                    partner_attempt_id=attempt_id,
-                    partner_user_id=user_id,
-                )
+                pending_partner_link = (partner_code, attempt_id, user_id)
             else:
                 relation_code = scores.get("relation_code") or result_payload.get("relationCode")
                 create_relation_session(
@@ -551,9 +547,25 @@ def submit_attempt(data: AttemptIn, user_id: str = Depends(resolve_user_id)):
         rebuild_and_cache_portrait(conn, user_id)
         conn.commit()
 
+    if pending_partner_link:
+        partner_code, attempt_id, user_id = pending_partner_link
+        with get_conn() as conn:
+            link_partner_to_session(
+                conn,
+                code=partner_code,
+                partner_attempt_id=attempt_id,
+                partner_user_id=user_id,
+            )
+            rebuild_and_cache_portrait(conn, user_id)
+            conn.commit()
+
     next_path = f"/analyzing?attemptId={attempt_id}"
     if ros_suite:
-        next_path = f"/result/ros/{attempt_id}"
+        next_path = (
+            f"/result/ros/couple/{partner_code}"
+            if partner_code
+            else f"/result/ros/{attempt_id}"
+        )
     response: dict[str, Any] = {
         "attemptId": str(attempt_id),
         "status": "completed",

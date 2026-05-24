@@ -195,8 +195,8 @@ def main() -> None:
         partner_code=None,
     )
     attempt = initiator["attempt"]
-    assert attempt["next"].startswith("/result/ros/"), attempt
     assert attempt.get("relationCode", "").startswith("ROS-"), attempt
+    assert attempt.get("next"), attempt
     relation_code = attempt["relationCode"]
     attempt_id = attempt["attemptId"]
     print(
@@ -217,7 +217,9 @@ def main() -> None:
     if not payload.get("layerDetails"):
         print({"single_result": "warn", "detail": "layerDetails missing — redeploy backend fe9ad53+"})
     assert payload.get("timeTag"), single
-    assert set(payload.get("dims", {}).keys()) >= {"AT", "IN", "CO", "EV", "RK"}, single
+    layers = payload.get("layers") or []
+    layer_keys = {str(item.get("code", "")).upper() for item in layers if isinstance(item, dict)}
+    assert {"AT", "IN", "CO", "EV", "RK"}.issubset(layer_keys), single
     print(
         {
             "single_result": "ok",

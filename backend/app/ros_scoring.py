@@ -470,6 +470,8 @@ def summarize_ros_scores(
 ) -> dict[str, Any]:
     type_rules = (scoring_model or {}).get("type_rules") or {}
     scoring_formula = (scoring_model or {}).get("scoring_formula") or {}
+    if not isinstance(type_rules, dict):
+        type_rules = {}
     if not isinstance(scoring_formula, dict):
         scoring_formula = {}
 

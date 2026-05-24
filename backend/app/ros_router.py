@@ -10,6 +10,7 @@ from psycopg.types.json import Jsonb
 
 from app.auth import resolve_user_id
 from app.db import get_conn
+from app.json_utils import coerce_dict, jsonable
 from app.ros_couple import attempt_snapshot, build_couple_payload
 from app.ros_scoring import is_ros_suite
 
@@ -97,10 +98,9 @@ def _fetch_latest_self_attachment(conn: Any, user_id: str) -> str | None:
     ).fetchone()
     if not row:
         return None
-    payload = row.get("result_payload") or {}
-    if isinstance(payload, dict):
-        return payload.get("attachment_type")
-    return None
+    payload = coerce_dict(row.get("result_payload"))
+    attachment = payload.get("attachment_type")
+    return str(attachment) if attachment else None
 
 
 def merge_and_store_couple_report(conn: Any, session_id: uuid.UUID) -> dict[str, Any]:
@@ -277,9 +277,9 @@ def get_couple_report(code: str, user_id: str = Depends(resolve_user_id)):
             couple_payload = merge_and_store_couple_report(conn, session["id"])
             conn.commit()
         else:
-            couple_payload = session.get("couple_payload") or {}
+            couple_payload = coerce_dict(session.get("couple_payload"))
 
-    return {"ok": True, "code": normalized, "couple": couple_payload}
+    return {"ok": True, "code": normalized, "couple": jsonable(couple_payload)}
 
 
 @router.get("/attempts/{attempt_id}/single")

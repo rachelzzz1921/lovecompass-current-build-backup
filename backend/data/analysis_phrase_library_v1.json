@@ -1,0 +1,142 @@
+{
+  "version": "1.0",
+  "purpose": "三套题（SELF / ROS / MATE）结果页与 AI 报告共用的描述性话术、槽位模板与联动规则",
+  "tonePrinciples": [
+    "永远不输出让人难堪的原始数字或直白负面标签",
+    "分数转化为描述性语言，低分用「成长空间」「还在路上」等正向包装",
+    "敏感字段（颜值/收入/学历）不单独裸展示，只做修正或区间描述",
+    "不说「你只配 xxx」，红娘/匹配类表述用「上限 / 经济适用区 / 下限」",
+    "套间联动时先肯定用户已有画像，再给可操作建议"
+  ],
+  "sharedScoreBands": {
+    "note": "三套题通用；各套 JSON 的 score_display_rules 与此对齐",
+    "ranges": [
+      { "min": 0, "max": 30, "label": "这个维度还有很大的成长空间", "avoid": ["差", "低", "不行"] },
+      { "min": 31, "max": 50, "label": "这个维度还在发展阶段", "avoid": ["低于平均", "偏弱"] },
+      { "min": 51, "max": 65, "label": "这个维度表现稳定" },
+      { "min": 66, "max": 80, "label": "这个维度是你的重要资产" },
+      { "min": 81, "max": 100, "label": "这个维度是你的核心竞争力" }
+    ]
+  },
+  "insightSlots": {
+    "strength": {
+      "title": "你的高光",
+      "template": "在「{dimensionLabel}」上，{displaySummary}。{coreQuestionHint}",
+      "variables": ["dimensionLabel", "displaySummary", "coreQuestionHint"]
+    },
+    "watch": {
+      "title": "可以温柔留意",
+      "template": "「{dimensionLabel}」{displaySummary}。{positiveFraming}",
+      "variables": ["dimensionLabel", "displaySummary", "positiveFraming"]
+    },
+    "growth": {
+      "title": "下一段关系里",
+      "template": "{growthAdvice}",
+      "variables": ["growthAdvice"]
+    },
+    "match": {
+      "title": "匹配建议",
+      "template": "{matchSuggestion}",
+      "variables": ["matchSuggestion"]
+    }
+  },
+  "suiteHooks": {
+    "SELF": {
+      "productSet": "SET · 01 / SELF",
+      "primaryOutput": "依恋类型",
+      "secondaryOutput": "红楼人格（隐藏 Tab 揭晓）",
+      "dimensionLabels": ["自我吸引感知", "依恋焦虑", "依恋回避", "自我边界", "情绪调节", "关系投入模式"],
+      "specRef": "frontend/src/data/selfSuiteSpec.ts",
+      "positiveFramingByAttachment": {
+        "安全型": "你的稳定不是冷漠，是你给关系最珍贵的礼物。",
+        "焦虑型": "你的敏感是在保护这段关系，不是「太多」。",
+        "回避型": "你的距离感是在筛选值得的人，不是冷漠。",
+        "混合型": "你的复杂是深度，不是问题。",
+        "高边界安全型": "你的边界不是拒绝，是对自己和关系的尊重。",
+        "低自我高投入型": "你的付出方式里有真实温度，也记得留一份给自己。"
+      }
+    },
+    "ROS": {
+      "productSet": "SET · 02 / ROS",
+      "primaryOutput": "关系类型 + 关系阶段 + 共鸣指数",
+      "dimensionLabels": ["吸引基础", "互动质量", "兼容程度", "关系走向", "风险信号"],
+      "specRef": "backend/data/ros_suite_spec_v2.json",
+      "resonanceLevels": ["心有灵犀", "深度共鸣", "温柔磨合", "初见雏形"],
+      "relationshipTypes": ["彼此生长", "难舍难分", "温水同行", "心甘情愿地累", "烈火烹油", "此刻刚好"]
+    },
+    "MATE": {
+      "productSet": "SET · 03 / MATE",
+      "primaryOutput": "六种市场定位 + 四象限坐标",
+      "dimensionLabelsFemale": ["吸引力资产", "情感价值输出", "现实自主性", "关系成熟度", "风险净值"],
+      "dimensionLabelsMale": ["资源与事业轨道", "稳定性与可靠度", "情感供给能力", "门面与社交资本", "风险净值"],
+      "specRef": "backend/data/mate_suite_spec_v1.json",
+      "positionTypes": [
+        "让人想留下来的人",
+        "被读懂之前的人",
+        "一眼就懂的人",
+        "需要被正确打开的人",
+        "还没到时候的人",
+        "越了解越值钱的人"
+      ],
+      "matchmakerSections": ["upper_match", "sweet_spot", "lower_match"]
+    }
+  },
+  "crossSuiteTemplates": {
+    "SELF_MATE": {
+      "description": "套一依恋 × 套三市场定位",
+      "template": "你是{attachmentType}（{archetypeCode}），市场定位是「{matePosition}」。{linkageInsight}",
+      "examples": {
+        "anxious_low_visibility": {
+          "self": "林黛玉型（焦虑依恋）",
+          "mate": "被读懂之前的人",
+          "linkageInsight": "你在关系里高度敏感，需要频繁的情感确认，但你的市场显示度偏低——能发现你的人本来就少，能坚持到真正读懂你的人更少。你最需要的，是先把气质与存在感做上来，让对的人能更快发现你。"
+        },
+        "avoidant_high_retention": {
+          "self": "妙玉型（回避依恋）",
+          "mate": "让人想留下来的人",
+          "linkageInsight": "你有很强的情感价值，但回避型的亲密模式会让对方感受到「近不了」——你的留存率很高，但进入率很低。你值得的那个人，需要足够耐心。"
+        },
+        "secure_high_retention": {
+          "self": "安全型",
+          "mate": "让人想留下来的人",
+          "linkageInsight": "你的稳定不是冷漠，是你给关系最珍贵的礼物；加上高留存型市场定位，你在长期关系里几乎是最省心的组合——少内耗，多复利。"
+        }
+      }
+    },
+    "SELF_ROS": {
+      "description": "套一依恋 × 套二关系质量",
+      "template": "你的依恋底色是{attachmentType}，在这段关系里的{rosLayer}层表现最突出：{layerInsight}。",
+      "layers": ["AT", "IN", "CO", "EV", "RK"]
+    },
+    "SELF_ROS_MATE": {
+      "description": "三套齐全时的终极画像开场",
+      "template": "从「你是谁」到「你们怎么样」再到「你的牌面」——{oneLineSummary}。下面分三层展开。"
+    }
+  },
+  "sensitiveFieldPhrases": {
+    "femaleAppearance": {
+      "high": "外形资产：高辨识度",
+      "mid": "外形资产：中等辨识度",
+      "natural": "外形资产：自然型",
+      "developing": "外形资产：待提升"
+    },
+    "maleWealth": {
+      "template": "你的现实底牌在本城市处于{levelPhrase}水平",
+      "levelPhrases": ["入门", "基础", "中等", "中上", "优质", "顶端"]
+    },
+    "education": {
+      "lowIncomeHighEdu": "轨道在建，潜力尚未变现",
+      "highIncomeLowEdu": "实践型资产，学历不是核心变量",
+      "default": "发展路径偏{pathType}积累型"
+    }
+  },
+  "reportSectionOrder": {
+    "singleSuite": ["hero", "primaryMetric", "dimensionRadar", "coreTraitsOrInsights", "lockedTeasers", "aiChatCta"],
+    "profileCenter": ["completeness", "selfSummary", "rosSummary", "mateSummary", "timeline"],
+    "coupleRos": ["resonanceIndex", "weather", "dualCurve", "overlayRadar", "perceptionGap", "attachmentCollision", "prescription"]
+  },
+  "aiPromptHints": {
+    "injectOrder": ["SELF attachment + dimensions", "ROS layers if present", "MATE axes + position if present", "phraseLibrary tonePrinciples"],
+    "forbiddenOutputs": ["原始 SA/RK/FS 数字", "劝分", "你只配", "学历低/收入低等裸标签"]
+  }
+}

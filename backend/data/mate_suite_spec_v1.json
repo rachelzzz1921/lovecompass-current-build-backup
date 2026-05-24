@@ -1,0 +1,298 @@
+{
+  "productName": "MATE择偶坐标系统·套三",
+  "version": "V1.0",
+  "suiteSlugs": {
+    "female": "s03_mate_female",
+    "male": "s03_mate_male"
+  },
+  "scoringModelType": "ROS_V3",
+  "productOverview": {
+    "coreQuestion": "在择偶市场上，别人眼中的你值多少分？",
+    "principle": "不是你觉得自己怎么样，是别人会怎么筛你——照镜子，不是自我感觉良好",
+    "femaleLogic": "吸引力 × 情感价值 × 现实自主性",
+    "maleLogic": "资源 × 稳定性 × 情感供给能力",
+    "pricing": "收费，兑换码解锁",
+    "crossSuiteRole": {
+      "SELF": "你是谁（依恋类型 + 红楼人格）",
+      "ROS": "你们怎么样（关系质量 + 双人报告）",
+      "MATE": "你的牌面（市场定位 + 红娘分析）",
+      "merged": "三套合并 → 终极 AI 画像，实时更新"
+    }
+  },
+  "testBasics": {
+    "femaleTotal": 80,
+    "maleTotal": 80,
+    "estimatedMinutes": 18,
+    "questionTypes": ["slider", "scenario", "binary", "choice", "scale", "card", "mood", "rank"],
+    "questionTypeCount": 8,
+    "genderHandling": "维度体系完全不同，权重不同，结果语言性别化"
+  },
+  "sensitiveFields": {
+    "femaleAttractiveness": {
+      "type": "slider",
+      "scale": "1-10",
+      "referenceAnchors": [
+        { "score": 5, "desc": "普通大众，走在街上不会被特别注意到" },
+        { "score": 6, "desc": "有辨识度，朋友会说你挺好看的" },
+        { "score": 7, "desc": "明显好看，陌生场合经常有人注意你" },
+        { "score": 8, "desc": "同龄人里前10%，有人专门为你的外形回头" },
+        { "score": 9, "desc": "同龄人里前3%，经常被建议去拍照拍视频" },
+        { "score": 10, "desc": "极少数，几乎没有人说你不好看" }
+      ],
+      "displayRule": "不显示原始数字，转化为：高辨识度 / 中等辨识度 / 自然型 / 待提升"
+    },
+    "maleWealth": {
+      "type": "slider_six_tiers",
+      "tiers": [
+        { "level": "A", "label": "入门层", "desc": "收入勉强覆盖个人基本开销" },
+        { "level": "B", "label": "基础层", "desc": "收入稳定，有一定储蓄能力" },
+        { "level": "C", "label": "中等层", "desc": "收入高于本城市平均水平" },
+        { "level": "D", "label": "中上层", "desc": "有资产积累（房/车/投资）" },
+        { "level": "E", "label": "优质层", "desc": "本城市收入前20%" },
+        { "level": "F", "label": "顶端层", "desc": "本城市收入前5%" }
+      ],
+      "displayRule": "不显示档位字母，转化为「你的现实底牌在本城市处于中上水平」等描述"
+    },
+    "education": {
+      "type": "choice",
+      "options": ["高中/中专及以下", "大专", "本科", "硕士", "博士及以上"],
+      "displayRule": "作为修正系数，不单独展示；低学历+高收入→实践型资产；高学历+低收入→轨道在建"
+    }
+  },
+  "femaleModules": {
+    "logic": "吸引力资产 → 情感价值输出 → 现实自主性",
+    "modules": [
+      { "code": "FS1", "name": "吸引力资产", "questionCount": 18, "weight": 0.35, "coreQuestion": "第一眼和相处后你让人感觉怎样" },
+      { "code": "FS2", "name": "情感价值输出", "questionCount": 16, "weight": 0.30, "coreQuestion": "你让对方觉得跟你在一起值不值" },
+      { "code": "FS3", "name": "现实自主性", "questionCount": 14, "weight": 0.20, "coreQuestion": "你有多独立，带不带负担" },
+      { "code": "FS4", "name": "关系成熟度", "questionCount": 14, "weight": 0.10, "coreQuestion": "你在关系里的模式是不是健康的" },
+      { "code": "FS5", "name": "风险净值", "questionCount": 18, "weight": 0.05, "direction": "reverse", "coreQuestion": "你身上有哪些让人犹豫的信号" }
+    ],
+    "subDimensions": {
+      "FS1": [
+        { "code": "FS1_A", "name": "外形管理水平", "count": 6, "types": ["slider", "scale", "choice"] },
+        { "code": "FS1_B", "name": "气质与存在感", "count": 6, "types": ["scenario", "card"] },
+        { "code": "FS1_C", "name": "新鲜感存续力", "count": 6, "types": ["binary", "slider"] }
+      ],
+      "FS2": [
+        { "code": "FS2_A", "name": "情绪滋养能力", "count": 6, "types": ["mood", "scenario"] },
+        { "code": "FS2_B", "name": "趣味与话题质量", "count": 5, "types": ["scenario", "choice"] },
+        { "code": "FS2_C", "name": "被需要感制造力", "count": 5, "types": ["binary", "slider"] }
+      ],
+      "FS3": [
+        { "code": "FS3_A", "name": "经济独立程度", "count": 5, "types": ["choice", "scale"] },
+        { "code": "FS3_B", "name": "家庭助力情况", "count": 5, "types": ["card", "scenario"] },
+        { "code": "FS3_C", "name": "生活自主能力", "count": 4, "types": ["binary", "choice"] }
+      ],
+      "FS4": [
+        { "code": "FS4_A", "name": "边界清晰度", "count": 5, "types": ["scenario", "choice"] },
+        { "code": "FS4_B", "name": "情绪处理方式", "count": 5, "types": ["mood", "scenario"] },
+        { "code": "FS4_C", "name": "依赖与独立平衡", "count": 4, "types": ["slider", "binary"] }
+      ],
+      "FS5": [
+        { "code": "FS5_A", "name": "过去关系包袱", "count": 6, "types": ["scenario", "choice"] },
+        { "code": "FS5_B", "name": "情感依赖风险", "count": 6, "types": ["binary", "scenario"] },
+        { "code": "FS5_C", "name": "家庭干预风险", "count": 6, "types": ["card", "choice"] }
+      ]
+    },
+    "scoring": {
+      "horizontal": { "name": "市场显示度", "formula": "FS1 * 0.55 + FS2 * 0.45" },
+      "vertical": { "name": "现实支撑力", "formula": "FS3 * 0.60 + (100 - FS5) * 0.40" },
+      "moduleFormulas": {
+        "FS1": "FS1_A * 0.40 + FS1_B * 0.35 + FS1_C * 0.25",
+        "FS2": "FS2_A * 0.40 + FS2_B * 0.30 + FS2_C * 0.30",
+        "FS3": "FS3_A * 0.40 + FS3_B * 0.35 + FS3_C * 0.25",
+        "FS4": "FS4_A * 0.40 + FS4_B * 0.35 + FS4_C * 0.25",
+        "FS5": "FS5_A * 0.35 + FS5_B * 0.40 + FS5_C * 0.25"
+      }
+    }
+  },
+  "maleModules": {
+    "logic": "资源与事业轨道 → 稳定可靠 → 情感供给",
+    "modules": [
+      { "code": "MS1", "name": "资源与事业轨道", "questionCount": 18, "weight": 0.30, "coreQuestion": "你现在和未来能给对方什么托底" },
+      { "code": "MS2", "name": "稳定性与可靠度", "questionCount": 16, "weight": 0.25, "coreQuestion": "你说到做不做得到，靠不靠得住" },
+      { "code": "MS3", "name": "情感供给能力", "questionCount": 14, "weight": 0.20, "coreQuestion": "你让对方感觉怎么样，够不够有趣" },
+      { "code": "MS4", "name": "门面与社交资本", "questionCount": 14, "weight": 0.15, "coreQuestion": "第一眼和社交场合里你是什么形象" },
+      { "code": "MS5", "name": "风险净值", "questionCount": 18, "weight": 0.10, "direction": "reverse", "coreQuestion": "你身上有哪些让人犹豫的信号" }
+    ],
+    "subDimensions": {
+      "MS1": [
+        { "code": "MS1_A", "name": "当下经济基础", "count": 6, "types": ["slider", "choice", "binary"] },
+        { "code": "MS1_B", "name": "事业轨道可见度", "count": 6, "types": ["slider", "scenario"] },
+        { "code": "MS1_C", "name": "家庭助力情况", "count": 6, "types": ["card", "scale"] }
+      ],
+      "MS2": [
+        { "code": "MS2_A", "name": "承诺履约度", "count": 6, "types": ["scenario", "choice"] },
+        { "code": "MS2_B", "name": "情绪稳定性", "count": 5, "types": ["mood", "scenario"] },
+        { "code": "MS2_C", "name": "关系信息透明度", "count": 5, "types": ["binary", "choice"] }
+      ],
+      "MS3": [
+        { "code": "MS3_A", "name": "趣味与话题密度", "count": 5, "types": ["scenario", "slider"] },
+        { "code": "MS3_B", "name": "情绪支持能力", "count": 5, "types": ["mood", "choice"] },
+        { "code": "MS3_C", "name": "被需要感制造力", "count": 4, "types": ["binary", "scenario"] }
+      ],
+      "MS4": [
+        { "code": "MS4_A", "name": "外形管理水平", "count": 5, "types": ["slider", "scale"] },
+        { "code": "MS4_B", "name": "社交场合表现", "count": 5, "types": ["scenario", "card"] },
+        { "code": "MS4_C", "name": "带出去的体面感", "count": 4, "types": ["choice", "binary"] }
+      ],
+      "MS5": [
+        { "code": "MS5_A", "name": "过去关系质量", "count": 6, "types": ["scenario", "choice"] },
+        { "code": "MS5_B", "name": "控制与边界风险", "count": 6, "types": ["binary", "scenario"] },
+        { "code": "MS5_C", "name": "成长停滞风险", "count": 6, "types": ["slider", "card"] }
+      ]
+    },
+    "scoring": {
+      "horizontal": { "name": "市场显示度", "formula": "MS3 * 0.50 + MS4 * 0.50" },
+      "vertical": { "name": "现实支撑力", "formula": "MS1 * 0.55 + MS2 * 0.30 + (100 - MS5) * 0.15" },
+      "moduleFormulas": {
+        "MS1": "MS1_A * 0.45 + MS1_B * 0.35 + MS1_C * 0.20",
+        "MS2": "MS2_A * 0.40 + MS2_B * 0.35 + MS2_C * 0.25",
+        "MS3": "MS3_A * 0.35 + MS3_B * 0.40 + MS3_C * 0.25",
+        "MS4": "MS4_A * 0.35 + MS4_B * 0.40 + MS4_C * 0.25",
+        "MS5": "MS5_A * 0.30 + MS5_B * 0.45 + MS5_C * 0.25"
+      }
+    },
+    "note": "男女权重不对称是刻意的，对应现实择偶市场的真实逻辑"
+  },
+  "questionDesign": {
+    "optionOrderRule": "CHOICE/SCENARIO 选项 ABCD 必须打乱，不能升序或降序，高分选项随机分布",
+    "questionTypeUsage": {
+      "slider": "颜值/收入/程度类，连续量表附参考基准",
+      "scenario": "行为倾向，高频场景，4 选 1，副标题揭示心理机制",
+      "binary": "二元对峙，左右不分好坏",
+      "choice": "单选多维度，选项顺序打乱",
+      "scale": "Likert 1-5，反向题取补数",
+      "card": "卡片场景，降低阅读负担",
+      "mood": "情绪面板 8 选 1，测第一感受",
+      "rank": "4 项拖拽，价值观权重"
+    }
+  },
+  "quadrantSystem": {
+    "axisMidpoint": 50,
+    "horizontalLabel": "市场显示度",
+    "verticalLabel": "现实支撑力",
+    "quadrants": {
+      "Q1": { "label": "让人想留下来的人", "position": "高显示 × 高支撑" },
+      "Q2": { "label": "被读懂之前的人", "position": "低显示 × 高支撑" },
+      "Q4": { "label": "一眼就懂的人", "position": "高显示 × 低支撑" },
+      "Q3": { "label": "还没到时候的人", "position": "低显示 × 低支撑" }
+    },
+    "specialPositions": [
+      { "type": "需要被正确打开的人", "condition": "50 <= horizontal < 60 && 50 <= vertical < 60" },
+      { "type": "越了解越值钱的人", "conditionFemale": "horizontal < 50 && vertical >= 55 && FS2 >= 65", "conditionMale": "horizontal < 50 && vertical >= 55 && MS3 >= 65" }
+    ]
+  },
+  "positionTypes": [
+    {
+      "name": "让人想留下来的人",
+      "trigger": "横轴≥60 且 纵轴≥60",
+      "tagsFemale": ["情感浓度高", "安全感制造者", "越处越好"],
+      "tagsMale": ["稳", "有趣", "靠得住"],
+      "giftDescription": "你不是最耀眼的那个，但待在你身边有一种说不清的舒服。你的吸引力是慢热型的，第一眼不一定赢，但留存率极高。"
+    },
+    {
+      "name": "被读懂之前的人",
+      "trigger": "横轴<50 且 纵轴≥60",
+      "tagsFemale": ["高价值低显示度", "需要对的频道", "慢慢升值"],
+      "tagsMale": ["低调", "实力在里面", "需要时间"],
+      "giftDescription": "你有很多好，但它们藏得很深——大多数人没有耐心等到那一刻。你不缺好，缺的是一个愿意停下来读你的人。"
+    },
+    {
+      "name": "一眼就懂的人",
+      "trigger": "横轴≥60 且 纵轴中",
+      "tagsFemale": ["高辨识度", "低迷失率", "所见即所得"],
+      "giftDescription": "你把自己放在那里，清清楚楚，喜欢就来，不喜欢走开。你的吸引力是显性的，筛选效率极高。"
+    },
+    {
+      "name": "需要被正确打开的人",
+      "trigger": "横轴中偏高 且 纵轴中",
+      "tagsFemale": ["高个性", "强烈的存在感", "非标品"],
+      "giftDescription": "你对了频道就是惊喜，频道不对就是误解——你不难，只是要对的人。你的市场窄但深，找到就是真命。"
+    },
+    {
+      "name": "还没到时候的人",
+      "trigger": "横轴<50 且 纵轴<50",
+      "tagsFemale": ["成长轨道清晰", "当下不完整", "潜力可见"],
+      "giftDescription": "你现在的状态还不是最好版本，但方向是对的——时间站在你这边。你需要的不是将就，而是等自己准备好。"
+    },
+    {
+      "name": "越了解越值钱的人",
+      "trigger": "横轴低偏中 且 纵轴高偏中 且 (FS2≥65 或 MS3≥65)",
+      "tagsFemale": ["复利型价值", "深度体验者", "长期主义"],
+      "giftDescription": "停留的时间越长，你给的东西越多——你不适合被快速评估。你在短期市场里容易被低估，但一旦进入长期关系，你的优势会持续放大。"
+    }
+  ],
+  "matchmakerFramework": {
+    "name": "红娘终局分析",
+    "notCalled": "匹配度",
+    "sections": ["你的定位", "关键词标签", "你的市场画像", "你的上限匹配", "你的经济适用区", "你的下限"],
+    "tone": "温和语言，不说「你只配 xxx」"
+  },
+  "scoreDisplayRules": {
+    "principle": "永远不输出让人难堪的原始数字",
+    "ranges": [
+      { "min": 0, "max": 30, "label": "这个维度还有很大的成长空间", "forbidden": ["你很差", "偏低"] },
+      { "min": 31, "max": 50, "label": "这个维度还在发展阶段", "forbidden": ["低于平均"] },
+      { "min": 51, "max": 65, "label": "这个维度表现稳定" },
+      { "min": 66, "max": 80, "label": "这个维度是你的重要资产" },
+      { "min": 81, "max": 100, "label": "这个维度是你的核心竞争力" }
+    ],
+    "positionReframes": {
+      "还没到时候的人": "不说「你现在不行」，说「你的最好版本正在路上」",
+      "被读懂之前的人": "不说「你表达力差」，说「你的价值需要对的人才能读懂」"
+    }
+  },
+  "resultPageStructure": [
+    "定位名称卡（大标题 + 关键词标签 + 一句话，可截图分享）",
+    "四象限坐标图（横轴市场显示度，纵轴现实支撑力）",
+    "模块雷达图 FS1-FS5 或 MS1-MS5（敏感字段只显示描述性标签）",
+    "红娘终局分析（上限 + 经济适用区 + 下限）",
+    "AI 洞察三条（优势 / 提升点正向语言 / 套一联动）",
+    "解锁区（完整深度报告 + AI 分析师对话）"
+  ],
+  "selfLinkageExamples": [
+    {
+      "self": "林黛玉型（焦虑依恋）",
+      "mate": "被读懂之前的人",
+      "insight": "你在关系里高度敏感，需要频繁的情感确认，但你的市场显示度偏低——能发现你的人本来就少，能坚持到真正读懂你的人更少。你最需要的，是先把气质与存在感做上来，让对的人能更快发现你。"
+    },
+    {
+      "self": "妙玉型（回避依恋）",
+      "mate": "让人想留下来的人",
+      "insight": "你有很强的情感价值，但回避型的亲密模式会让对方感受到「近不了」——你的留存率很高，但进入率很低。你值得的那个人，需要足够耐心。"
+    }
+  ],
+  "resultStorageShape": {
+    "note": "逻辑字段，实现时可映射 test_attempts.result_payload",
+    "fields": {
+      "FS1": "Float 女版",
+      "FS2": "Float",
+      "FS3": "Float",
+      "FS4": "Float",
+      "FS5": "Float 风险原始分",
+      "MS1": "Float 男版",
+      "MS2": "Float",
+      "MS3": "Float",
+      "MS4": "Float",
+      "MS5": "Float",
+      "axisX": "市场显示度（横轴）",
+      "axisY": "现实支撑力（纵轴）",
+      "positionType": "六种定位名称",
+      "quadrant": "Q1/Q2/Q3/Q4",
+      "attractivenessScore": "女版颜值自评 1-10，不进主分展示",
+      "wealthLevel": "男版收入档位 A-F",
+      "educationLevel": "学历，修正系数"
+    }
+  },
+  "dataFiles": {
+    "femaleQuestionBank": "backend/data/suite3_mate_female.json",
+    "maleQuestionBank": "backend/data/suite3_mate_male.json",
+    "importSql": [
+      "backend/data/004_import_suite3_mate_female.sql",
+      "backend/data/004_import_suite3_mate_male.sql"
+    ],
+    "analysisPhraseLibrary": "backend/data/analysis_phrase_library_v1.json"
+  }
+}

@@ -19,7 +19,14 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
-from typing import Any, Dict, Iterable, List
+from typing import Any, Dict, List, Tuple
+
+
+PRODUCT_LAYERS: Dict[str, Tuple[str, str]] = {
+    "SELF": ("SELF_ATTACHMENT", "自我关系模式"),
+    "ROS": ("ROS_RELATIONSHIP", "关系画像"),
+    "MATE": ("MATE_SELECTION", "择偶坐标"),
+}
 
 
 def sql_literal(value: Any) -> str:
@@ -48,21 +55,85 @@ def gender_sql(value: str | None) -> str:
     return sql_literal(v) + "::public.test_gender"
 
 
+def resolve_product_set(source_id: str) -> str:
+    raw = source_id.strip().lower()
+    if "s02" in raw or "ros" in raw:
+        return "ROS"
+    if "s03" in raw or "mate" in raw:
+        return "MATE"
+    return "SELF"
+
+
+def extract_scoring_dimensions(scoring_formula: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+    if not scoring_formula:
+        return {}
+    if isinstance(scoring_formula.get("modules"), dict):
+        return scoring_formula["modules"]
+    if isinstance(scoring_formula.get("layers"), dict):
+        return scoring_formula["layers"]
+    skip_keys = {"axes", "overall", "resonance_levels"}
+    return {
+        code: conf
+        for code, conf in scoring_formula.items()
+        if code not in skip_keys and isinstance(conf, dict) and conf.get("label")
+    }
+
+
+def resolve_question_dimension(question: Dict[str, Any]) -> str:
+    for key in ("dimension", "module", "layer"):
+        value = question.get(key)
+        if value:
+            return str(value)
+    return "PRE"
+
+
 def question_payload(question: Dict[str, Any]) -> Dict[str, Any]:
-    excluded = {"id", "order", "dimension", "type", "weight", "direction", "text", "scoring"}
+    excluded = {
+        "id",
+        "order",
+        "dimension",
+        "module",
+        "layer",
+        "sub",
+        "type",
+        "weight",
+        "direction",
+        "text",
+        "scoring",
+    }
     payload = {k: v for k, v in question.items() if k not in excluded}
     payload["source_question"] = question
     return payload
 
 
-def emit_metric_dimensions_from_formula(scoring_formula: Dict[str, Any]) -> List[str]:
+def build_type_rules(data: Dict[str, Any]) -> Dict[str, Any]:
+    rules = dict(data.get("type_rules") or {})
+    for key in (
+        "pre_questions",
+        "stage_rules",
+        "relationship_type_rules",
+        "prescription_rules",
+        "attachment_collision_map",
+        "score_display_rules",
+    ):
+        if data.get(key):
+            rules[key] = data[key]
+    return rules
+
+
+def emit_metric_dimensions_from_formula(
+    scoring_formula: Dict[str, Any],
+    product_set: str,
+) -> List[str]:
+    layer_code, layer_name = PRODUCT_LAYERS[product_set]
     statements: List[str] = []
-    for idx, (code, conf) in enumerate(scoring_formula.items(), start=1):
+    dimensions = extract_scoring_dimensions(scoring_formula)
+    for idx, (code, conf) in enumerate(dimensions.items(), start=1):
         label = conf.get("label") or code
         config = {k: v for k, v in conf.items() if k != "weights"}
         statements.append(
             "INSERT INTO public.metric_dimensions (code, name, layer_code, layer_name, display_order, config)\n"
-            f"VALUES ({sql_literal(code)}, {sql_literal(label)}, 'SELF_ATTACHMENT', '自我关系模式', {idx}, {jsonb_literal(config)})\n"
+            f"VALUES ({sql_literal(code)}, {sql_literal(label)}, {sql_literal(layer_code)}, {sql_literal(layer_name)}, {idx}, {jsonb_literal(config)})\n"
             "ON CONFLICT (code) DO UPDATE SET\n"
             "  name = EXCLUDED.name,\n"
             "  layer_code = EXCLUDED.layer_code,\n"
@@ -74,6 +145,56 @@ def emit_metric_dimensions_from_formula(scoring_formula: Dict[str, Any]) -> List
     return statements
 
 
+def emit_pre_question_dimension(product_set: str) -> str:
+    layer_code, layer_name = PRODUCT_LAYERS[product_set]
+    return (
+        "INSERT INTO public.metric_dimensions (code, name, layer_code, layer_name, display_order, config)\n"
+        f"VALUES ('PRE', '前置校准题', {sql_literal(layer_code)}, {sql_literal(layer_name)}, 0, "
+        "'{\"direction\":\"neutral\",\"scored\":false}'::jsonb)\n"
+        "ON CONFLICT (code) DO UPDATE SET\n"
+        "  name = EXCLUDED.name,\n"
+        "  layer_code = EXCLUDED.layer_code,\n"
+        "  layer_name = EXCLUDED.layer_name,\n"
+        "  config = public.metric_dimensions.config || EXCLUDED.config,\n"
+        "  updated_at = now();"
+    )
+
+
+def emit_question_insert(
+    slug: str,
+    question: Dict[str, Any],
+    display_order: int,
+    *,
+    dimension_code: str | None = None,
+    direction: str = "neutral",
+    weight: Any = 0,
+) -> str:
+    external_id = question.get("id")
+    if not external_id:
+        raise ValueError(f"题目缺少 id: {question}")
+    dimension = dimension_code or resolve_question_dimension(question)
+    return (
+        "INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)\n"
+        f"SELECT s.id, {sql_literal(external_id)}, {display_order}, {sql_literal(dimension)}, "
+        f"{sql_literal(question.get('type'))}, {sql_literal(question.get('weight', weight))}, "
+        f"{sql_literal(question.get('direction', direction))}, "
+        f"{sql_literal(question.get('text') or '')}, {jsonb_literal(question_payload(question))}, "
+        f"{jsonb_literal(question.get('scoring') or {})}, true\n"
+        f"FROM public.test_suites s WHERE s.slug = {sql_literal(slug)}\n"
+        "ON CONFLICT (suite_id, external_question_id) DO UPDATE SET\n"
+        "  display_order = EXCLUDED.display_order,\n"
+        "  dimension_code = EXCLUDED.dimension_code,\n"
+        "  question_type = EXCLUDED.question_type,\n"
+        "  weight = EXCLUDED.weight,\n"
+        "  direction = EXCLUDED.direction,\n"
+        "  question_text = EXCLUDED.question_text,\n"
+        "  question_payload = EXCLUDED.question_payload,\n"
+        "  scoring_payload = EXCLUDED.scoring_payload,\n"
+        "  is_active = EXCLUDED.is_active,\n"
+        "  updated_at = now();"
+    )
+
+
 def emit_suite(data: Dict[str, Any]) -> List[str]:
     suite = data.get("suite") or {}
     source_id = suite.get("id") or suite.get("slug") or suite.get("name")
@@ -82,11 +203,16 @@ def emit_suite(data: Dict[str, Any]) -> List[str]:
     slug = normalize_slug(str(source_id))
     name = suite.get("name") or slug
     version = str(suite.get("version") or "v1")
+    product_set = resolve_product_set(str(source_id))
     total_questions = int(suite.get("total_questions") or len(data.get("questions") or []))
     estimated_minutes = suite.get("estimated_minutes")
 
     statements: List[str] = []
-    statements.extend(emit_metric_dimensions_from_formula(data.get("scoring_formula") or {}))
+    statements.extend(emit_metric_dimensions_from_formula(data.get("scoring_formula") or {}, product_set))
+
+    pre_questions = data.get("pre_questions") or []
+    if pre_questions:
+        statements.append(emit_pre_question_dimension(product_set))
 
     statements.append(
         "INSERT INTO public.test_suites (slug, name, version, gender, total_questions, estimated_minutes, is_free, is_active, source_suite_config)\n"
@@ -107,11 +233,12 @@ def emit_suite(data: Dict[str, Any]) -> List[str]:
     ros_config = {
         "source": "ROS_V3_whitepaper_optimized.docx",
         "storage_strategy": "whitepaper_as_business_reference; executable formulas and rules are stored in scoring_formula/type_rules JSONB",
+        "product_set": product_set,
     }
     statements.append(
         "INSERT INTO public.scoring_models (suite_id, model_key, model_version, scoring_formula, type_rules, ros_config, is_active)\n"
         f"SELECT id, 'ROS_V3', {sql_literal(version)}, {jsonb_literal(data.get('scoring_formula') or {})}, "
-        f"{jsonb_literal(data.get('type_rules') or {})}, {jsonb_literal(ros_config)}, true\n"
+        f"{jsonb_literal(build_type_rules(data))}, {jsonb_literal(ros_config)}, true\n"
         f"FROM public.test_suites WHERE slug = {sql_literal(slug)}\n"
         "ON CONFLICT (suite_id, model_key, model_version) DO UPDATE SET\n"
         "  scoring_formula = EXCLUDED.scoring_formula,\n"
@@ -121,7 +248,7 @@ def emit_suite(data: Dict[str, Any]) -> List[str]:
         "  updated_at = now();"
     )
 
-    result_profiles = data.get("result_profiles") or {}
+    result_profiles = data.get("result_profiles") or data.get("relationship_type_rules") or {}
     for idx, (name_key, profile) in enumerate(result_profiles.items(), start=1):
         statements.append(
             "INSERT INTO public.result_archetypes (suite_id, archetype_code, archetype_name, gender, profile_payload, display_order, is_active)\n"
@@ -136,29 +263,22 @@ def emit_suite(data: Dict[str, Any]) -> List[str]:
             "  updated_at = now();"
         )
 
-    questions = data.get("questions") or []
-    for q in questions:
-        external_id = q.get("id")
-        if not external_id:
-            raise ValueError(f"题目缺少 id: {q}")
+    pre_offset = len(pre_questions)
+    for idx, question in enumerate(pre_questions, start=1):
         statements.append(
-            "INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)\n"
-            f"SELECT s.id, {sql_literal(external_id)}, {int(q.get('order') or 0)}, {sql_literal(q.get('dimension'))}, "
-            f"{sql_literal(q.get('type'))}, {sql_literal(q.get('weight') or 1)}, {sql_literal(q.get('direction') or 'positive')}, "
-            f"{sql_literal(q.get('text') or '')}, {jsonb_literal(question_payload(q))}, {jsonb_literal(q.get('scoring') or {})}, true\n"
-            f"FROM public.test_suites s WHERE s.slug = {sql_literal(slug)}\n"
-            "ON CONFLICT (suite_id, external_question_id) DO UPDATE SET\n"
-            "  display_order = EXCLUDED.display_order,\n"
-            "  dimension_code = EXCLUDED.dimension_code,\n"
-            "  question_type = EXCLUDED.question_type,\n"
-            "  weight = EXCLUDED.weight,\n"
-            "  direction = EXCLUDED.direction,\n"
-            "  question_text = EXCLUDED.question_text,\n"
-            "  question_payload = EXCLUDED.question_payload,\n"
-            "  scoring_payload = EXCLUDED.scoring_payload,\n"
-            "  is_active = EXCLUDED.is_active,\n"
-            "  updated_at = now();"
+            emit_question_insert(
+                slug,
+                question,
+                idx,
+                dimension_code="PRE",
+                direction="neutral",
+                weight=0,
+            )
         )
+
+    for question in data.get("questions") or []:
+        display_order = pre_offset + int(question.get("order") or 0)
+        statements.append(emit_question_insert(slug, question, display_order))
 
     return statements
 

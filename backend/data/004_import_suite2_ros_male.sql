@@ -1,0 +1,1088 @@
+-- LoveCompass generated data import SQL
+
+-- 此文件由 scripts/generate_import_sql.py 根据外部 JSON 数据生成；题目内容没有硬编码在脚本中。
+
+BEGIN;
+
+
+-- Source: suite2_ros_male.json
+
+INSERT INTO public.metric_dimensions (code, name, layer_code, layer_name, display_order, config)
+VALUES ('AT', '吸引基础', 'ROS_RELATIONSHIP', '关系画像', 1, '{"label":"吸引基础","direction":"positive","weight":0.2,"male_focus":"你对她的吸引感是真实的还是习惯了"}'::jsonb)
+ON CONFLICT (code) DO UPDATE SET
+  name = EXCLUDED.name,
+  layer_code = EXCLUDED.layer_code,
+  layer_name = EXCLUDED.layer_name,
+  display_order = EXCLUDED.display_order,
+  config = public.metric_dimensions.config || EXCLUDED.config,
+  updated_at = now();
+
+INSERT INTO public.metric_dimensions (code, name, layer_code, layer_name, display_order, config)
+VALUES ('IN', '互动质量', 'ROS_RELATIONSHIP', '关系画像', 2, '{"label":"互动质量","direction":"positive","weight":0.3,"male_focus":"跟她在一起轻不轻松，她的情绪对你影响有多大"}'::jsonb)
+ON CONFLICT (code) DO UPDATE SET
+  name = EXCLUDED.name,
+  layer_code = EXCLUDED.layer_code,
+  layer_name = EXCLUDED.layer_name,
+  display_order = EXCLUDED.display_order,
+  config = public.metric_dimensions.config || EXCLUDED.config,
+  updated_at = now();
+
+INSERT INTO public.metric_dimensions (code, name, layer_code, layer_name, display_order, config)
+VALUES ('CO', '兼容程度', 'ROS_RELATIONSHIP', '关系画像', 3, '{"label":"兼容程度","direction":"positive","weight":0.25,"male_focus":"生活方式和节奏合不合，她带来的是助力还是阻力"}'::jsonb)
+ON CONFLICT (code) DO UPDATE SET
+  name = EXCLUDED.name,
+  layer_code = EXCLUDED.layer_code,
+  layer_name = EXCLUDED.layer_name,
+  display_order = EXCLUDED.display_order,
+  config = public.metric_dimensions.config || EXCLUDED.config,
+  updated_at = now();
+
+INSERT INTO public.metric_dimensions (code, name, layer_code, layer_name, display_order, config)
+VALUES ('EV', '关系走向', 'ROS_RELATIONSHIP', '关系画像', 4, '{"label":"关系走向","direction":"positive","weight":0.15,"male_focus":"这段关系有没有让你有动力往前走，还是在消耗你"}'::jsonb)
+ON CONFLICT (code) DO UPDATE SET
+  name = EXCLUDED.name,
+  layer_code = EXCLUDED.layer_code,
+  layer_name = EXCLUDED.layer_name,
+  display_order = EXCLUDED.display_order,
+  config = public.metric_dimensions.config || EXCLUDED.config,
+  updated_at = now();
+
+INSERT INTO public.metric_dimensions (code, name, layer_code, layer_name, display_order, config)
+VALUES ('RK', '风险信号', 'ROS_RELATIONSHIP', '关系画像', 5, '{"label":"风险信号","direction":"reverse","weight":0.1,"male_focus":"有没有让你感到消耗、压抑或者不对劲的信号"}'::jsonb)
+ON CONFLICT (code) DO UPDATE SET
+  name = EXCLUDED.name,
+  layer_code = EXCLUDED.layer_code,
+  layer_name = EXCLUDED.layer_name,
+  display_order = EXCLUDED.display_order,
+  config = public.metric_dimensions.config || EXCLUDED.config,
+  updated_at = now();
+
+INSERT INTO public.metric_dimensions (code, name, layer_code, layer_name, display_order, config)
+VALUES ('PRE', '前置校准题', 'ROS_RELATIONSHIP', '关系画像', 0, '{"direction":"neutral","scored":false}'::jsonb)
+ON CONFLICT (code) DO UPDATE SET
+  name = EXCLUDED.name,
+  layer_code = EXCLUDED.layer_code,
+  layer_name = EXCLUDED.layer_name,
+  config = public.metric_dimensions.config || EXCLUDED.config,
+  updated_at = now();
+
+INSERT INTO public.test_suites (slug, name, version, gender, total_questions, estimated_minutes, is_free, is_active, source_suite_config)
+VALUES ('s02_ros_male', '关系画像测试', '1.0', 'male'::public.test_gender, 60, 15, false, true, '{"id":"S02_ROS_MALE","name":"关系画像测试","gender":"male","version":"1.0","total_questions":60,"pre_questions":2,"estimated_minutes":15,"is_free":false,"layers":["AT","IN","CO","EV","RK"],"relationship_types":["彼此生长","难舍难分","温水同行","心甘情愿地累","烈火烹油","此刻刚好"],"relationship_stages":["怦然相遇","渐入佳境","暗流初现","磨合阵痛","倦怠低谷","十字路口","重建信任","深度联结","并肩同行"],"question_types_used":["slider","scenario","binary","choice","scale","mood","card","rank"]}'::jsonb)
+ON CONFLICT (slug) DO UPDATE SET
+  name = EXCLUDED.name,
+  version = EXCLUDED.version,
+  gender = EXCLUDED.gender,
+  total_questions = EXCLUDED.total_questions,
+  estimated_minutes = EXCLUDED.estimated_minutes,
+  is_free = EXCLUDED.is_free,
+  is_active = EXCLUDED.is_active,
+  source_suite_config = EXCLUDED.source_suite_config,
+  updated_at = now();
+
+INSERT INTO public.scoring_models (suite_id, model_key, model_version, scoring_formula, type_rules, ros_config, is_active)
+SELECT id, 'ROS_V3', '1.0', '{"layers":{"AT":{"label":"吸引基础","direction":"positive","weight":0.2,"male_focus":"你对她的吸引感是真实的还是习惯了"},"IN":{"label":"互动质量","direction":"positive","weight":0.3,"male_focus":"跟她在一起轻不轻松，她的情绪对你影响有多大"},"CO":{"label":"兼容程度","direction":"positive","weight":0.25,"male_focus":"生活方式和节奏合不合，她带来的是助力还是阻力"},"EV":{"label":"关系走向","direction":"positive","weight":0.15,"male_focus":"这段关系有没有让你有动力往前走，还是在消耗你"},"RK":{"label":"风险信号","direction":"reverse","weight":0.1,"male_focus":"有没有让你感到消耗、压抑或者不对劲的信号"}},"overall":{"formula":"AT*0.20 + IN*0.30 + CO*0.25 + EV*0.15 + (100-RK)*0.10","display_adjustment":{"note":"所有分数向上平移，底部有托底，最低显示55","mapping":[{"raw_min":0,"raw_max":40,"display_min":55,"display_max":65},{"raw_min":41,"raw_max":60,"display_min":65,"display_max":75},{"raw_min":61,"raw_max":80,"display_min":75,"display_max":88},{"raw_min":81,"raw_max":100,"display_min":88,"display_max":96}]}},"resonance_levels":[{"min":88,"max":96,"name":"心有灵犀","desc":"你们之间有一种很难被替代的默契"},{"min":75,"max":87,"name":"深度共鸣","desc":"真实的联结，值得好好珍惜"},{"min":65,"max":74,"name":"温柔磨合","desc":"你们在彼此靠近的路上，慢慢来"},{"min":55,"max":64,"name":"初见雏形","desc":"关系还在成形，有空间，也有可能"}]}'::jsonb, '{"pre_questions":[{"id":"PRE-M-00A","type":"choice","text":"在开始之前，先告诉我你们的关系状态。","note":"此答案影响题目措辞、阶段判断和结果语言，不计分。","options":[{"key":"A","text":"我在暗恋她，还没有任何进展","tag":"secret_crush"},{"key":"B","text":"我们在暧昧中，还没正式在一起","tag":"ambiguous"},{"key":"C","text":"我们在一起不到一年","tag":"early"},{"key":"D","text":"我们在一起一到三年","tag":"mid"},{"key":"E","text":"我们在一起三年以上","tag":"long"},{"key":"F","text":"我们已婚或是长期伴侣","tag":"married"}]},{"id":"PRE-M-00B","type":"choice","text":"如果用一个词描述你们现在的关系，你会选哪个？","note":"辅助校准关系类型判断，不计分。","options":[{"key":"A","text":"心动但还没说出口"},{"key":"B","text":"说不清楚，但很在意"},{"key":"C","text":"在谈恋爱"},{"key":"D","text":"很稳定的伴侣"},{"key":"E","text":"复杂，一时说不清"}]}],"stage_rules":{"note":"结合时间输入和各层得分综合判断，男版更看重EV层和IN层的轻松感","time_constraints":{"secret_crush":{"locked_stages":["重建信任","深度联结","并肩同行"]},"ambiguous":{"locked_stages":["重建信任","深度联结","并肩同行"]},"married":{"low_resonance_language":"long_term_version"}},"score_mapping":{"①怦然相遇":{"EV_range":[75,100],"AT_range":[80,100],"IN_range":[0,100]},"②渐入佳境":{"EV_range":[70,100],"AT_range":[65,100],"IN_range":[60,100]},"③暗流初现":{"EV_range":[50,75],"AT_range":[50,80],"RK_range":[30,60]},"④磨合阵痛":{"EV_range":[40,65],"IN_range":[30,60],"RK_range":[40,70]},"⑤倦怠低谷":{"EV_range":[20,45],"RK_range":[60,100],"IN_range":[20,50]},"⑥十字路口":{"EV_range":[25,50],"RK_range":[55,85]},"⑦重建信任":{"EV_range":[55,75],"IN_range":[60,85],"RK_range":[20,50]},"⑧深度联结":{"EV_range":[70,90],"IN_range":[75,100],"AT_range":[60,100]},"⑨并肩同行":{"EV_range":[80,100],"CO_range":[75,100],"IN_range":[75,100]}}},"relationship_type_rules":{"彼此生长":{"condition":"EV >= 75 && IN >= 70 && RK <= 35","tagline":"在一起让你成为更好的自己","desc":"有助力、有成长、跟她在一起是充电","male_insight":"你在这段关系里不只是在付出，你也在得到——这种双向的滋养是最好的关系底色。"},"难舍难分":{"condition":"AT >= 75 && IN >= 65 && EV < 65","tagline":"深度融合，分不清是爱还是需要","desc":"离不开，但不确定是真正喜欢还是习惯了","male_insight":"你们之间有很深的联结，但值得想一想：是真的喜欢她，还是已经习惯了她在？"},"温水同行":{"condition":"RK <= 40 && IN < 65 && EV < 60","tagline":"不冷不热，舒适但缺少真正的联结","desc":"不吵架，但也没有真正在一起过","male_insight":"这段关系很平稳，但平稳有时候是因为双方都没有真正投入——值得问自己，你想要的是这样吗？"},"心甘情愿地累":{"condition":"RK >= 55 && EV < 55 && AT >= 60","tagline":"付出多于回报，但还在坚持","desc":"有消耗，但舍不得或者走不掉","male_insight":"你在这段关系里付出了很多，这值得被看见。但好的关系不应该让你一直在消耗——这不是你的问题，是关系本身需要调整。"},"烈火烹油":{"condition":"AT >= 75 && RK >= 50 && IN < 70","tagline":"极好极坏，情绪过山车","desc":"高强度的吸引和消耗并存","male_insight":"你们之间的吸引是真实的，但冲突和消耗也是真实的。这种组合很难维持，需要双方都愿意主动降温和建立规则。"},"此刻刚好":{"condition":"CO < 65 && EV < 60 && RK <= 45","tagline":"现在很好，但没有太多未来感","desc":"舒适但没有明确的方向","male_insight":"你们现在相处得还不错，但有些重要的问题还没有被认真面对——比如这段关系要走向哪里。"}},"attachment_collision_map":{"安全型×安全型":{"name":"天作之合","desc":"两个内心稳定的人在一起，是最少内耗的组合。不是没有问题，是有能力一起解决。"},"安全型×焦虑型":{"name":"避风港与浪","desc":"稳定的人能给焦虑的人真实的安全感，但时间久了容易出现不平衡——一个一直在给，一个一直在要。"},"安全型×回避型":{"name":"开门与关门","desc":"安全型足够稳定，不会因为回避型的后退而崩溃——这是这个组合能走下去的原因。"},"安全型×混合型":{"name":"稳中有变","desc":"安全型是这段关系的锚，混合型的情绪起伏会被安全型的稳定慢慢平衡。"},"焦虑型×焦虑型":{"name":"双向拉扯","desc":"两个都需要确认的人在一起，前期浓烈，后期容易把彼此都耗尽。"},"焦虑型×回避型":{"name":"欢喜冤家","desc":"最常见也最戏剧性的组合。一个追，一个退，形成经典的追逃模式。吸引力是真实的，但如果不打破这个模式，最终会耗尽双方。"},"焦虑型×混合型":{"name":"迷雾中的彼此","desc":"两个人都不够稳定，但方式不同。对方的忽冷忽热会持续触发焦虑型的不安全感。"},"回避型×回避型":{"name":"平行宇宙","desc":"两个人都不主动靠近，关系很平静，但也很难真正深入。"},"回避型×混合型":{"name":"捉摸不定","desc":"混合型的忽冷忽热反而能让回避型感到相对舒适。但这个组合很难建立真正的深度。"},"混合型×混合型":{"name":"一团烟火","desc":"两个情绪都不稳定的人在一起，会非常热烈，也会非常混乱。"},"高边界安全型×焦虑型":{"name":"冰与火","desc":"高边界的安全感让焦虑型感到有依靠，但边界的硬度也会让焦虑型觉得进不去。"},"高边界安全型×回避型":{"name":"两座山","desc":"两个都有很强边界感的人在一起，相互尊重，但也可能相互疏远。"},"低自我高投入型×任意":{"name":"全心付出","desc":"无论对方是什么类型，这个组合的核心风险不在对方，在自己——需要先学会照顾自己。"},"高边界安全型×混合型":{"name":"规则与例外","desc":"高边界的清晰给混合型一种难得的稳定感，只要双方愿意沟通，互补性很强。"},"低自我高投入型×回避型":{"name":"给不到的距离","desc":"付出最多的人遇到了最难靠近的人。这个组合需要付出型学会有边界地爱。"}},"score_display_rules":{"note":"所有分数转化为描述性语言，不直接显示原始数字","positive_language_principle":"永远不输出让人难堪的判断，风险信号用温和提示代替警告","ranges":[{"min":0,"max":30,"label":"这个维度还有一些值得关注的地方"},{"min":31,"max":50,"label":"这个维度还有成长空间"},{"min":51,"max":65,"label":"这个维度表现稳定"},{"min":66,"max":80,"label":"这个维度是你们的重要基础"},{"min":81,"max":100,"label":"这个维度是你们关系的核心优势"}]}}'::jsonb, '{"source":"ROS_V3_whitepaper_optimized.docx","storage_strategy":"whitepaper_as_business_reference; executable formulas and rules are stored in scoring_formula/type_rules JSONB","product_set":"ROS"}'::jsonb, true
+FROM public.test_suites WHERE slug = 's02_ros_male'
+ON CONFLICT (suite_id, model_key, model_version) DO UPDATE SET
+  scoring_formula = EXCLUDED.scoring_formula,
+  type_rules = EXCLUDED.type_rules,
+  ros_config = EXCLUDED.ros_config,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.result_archetypes (suite_id, archetype_code, archetype_name, gender, profile_payload, display_order, is_active)
+SELECT id, '彼此生长', '彼此生长', 'male'::public.test_gender, '{"condition":"EV >= 75 && IN >= 70 && RK <= 35","tagline":"在一起让你成为更好的自己","desc":"有助力、有成长、跟她在一起是充电","male_insight":"你在这段关系里不只是在付出，你也在得到——这种双向的滋养是最好的关系底色。"}'::jsonb, 1, true
+FROM public.test_suites WHERE slug = 's02_ros_male'
+ON CONFLICT (suite_id, archetype_code) DO UPDATE SET
+  archetype_name = EXCLUDED.archetype_name,
+  gender = EXCLUDED.gender,
+  profile_payload = EXCLUDED.profile_payload,
+  display_order = EXCLUDED.display_order,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.result_archetypes (suite_id, archetype_code, archetype_name, gender, profile_payload, display_order, is_active)
+SELECT id, '难舍难分', '难舍难分', 'male'::public.test_gender, '{"condition":"AT >= 75 && IN >= 65 && EV < 65","tagline":"深度融合，分不清是爱还是需要","desc":"离不开，但不确定是真正喜欢还是习惯了","male_insight":"你们之间有很深的联结，但值得想一想：是真的喜欢她，还是已经习惯了她在？"}'::jsonb, 2, true
+FROM public.test_suites WHERE slug = 's02_ros_male'
+ON CONFLICT (suite_id, archetype_code) DO UPDATE SET
+  archetype_name = EXCLUDED.archetype_name,
+  gender = EXCLUDED.gender,
+  profile_payload = EXCLUDED.profile_payload,
+  display_order = EXCLUDED.display_order,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.result_archetypes (suite_id, archetype_code, archetype_name, gender, profile_payload, display_order, is_active)
+SELECT id, '温水同行', '温水同行', 'male'::public.test_gender, '{"condition":"RK <= 40 && IN < 65 && EV < 60","tagline":"不冷不热，舒适但缺少真正的联结","desc":"不吵架，但也没有真正在一起过","male_insight":"这段关系很平稳，但平稳有时候是因为双方都没有真正投入——值得问自己，你想要的是这样吗？"}'::jsonb, 3, true
+FROM public.test_suites WHERE slug = 's02_ros_male'
+ON CONFLICT (suite_id, archetype_code) DO UPDATE SET
+  archetype_name = EXCLUDED.archetype_name,
+  gender = EXCLUDED.gender,
+  profile_payload = EXCLUDED.profile_payload,
+  display_order = EXCLUDED.display_order,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.result_archetypes (suite_id, archetype_code, archetype_name, gender, profile_payload, display_order, is_active)
+SELECT id, '心甘情愿地累', '心甘情愿地累', 'male'::public.test_gender, '{"condition":"RK >= 55 && EV < 55 && AT >= 60","tagline":"付出多于回报，但还在坚持","desc":"有消耗，但舍不得或者走不掉","male_insight":"你在这段关系里付出了很多，这值得被看见。但好的关系不应该让你一直在消耗——这不是你的问题，是关系本身需要调整。"}'::jsonb, 4, true
+FROM public.test_suites WHERE slug = 's02_ros_male'
+ON CONFLICT (suite_id, archetype_code) DO UPDATE SET
+  archetype_name = EXCLUDED.archetype_name,
+  gender = EXCLUDED.gender,
+  profile_payload = EXCLUDED.profile_payload,
+  display_order = EXCLUDED.display_order,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.result_archetypes (suite_id, archetype_code, archetype_name, gender, profile_payload, display_order, is_active)
+SELECT id, '烈火烹油', '烈火烹油', 'male'::public.test_gender, '{"condition":"AT >= 75 && RK >= 50 && IN < 70","tagline":"极好极坏，情绪过山车","desc":"高强度的吸引和消耗并存","male_insight":"你们之间的吸引是真实的，但冲突和消耗也是真实的。这种组合很难维持，需要双方都愿意主动降温和建立规则。"}'::jsonb, 5, true
+FROM public.test_suites WHERE slug = 's02_ros_male'
+ON CONFLICT (suite_id, archetype_code) DO UPDATE SET
+  archetype_name = EXCLUDED.archetype_name,
+  gender = EXCLUDED.gender,
+  profile_payload = EXCLUDED.profile_payload,
+  display_order = EXCLUDED.display_order,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.result_archetypes (suite_id, archetype_code, archetype_name, gender, profile_payload, display_order, is_active)
+SELECT id, '此刻刚好', '此刻刚好', 'male'::public.test_gender, '{"condition":"CO < 65 && EV < 60 && RK <= 45","tagline":"现在很好，但没有太多未来感","desc":"舒适但没有明确的方向","male_insight":"你们现在相处得还不错，但有些重要的问题还没有被认真面对——比如这段关系要走向哪里。"}'::jsonb, 6, true
+FROM public.test_suites WHERE slug = 's02_ros_male'
+ON CONFLICT (suite_id, archetype_code) DO UPDATE SET
+  archetype_name = EXCLUDED.archetype_name,
+  gender = EXCLUDED.gender,
+  profile_payload = EXCLUDED.profile_payload,
+  display_order = EXCLUDED.display_order,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)
+SELECT s.id, 'PRE-M-00A', 1, 'PRE', 'choice', 0, 'neutral', '在开始之前，先告诉我你们的关系状态。', '{"note":"此答案影响题目措辞、阶段判断和结果语言，不计分。","options":[{"key":"A","text":"我在暗恋她，还没有任何进展","tag":"secret_crush"},{"key":"B","text":"我们在暧昧中，还没正式在一起","tag":"ambiguous"},{"key":"C","text":"我们在一起不到一年","tag":"early"},{"key":"D","text":"我们在一起一到三年","tag":"mid"},{"key":"E","text":"我们在一起三年以上","tag":"long"},{"key":"F","text":"我们已婚或是长期伴侣","tag":"married"}],"source_question":{"id":"PRE-M-00A","type":"choice","text":"在开始之前，先告诉我你们的关系状态。","note":"此答案影响题目措辞、阶段判断和结果语言，不计分。","options":[{"key":"A","text":"我在暗恋她，还没有任何进展","tag":"secret_crush"},{"key":"B","text":"我们在暧昧中，还没正式在一起","tag":"ambiguous"},{"key":"C","text":"我们在一起不到一年","tag":"early"},{"key":"D","text":"我们在一起一到三年","tag":"mid"},{"key":"E","text":"我们在一起三年以上","tag":"long"},{"key":"F","text":"我们已婚或是长期伴侣","tag":"married"}]}}'::jsonb, '{}'::jsonb, true
+FROM public.test_suites s WHERE s.slug = 's02_ros_male'
+ON CONFLICT (suite_id, external_question_id) DO UPDATE SET
+  display_order = EXCLUDED.display_order,
+  dimension_code = EXCLUDED.dimension_code,
+  question_type = EXCLUDED.question_type,
+  weight = EXCLUDED.weight,
+  direction = EXCLUDED.direction,
+  question_text = EXCLUDED.question_text,
+  question_payload = EXCLUDED.question_payload,
+  scoring_payload = EXCLUDED.scoring_payload,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)
+SELECT s.id, 'PRE-M-00B', 2, 'PRE', 'choice', 0, 'neutral', '如果用一个词描述你们现在的关系，你会选哪个？', '{"note":"辅助校准关系类型判断，不计分。","options":[{"key":"A","text":"心动但还没说出口"},{"key":"B","text":"说不清楚，但很在意"},{"key":"C","text":"在谈恋爱"},{"key":"D","text":"很稳定的伴侣"},{"key":"E","text":"复杂，一时说不清"}],"source_question":{"id":"PRE-M-00B","type":"choice","text":"如果用一个词描述你们现在的关系，你会选哪个？","note":"辅助校准关系类型判断，不计分。","options":[{"key":"A","text":"心动但还没说出口"},{"key":"B","text":"说不清楚，但很在意"},{"key":"C","text":"在谈恋爱"},{"key":"D","text":"很稳定的伴侣"},{"key":"E","text":"复杂，一时说不清"}]}}'::jsonb, '{}'::jsonb, true
+FROM public.test_suites s WHERE s.slug = 's02_ros_male'
+ON CONFLICT (suite_id, external_question_id) DO UPDATE SET
+  display_order = EXCLUDED.display_order,
+  dimension_code = EXCLUDED.dimension_code,
+  question_type = EXCLUDED.question_type,
+  weight = EXCLUDED.weight,
+  direction = EXCLUDED.direction,
+  question_text = EXCLUDED.question_text,
+  question_payload = EXCLUDED.question_payload,
+  scoring_payload = EXCLUDED.scoring_payload,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)
+SELECT s.id, 'AT-M-01', 3, 'AT', 'slider', 1.5, 'positive', '你现在对她的吸引感，跟最开始相比是什么状态？', '{"alt_text_secret_crush":"你对她的吸引感，随着时间是在加深还是在消退？","slider":{"min":0,"max":100,"min_label":"比最开始淡了很多","max_label":"还是一样强烈，甚至更深了","feedback":[{"range":[0,20],"text":"吸引感明显减弱，值得认真想一想这是为什么"},{"range":[21,40],"text":"有些东西在消退，但还有留下来的理由"},{"range":[41,60],"text":"趋于平稳，是正常的关系演化"},{"range":[61,80],"text":"吸引感很稳定，有些地方甚至更深了"},{"range":[81,100],"text":"你对她的感觉一直都在，甚至在加深"}]},"source_question":{"id":"AT-M-01","order":1,"layer":"AT","weight":1.5,"type":"slider","direction":"positive","text":"你现在对她的吸引感，跟最开始相比是什么状态？","alt_text_secret_crush":"你对她的吸引感，随着时间是在加深还是在消退？","slider":{"min":0,"max":100,"min_label":"比最开始淡了很多","max_label":"还是一样强烈，甚至更深了","feedback":[{"range":[0,20],"text":"吸引感明显减弱，值得认真想一想这是为什么"},{"range":[21,40],"text":"有些东西在消退，但还有留下来的理由"},{"range":[41,60],"text":"趋于平稳，是正常的关系演化"},{"range":[61,80],"text":"吸引感很稳定，有些地方甚至更深了"},{"range":[81,100],"text":"你对她的感觉一直都在，甚至在加深"}]},"scoring":{"method":"direct"}}}'::jsonb, '{"method":"direct"}'::jsonb, true
+FROM public.test_suites s WHERE s.slug = 's02_ros_male'
+ON CONFLICT (suite_id, external_question_id) DO UPDATE SET
+  display_order = EXCLUDED.display_order,
+  dimension_code = EXCLUDED.dimension_code,
+  question_type = EXCLUDED.question_type,
+  weight = EXCLUDED.weight,
+  direction = EXCLUDED.direction,
+  question_text = EXCLUDED.question_text,
+  question_payload = EXCLUDED.question_payload,
+  scoring_payload = EXCLUDED.scoring_payload,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)
+SELECT s.id, 'AT-M-02', 4, 'AT', 'scenario', 1.3, 'positive', '你们分开一段时间后再见面。你见到她的第一眼，脑子里闪过的是？', '{"scene":"重逢的第一眼感受","options":[{"key":"A","text":"还是会有那种感觉，她一出现我就注意到了","sub":"吸引感持续","score":85},{"key":"B","text":"有点放松，就是熟悉的感觉，不是心跳","sub":"从吸引转向依恋，正常演化","score":75},{"key":"C","text":"没什么特别的，就是见到了","sub":"吸引感明显减弱","score":40},{"key":"D","text":"有点复杂，说不清楚是什么感觉","sub":"关系进入模糊期","score":55}],"source_question":{"id":"AT-M-02","order":2,"layer":"AT","weight":1.3,"type":"scenario","direction":"positive","text":"你们分开一段时间后再见面。你见到她的第一眼，脑子里闪过的是？","scene":"重逢的第一眼感受","options":[{"key":"A","text":"还是会有那种感觉，她一出现我就注意到了","sub":"吸引感持续","score":85},{"key":"B","text":"有点放松，就是熟悉的感觉，不是心跳","sub":"从吸引转向依恋，正常演化","score":75},{"key":"C","text":"没什么特别的，就是见到了","sub":"吸引感明显减弱","score":40},{"key":"D","text":"有点复杂，说不清楚是什么感觉","sub":"关系进入模糊期","score":55}]}}'::jsonb, '{}'::jsonb, true
+FROM public.test_suites s WHERE s.slug = 's02_ros_male'
+ON CONFLICT (suite_id, external_question_id) DO UPDATE SET
+  display_order = EXCLUDED.display_order,
+  dimension_code = EXCLUDED.dimension_code,
+  question_type = EXCLUDED.question_type,
+  weight = EXCLUDED.weight,
+  direction = EXCLUDED.direction,
+  question_text = EXCLUDED.question_text,
+  question_payload = EXCLUDED.question_payload,
+  scoring_payload = EXCLUDED.scoring_payload,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)
+SELECT s.id, 'AT-M-03', 5, 'AT', 'binary', 1.5, 'positive', '当初让你喜欢上她的那些东西，现在还在吗？', '{"options":[{"key":"left","text":"在，了解越深反而越喜欢","sub":"吸引力深化型","score":85},{"key":"right","text":"有些还在，但有些随着了解消退了","sub":"吸引力分化型","score":55}],"source_question":{"id":"AT-M-03","order":3,"layer":"AT","weight":1.5,"type":"binary","direction":"positive","text":"当初让你喜欢上她的那些东西，现在还在吗？","options":[{"key":"left","text":"在，了解越深反而越喜欢","sub":"吸引力深化型","score":85},{"key":"right","text":"有些还在，但有些随着了解消退了","sub":"吸引力分化型","score":55}]}}'::jsonb, '{}'::jsonb, true
+FROM public.test_suites s WHERE s.slug = 's02_ros_male'
+ON CONFLICT (suite_id, external_question_id) DO UPDATE SET
+  display_order = EXCLUDED.display_order,
+  dimension_code = EXCLUDED.dimension_code,
+  question_type = EXCLUDED.question_type,
+  weight = EXCLUDED.weight,
+  direction = EXCLUDED.direction,
+  question_text = EXCLUDED.question_text,
+  question_payload = EXCLUDED.question_payload,
+  scoring_payload = EXCLUDED.scoring_payload,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)
+SELECT s.id, 'AT-M-04', 6, 'AT', 'choice', 1.0, 'auxiliary', '你喜欢她，最核心的原因是？', '{"note":"辅助关系类型判断，分数相近","options":[{"key":"A","text":"跟她在一起，我感觉很放松，不需要表演","sub":"舒适感驱动","score":75},{"key":"B","text":"她让我想成为更好的自己","sub":"成长驱动","score":80},{"key":"C","text":"我就是被她吸引，说不清楚，就是想靠近","sub":"本能吸引","score":70},{"key":"D","text":"她是一个我真正欣赏的人，不只是喜欢","sub":"尊重驱动","score":80}],"source_question":{"id":"AT-M-04","order":4,"layer":"AT","weight":1.0,"type":"choice","direction":"auxiliary","text":"你喜欢她，最核心的原因是？","note":"辅助关系类型判断，分数相近","options":[{"key":"A","text":"跟她在一起，我感觉很放松，不需要表演","sub":"舒适感驱动","score":75},{"key":"B","text":"她让我想成为更好的自己","sub":"成长驱动","score":80},{"key":"C","text":"我就是被她吸引，说不清楚，就是想靠近","sub":"本能吸引","score":70},{"key":"D","text":"她是一个我真正欣赏的人，不只是喜欢","sub":"尊重驱动","score":80}]}}'::jsonb, '{}'::jsonb, true
+FROM public.test_suites s WHERE s.slug = 's02_ros_male'
+ON CONFLICT (suite_id, external_question_id) DO UPDATE SET
+  display_order = EXCLUDED.display_order,
+  dimension_code = EXCLUDED.dimension_code,
+  question_type = EXCLUDED.question_type,
+  weight = EXCLUDED.weight,
+  direction = EXCLUDED.direction,
+  question_text = EXCLUDED.question_text,
+  question_payload = EXCLUDED.question_payload,
+  scoring_payload = EXCLUDED.scoring_payload,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)
+SELECT s.id, 'AT-M-05', 7, 'AT', 'scale', 1.5, 'positive', '我喜欢她这件事，是真实的，不是因为习惯了她在或者不想一个人。', '{"scale":{"min":1,"max":5,"min_label":"完全不符合","max_label":"完全符合"},"source_question":{"id":"AT-M-05","order":5,"layer":"AT","weight":1.5,"type":"scale","direction":"positive","text":"我喜欢她这件事，是真实的，不是因为习惯了她在或者不想一个人。","scale":{"min":1,"max":5,"min_label":"完全不符合","max_label":"完全符合"},"scoring":{"method":"direct_times_20"}}}'::jsonb, '{"method":"direct_times_20"}'::jsonb, true
+FROM public.test_suites s WHERE s.slug = 's02_ros_male'
+ON CONFLICT (suite_id, external_question_id) DO UPDATE SET
+  display_order = EXCLUDED.display_order,
+  dimension_code = EXCLUDED.dimension_code,
+  question_type = EXCLUDED.question_type,
+  weight = EXCLUDED.weight,
+  direction = EXCLUDED.direction,
+  question_text = EXCLUDED.question_text,
+  question_payload = EXCLUDED.question_payload,
+  scoring_payload = EXCLUDED.scoring_payload,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)
+SELECT s.id, 'AT-M-06', 8, 'AT', 'mood', 1.2, 'positive', '你想到她的时候，出现频率最高的感觉是？', '{"options":[{"key":"A","icon":"ti-heart","text":"会不自觉地想见她","score":85},{"key":"B","icon":"ti-mood-happy","text":"心情会好一点","score":80},{"key":"C","icon":"ti-mood-smile","text":"习惯了，她就是生活的一部分","score":65},{"key":"D","icon":"ti-mood-nervous","text":"有时候会担心，不知道她在想什么","score":55},{"key":"E","icon":"ti-mood-confuzed","text":"复杂，说不清楚","score":50},{"key":"F","icon":"ti-mood-sad","text":"有时候会觉得累或者烦","score":35},{"key":"G","icon":"ti-mood-empty","text":"没什么特别的感觉了","score":25},{"key":"H","icon":"ti-mood-suprised","text":"她还是会做一些让我意外的事","score":80}],"source_question":{"id":"AT-M-06","order":6,"layer":"AT","weight":1.2,"type":"mood","direction":"positive","text":"你想到她的时候，出现频率最高的感觉是？","options":[{"key":"A","icon":"ti-heart","text":"会不自觉地想见她","score":85},{"key":"B","icon":"ti-mood-happy","text":"心情会好一点","score":80},{"key":"C","icon":"ti-mood-smile","text":"习惯了，她就是生活的一部分","score":65},{"key":"D","icon":"ti-mood-nervous","text":"有时候会担心，不知道她在想什么","score":55},{"key":"E","icon":"ti-mood-confuzed","text":"复杂，说不清楚","score":50},{"key":"F","icon":"ti-mood-sad","text":"有时候会觉得累或者烦","score":35},{"key":"G","icon":"ti-mood-empty","text":"没什么特别的感觉了","score":25},{"key":"H","icon":"ti-mood-suprised","text":"她还是会做一些让我意外的事","score":80}]}}'::jsonb, '{}'::jsonb, true
+FROM public.test_suites s WHERE s.slug = 's02_ros_male'
+ON CONFLICT (suite_id, external_question_id) DO UPDATE SET
+  display_order = EXCLUDED.display_order,
+  dimension_code = EXCLUDED.dimension_code,
+  question_type = EXCLUDED.question_type,
+  weight = EXCLUDED.weight,
+  direction = EXCLUDED.direction,
+  question_text = EXCLUDED.question_text,
+  question_payload = EXCLUDED.question_payload,
+  scoring_payload = EXCLUDED.scoring_payload,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)
+SELECT s.id, 'AT-M-07', 9, 'AT', 'scenario', 1.2, 'positive', '她今天穿了一件你没见过的衣服，状态很好。你的反应是？', '{"scene":"外形吸引感的活跃程度","options":[{"key":"A","text":"会注意到，觉得她好看，想说出来","sub":"吸引感活跃","score":85},{"key":"B","text":"注意到了，但没觉得特别","sub":"吸引感趋于平稳","score":65},{"key":"C","text":"没有特别留意","sub":"吸引感钝化","score":40},{"key":"D","text":"会注意到，但心里没什么反应","sub":"吸引感明显减弱","score":30}],"source_question":{"id":"AT-M-07","order":7,"layer":"AT","weight":1.2,"type":"scenario","direction":"positive","text":"她今天穿了一件你没见过的衣服，状态很好。你的反应是？","scene":"外形吸引感的活跃程度","options":[{"key":"A","text":"会注意到，觉得她好看，想说出来","sub":"吸引感活跃","score":85},{"key":"B","text":"注意到了，但没觉得特别","sub":"吸引感趋于平稳","score":65},{"key":"C","text":"没有特别留意","sub":"吸引感钝化","score":40},{"key":"D","text":"会注意到，但心里没什么反应","sub":"吸引感明显减弱","score":30}]}}'::jsonb, '{}'::jsonb, true
+FROM public.test_suites s WHERE s.slug = 's02_ros_male'
+ON CONFLICT (suite_id, external_question_id) DO UPDATE SET
+  display_order = EXCLUDED.display_order,
+  dimension_code = EXCLUDED.dimension_code,
+  question_type = EXCLUDED.question_type,
+  weight = EXCLUDED.weight,
+  direction = EXCLUDED.direction,
+  question_text = EXCLUDED.question_text,
+  question_payload = EXCLUDED.question_payload,
+  scoring_payload = EXCLUDED.scoring_payload,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)
+SELECT s.id, 'AT-M-08', 10, 'AT', 'binary', 1.3, 'positive', '如果她现在从你的生活里消失，你的第一反应会是？', '{"options":[{"key":"left","text":"会很难受，她在我生活里有真实的重量","sub":"深度依恋","score":80},{"key":"right","text":"会有影响，但我能想象没有她的生活","sub":"联结不够深","score":50}],"source_question":{"id":"AT-M-08","order":8,"layer":"AT","weight":1.3,"type":"binary","direction":"positive","text":"如果她现在从你的生活里消失，你的第一反应会是？","options":[{"key":"left","text":"会很难受，她在我生活里有真实的重量","sub":"深度依恋","score":80},{"key":"right","text":"会有影响，但我能想象没有她的生活","sub":"联结不够深","score":50}]}}'::jsonb, '{}'::jsonb, true
+FROM public.test_suites s WHERE s.slug = 's02_ros_male'
+ON CONFLICT (suite_id, external_question_id) DO UPDATE SET
+  display_order = EXCLUDED.display_order,
+  dimension_code = EXCLUDED.dimension_code,
+  question_type = EXCLUDED.question_type,
+  weight = EXCLUDED.weight,
+  direction = EXCLUDED.direction,
+  question_text = EXCLUDED.question_text,
+  question_payload = EXCLUDED.question_payload,
+  scoring_payload = EXCLUDED.scoring_payload,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)
+SELECT s.id, 'AT-M-09', 11, 'AT', 'slider', 1.5, 'positive', '你觉得你们之间的吸引是对等的吗？你对她的感觉，和她对你的感觉，大概是几比几？', '{"slider":{"min":0,"max":100,"min_label":"我明显更喜欢她","max_label":"她明显更喜欢我","midpoint_label":"50 = 大致对等","feedback":[{"range":[0,30],"text":"你在这段关系里投入更多，这值得留意"},{"range":[31,45],"text":"稍微不平衡，但在正常范围内"},{"range":[46,55],"text":"大致对等，关系基础比较稳"},{"range":[56,70],"text":"她对你的喜欢多一些"},{"range":[71,100],"text":"你感觉她喜欢你很多，但确认过吗"}]},"source_question":{"id":"AT-M-09","order":9,"layer":"AT","weight":1.5,"type":"slider","direction":"positive","text":"你觉得你们之间的吸引是对等的吗？你对她的感觉，和她对你的感觉，大概是几比几？","slider":{"min":0,"max":100,"min_label":"我明显更喜欢她","max_label":"她明显更喜欢我","midpoint_label":"50 = 大致对等","feedback":[{"range":[0,30],"text":"你在这段关系里投入更多，这值得留意"},{"range":[31,45],"text":"稍微不平衡，但在正常范围内"},{"range":[46,55],"text":"大致对等，关系基础比较稳"},{"range":[56,70],"text":"她对你的喜欢多一些"},{"range":[71,100],"text":"你感觉她喜欢你很多，但确认过吗"}]},"scoring":{"method":"distance_from_midpoint","formula":"100 - abs(value - 50) * 1.5"}}}'::jsonb, '{"method":"distance_from_midpoint","formula":"100 - abs(value - 50) * 1.5"}'::jsonb, true
+FROM public.test_suites s WHERE s.slug = 's02_ros_male'
+ON CONFLICT (suite_id, external_question_id) DO UPDATE SET
+  display_order = EXCLUDED.display_order,
+  dimension_code = EXCLUDED.dimension_code,
+  question_type = EXCLUDED.question_type,
+  weight = EXCLUDED.weight,
+  direction = EXCLUDED.direction,
+  question_text = EXCLUDED.question_text,
+  question_payload = EXCLUDED.question_payload,
+  scoring_payload = EXCLUDED.scoring_payload,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)
+SELECT s.id, 'AT-M-10', 12, 'AT', 'scale', 1.3, 'positive', '我觉得她喜欢我这件事，是真实可感的，不是我自己的判断或者猜测。', '{"alt_text_secret_crush":"我觉得她对我有一些不一样的感觉，哪怕还没说出来。","scale":{"min":1,"max":5,"min_label":"完全不确定，靠猜","max_label":"很确定，能感受到"},"source_question":{"id":"AT-M-10","order":10,"layer":"AT","weight":1.3,"type":"scale","direction":"positive","text":"我觉得她喜欢我这件事，是真实可感的，不是我自己的判断或者猜测。","alt_text_secret_crush":"我觉得她对我有一些不一样的感觉，哪怕还没说出来。","scale":{"min":1,"max":5,"min_label":"完全不确定，靠猜","max_label":"很确定，能感受到"},"scoring":{"method":"direct_times_20"}}}'::jsonb, '{"method":"direct_times_20"}'::jsonb, true
+FROM public.test_suites s WHERE s.slug = 's02_ros_male'
+ON CONFLICT (suite_id, external_question_id) DO UPDATE SET
+  display_order = EXCLUDED.display_order,
+  dimension_code = EXCLUDED.dimension_code,
+  question_type = EXCLUDED.question_type,
+  weight = EXCLUDED.weight,
+  direction = EXCLUDED.direction,
+  question_text = EXCLUDED.question_text,
+  question_payload = EXCLUDED.question_payload,
+  scoring_payload = EXCLUDED.scoring_payload,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)
+SELECT s.id, 'IN-M-11', 13, 'IN', 'scenario', 1.5, 'positive', '你今天心情不好，不想说话。她的反应通常是？', '{"scene":"对方对你情绪状态的感知和处理","options":[{"key":"A","text":"感觉到了，给我空间，但让我知道她在","sub":"高情感智识，尊重边界","score":90},{"key":"B","text":"问我怎么了，想帮我解决问题","sub":"关心型，但可能会增加压力","score":65},{"key":"C","text":"没感觉到，照常说话","sub":"情感感知弱","score":45},{"key":"D","text":"感觉到了，但开始担心是不是自己的问题","sub":"情感负担转移，增加压力","score":35}],"source_question":{"id":"IN-M-11","order":11,"layer":"IN","weight":1.5,"type":"scenario","direction":"positive","text":"你今天心情不好，不想说话。她的反应通常是？","scene":"对方对你情绪状态的感知和处理","options":[{"key":"A","text":"感觉到了，给我空间，但让我知道她在","sub":"高情感智识，尊重边界","score":90},{"key":"B","text":"问我怎么了，想帮我解决问题","sub":"关心型，但可能会增加压力","score":65},{"key":"C","text":"没感觉到，照常说话","sub":"情感感知弱","score":45},{"key":"D","text":"感觉到了，但开始担心是不是自己的问题","sub":"情感负担转移，增加压力","score":35}]}}'::jsonb, '{}'::jsonb, true
+FROM public.test_suites s WHERE s.slug = 's02_ros_male'
+ON CONFLICT (suite_id, external_question_id) DO UPDATE SET
+  display_order = EXCLUDED.display_order,
+  dimension_code = EXCLUDED.dimension_code,
+  question_type = EXCLUDED.question_type,
+  weight = EXCLUDED.weight,
+  direction = EXCLUDED.direction,
+  question_text = EXCLUDED.question_text,
+  question_payload = EXCLUDED.question_payload,
+  scoring_payload = EXCLUDED.scoring_payload,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)
+SELECT s.id, 'IN-M-12', 14, 'IN', 'slider', 1.5, 'positive', '跟她在一起，你整体的感觉是轻松还是有负担？', '{"slider":{"min":0,"max":100,"min_label":"经常感到有压力或者消耗","max_label":"跟她在一起非常轻松，不需要注意什么","feedback":[{"range":[0,25],"text":"相处本身对你是一种消耗，这很重要"},{"range":[26,45],"text":"有时候会感到压力，但不是一直"},{"range":[46,65],"text":"整体还好，偶尔有点累"},{"range":[66,85],"text":"跟她在一起大多数时候很轻松"},{"range":[86,100],"text":"她是让你感到最放松的人之一"}]},"source_question":{"id":"IN-M-12","order":12,"layer":"IN","weight":1.5,"type":"slider","direction":"positive","text":"跟她在一起，你整体的感觉是轻松还是有负担？","slider":{"min":0,"max":100,"min_label":"经常感到有压力或者消耗","max_label":"跟她在一起非常轻松，不需要注意什么","feedback":[{"range":[0,25],"text":"相处本身对你是一种消耗，这很重要"},{"range":[26,45],"text":"有时候会感到压力，但不是一直"},{"range":[46,65],"text":"整体还好，偶尔有点累"},{"range":[66,85],"text":"跟她在一起大多数时候很轻松"},{"range":[86,100],"text":"她是让你感到最放松的人之一"}]},"scoring":{"method":"direct"}}}'::jsonb, '{"method":"direct"}'::jsonb, true
+FROM public.test_suites s WHERE s.slug = 's02_ros_male'
+ON CONFLICT (suite_id, external_question_id) DO UPDATE SET
+  display_order = EXCLUDED.display_order,
+  dimension_code = EXCLUDED.dimension_code,
+  question_type = EXCLUDED.question_type,
+  weight = EXCLUDED.weight,
+  direction = EXCLUDED.direction,
+  question_text = EXCLUDED.question_text,
+  question_payload = EXCLUDED.question_payload,
+  scoring_payload = EXCLUDED.scoring_payload,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)
+SELECT s.id, 'IN-M-13', 15, 'IN', 'choice', 1.5, 'positive', '你们吵架或者有矛盾之后，通常是怎么收场的？', '{"alt_text_secret_crush":"当你们有过误会或者不愉快，通常怎么化解？","options":[{"key":"A","text":"真正说清楚了，然后和好，感觉更近了","sub":"高质量修复","score":90},{"key":"B","text":"冷静了就和好了，但没有完全说清楚","sub":"表面修复，问题积累","score":65},{"key":"C","text":"其中一个人先让步了，然后过去了","sub":"不均衡修复","score":50},{"key":"D","text":"冷处理，然后假装没发生过","sub":"低质量修复，风险积累","score":30}],"source_question":{"id":"IN-M-13","order":13,"layer":"IN","weight":1.5,"type":"choice","direction":"positive","text":"你们吵架或者有矛盾之后，通常是怎么收场的？","alt_text_secret_crush":"当你们有过误会或者不愉快，通常怎么化解？","options":[{"key":"A","text":"真正说清楚了，然后和好，感觉更近了","sub":"高质量修复","score":90},{"key":"B","text":"冷静了就和好了，但没有完全说清楚","sub":"表面修复，问题积累","score":65},{"key":"C","text":"其中一个人先让步了，然后过去了","sub":"不均衡修复","score":50},{"key":"D","text":"冷处理，然后假装没发生过","sub":"低质量修复，风险积累","score":30}]}}'::jsonb, '{}'::jsonb, true
+FROM public.test_suites s WHERE s.slug = 's02_ros_male'
+ON CONFLICT (suite_id, external_question_id) DO UPDATE SET
+  display_order = EXCLUDED.display_order,
+  dimension_code = EXCLUDED.dimension_code,
+  question_type = EXCLUDED.question_type,
+  weight = EXCLUDED.weight,
+  direction = EXCLUDED.direction,
+  question_text = EXCLUDED.question_text,
+  question_payload = EXCLUDED.question_payload,
+  scoring_payload = EXCLUDED.scoring_payload,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)
+SELECT s.id, 'IN-M-14', 16, 'IN', 'binary', 1.5, 'positive', '她的情绪状态，对你的情绪影响大吗？', '{"options":[{"key":"left","text":"不太大，我能把自己的状态和她的情绪分开","sub":"情绪独立性强","score":80},{"key":"right","text":"比较大，她不高兴我就很难放松","sub":"情绪联动，有一定消耗","score":45}],"source_question":{"id":"IN-M-14","order":14,"layer":"IN","weight":1.5,"type":"binary","direction":"positive","text":"她的情绪状态，对你的情绪影响大吗？","options":[{"key":"left","text":"不太大，我能把自己的状态和她的情绪分开","sub":"情绪独立性强","score":80},{"key":"right","text":"比较大，她不高兴我就很难放松","sub":"情绪联动，有一定消耗","score":45}]}}'::jsonb, '{}'::jsonb, true
+FROM public.test_suites s WHERE s.slug = 's02_ros_male'
+ON CONFLICT (suite_id, external_question_id) DO UPDATE SET
+  display_order = EXCLUDED.display_order,
+  dimension_code = EXCLUDED.dimension_code,
+  question_type = EXCLUDED.question_type,
+  weight = EXCLUDED.weight,
+  direction = EXCLUDED.direction,
+  question_text = EXCLUDED.question_text,
+  question_payload = EXCLUDED.question_payload,
+  scoring_payload = EXCLUDED.scoring_payload,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)
+SELECT s.id, 'IN-M-15', 17, 'IN', 'scenario', 1.5, 'positive', '她今天情绪不好，发了很多消息跟你抱怨。你的感受是？', '{"scene":"接收对方情绪倾诉的感受","options":[{"key":"A","text":"愿意听，这是她信任我的方式","sub":"高情感接收，低消耗","score":85},{"key":"B","text":"愿意陪，但有时候不知道怎么回应","sub":"意愿有，能力有限","score":65},{"key":"C","text":"有点烦，但不会说出来","sub":"有消耗，压抑反应","score":40},{"key":"D","text":"直接感到很累，不太想处理这些","sub":"高消耗，情感承接弱","score":25}],"source_question":{"id":"IN-M-15","order":15,"layer":"IN","weight":1.5,"type":"scenario","direction":"positive","text":"她今天情绪不好，发了很多消息跟你抱怨。你的感受是？","scene":"接收对方情绪倾诉的感受","options":[{"key":"A","text":"愿意听，这是她信任我的方式","sub":"高情感接收，低消耗","score":85},{"key":"B","text":"愿意陪，但有时候不知道怎么回应","sub":"意愿有，能力有限","score":65},{"key":"C","text":"有点烦，但不会说出来","sub":"有消耗，压抑反应","score":40},{"key":"D","text":"直接感到很累，不太想处理这些","sub":"高消耗，情感承接弱","score":25}]}}'::jsonb, '{}'::jsonb, true
+FROM public.test_suites s WHERE s.slug = 's02_ros_male'
+ON CONFLICT (suite_id, external_question_id) DO UPDATE SET
+  display_order = EXCLUDED.display_order,
+  dimension_code = EXCLUDED.dimension_code,
+  question_type = EXCLUDED.question_type,
+  weight = EXCLUDED.weight,
+  direction = EXCLUDED.direction,
+  question_text = EXCLUDED.question_text,
+  question_payload = EXCLUDED.question_payload,
+  scoring_payload = EXCLUDED.scoring_payload,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)
+SELECT s.id, 'IN-M-16', 18, 'IN', 'scale', 1.5, 'positive', '跟她在一起，我大多数时候感觉是充电，而不是放电。', '{"scale":{"min":1,"max":5,"min_label":"完全不符合，更多是消耗","max_label":"完全符合，跟她在一起让我恢复状态"},"source_question":{"id":"IN-M-16","order":16,"layer":"IN","weight":1.5,"type":"scale","direction":"positive","text":"跟她在一起，我大多数时候感觉是充电，而不是放电。","scale":{"min":1,"max":5,"min_label":"完全不符合，更多是消耗","max_label":"完全符合，跟她在一起让我恢复状态"},"scoring":{"method":"direct_times_20"}}}'::jsonb, '{"method":"direct_times_20"}'::jsonb, true
+FROM public.test_suites s WHERE s.slug = 's02_ros_male'
+ON CONFLICT (suite_id, external_question_id) DO UPDATE SET
+  display_order = EXCLUDED.display_order,
+  dimension_code = EXCLUDED.dimension_code,
+  question_type = EXCLUDED.question_type,
+  weight = EXCLUDED.weight,
+  direction = EXCLUDED.direction,
+  question_text = EXCLUDED.question_text,
+  question_payload = EXCLUDED.question_payload,
+  scoring_payload = EXCLUDED.scoring_payload,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)
+SELECT s.id, 'IN-M-17', 19, 'IN', 'mood', 1.3, 'positive', '你们最近一次发生矛盾，事后你的感受是？', '{"options":[{"key":"A","icon":"ti-mood-happy","text":"说清楚了，感觉反而更踏实了","score":90},{"key":"B","icon":"ti-mood-smile","text":"和好了，没有太多残留","score":70},{"key":"C","icon":"ti-mood-confuzed","text":"和好了，但问题好像没真正解决","score":55},{"key":"D","icon":"ti-mood-sad","text":"有点累，不确定下次还会不会这样","score":45},{"key":"E","icon":"ti-mood-empty","text":"已经习惯了，不太有感觉","score":35},{"key":"F","icon":"ti-mood-angry","text":"还有一些情绪没有消化","score":40},{"key":"G","icon":"ti-mood-nervous","text":"担心她还在介意","score":55},{"key":"H","icon":"ti-mood-tongue","text":"我们很少有真正的矛盾","score":75}],"source_question":{"id":"IN-M-17","order":17,"layer":"IN","weight":1.3,"type":"mood","direction":"positive","text":"你们最近一次发生矛盾，事后你的感受是？","options":[{"key":"A","icon":"ti-mood-happy","text":"说清楚了，感觉反而更踏实了","score":90},{"key":"B","icon":"ti-mood-smile","text":"和好了，没有太多残留","score":70},{"key":"C","icon":"ti-mood-confuzed","text":"和好了，但问题好像没真正解决","score":55},{"key":"D","icon":"ti-mood-sad","text":"有点累，不确定下次还会不会这样","score":45},{"key":"E","icon":"ti-mood-empty","text":"已经习惯了，不太有感觉","score":35},{"key":"F","icon":"ti-mood-angry","text":"还有一些情绪没有消化","score":40},{"key":"G","icon":"ti-mood-nervous","text":"担心她还在介意","score":55},{"key":"H","icon":"ti-mood-tongue","text":"我们很少有真正的矛盾","score":75}]}}'::jsonb, '{}'::jsonb, true
+FROM public.test_suites s WHERE s.slug = 's02_ros_male'
+ON CONFLICT (suite_id, external_question_id) DO UPDATE SET
+  display_order = EXCLUDED.display_order,
+  dimension_code = EXCLUDED.dimension_code,
+  question_type = EXCLUDED.question_type,
+  weight = EXCLUDED.weight,
+  direction = EXCLUDED.direction,
+  question_text = EXCLUDED.question_text,
+  question_payload = EXCLUDED.question_payload,
+  scoring_payload = EXCLUDED.scoring_payload,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)
+SELECT s.id, 'IN-M-18', 20, 'IN', 'scenario', 1.3, 'positive', '你有件事想跟她说，但不是什么大事。你会主动说吗？', '{"scene":"日常分享的主动性","options":[{"key":"A","text":"会，我们之间什么都可以说","sub":"高开放度，联结感强","score":85},{"key":"B","text":"看情况，重要的说，小事不一定","sub":"选择性沟通","score":70},{"key":"C","text":"不太确定她感不感兴趣，有时候就不说了","sub":"分享欲被抑制","score":45},{"key":"D","text":"我不太习惯主动分享，各自的事各自处理","sub":"低联结感","score":40}],"source_question":{"id":"IN-M-18","order":18,"layer":"IN","weight":1.3,"type":"scenario","direction":"positive","text":"你有件事想跟她说，但不是什么大事。你会主动说吗？","scene":"日常分享的主动性","options":[{"key":"A","text":"会，我们之间什么都可以说","sub":"高开放度，联结感强","score":85},{"key":"B","text":"看情况，重要的说，小事不一定","sub":"选择性沟通","score":70},{"key":"C","text":"不太确定她感不感兴趣，有时候就不说了","sub":"分享欲被抑制","score":45},{"key":"D","text":"我不太习惯主动分享，各自的事各自处理","sub":"低联结感","score":40}]}}'::jsonb, '{}'::jsonb, true
+FROM public.test_suites s WHERE s.slug = 's02_ros_male'
+ON CONFLICT (suite_id, external_question_id) DO UPDATE SET
+  display_order = EXCLUDED.display_order,
+  dimension_code = EXCLUDED.dimension_code,
+  question_type = EXCLUDED.question_type,
+  weight = EXCLUDED.weight,
+  direction = EXCLUDED.direction,
+  question_text = EXCLUDED.question_text,
+  question_payload = EXCLUDED.question_payload,
+  scoring_payload = EXCLUDED.scoring_payload,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)
+SELECT s.id, 'IN-M-19', 21, 'IN', 'binary', 1.3, 'positive', '你们之间有话说吗？两个人坐在一起，不会冷场？', '{"options":[{"key":"left","text":"有，聊什么都能聊，不需要找话题","sub":"高话题密度，联结感强","score":85},{"key":"right","text":"有时候会不知道说什么，需要找话题","sub":"联结感有待加深","score":50}],"source_question":{"id":"IN-M-19","order":19,"layer":"IN","weight":1.3,"type":"binary","direction":"positive","text":"你们之间有话说吗？两个人坐在一起，不会冷场？","options":[{"key":"left","text":"有，聊什么都能聊，不需要找话题","sub":"高话题密度，联结感强","score":85},{"key":"right","text":"有时候会不知道说什么，需要找话题","sub":"联结感有待加深","score":50}]}}'::jsonb, '{}'::jsonb, true
+FROM public.test_suites s WHERE s.slug = 's02_ros_male'
+ON CONFLICT (suite_id, external_question_id) DO UPDATE SET
+  display_order = EXCLUDED.display_order,
+  dimension_code = EXCLUDED.dimension_code,
+  question_type = EXCLUDED.question_type,
+  weight = EXCLUDED.weight,
+  direction = EXCLUDED.direction,
+  question_text = EXCLUDED.question_text,
+  question_payload = EXCLUDED.question_payload,
+  scoring_payload = EXCLUDED.scoring_payload,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)
+SELECT s.id, 'IN-M-20', 22, 'IN', 'choice', 1.5, 'positive', '她说话算数吗？答应你的事，她做到的概率是？', '{"options":[{"key":"A","text":"很高，她说了基本上会做到","sub":"高可靠度","score":85},{"key":"B","text":"一般，大事会做到，小事有时候忘了","sub":"中等","score":65},{"key":"C","text":"不太稳定，经常有变化","sub":"低可靠度","score":40},{"key":"D","text":"我没有太在意这个，也很少对她有期待","sub":"期待值已经很低","score":25}],"source_question":{"id":"IN-M-20","order":20,"layer":"IN","weight":1.5,"type":"choice","direction":"positive","text":"她说话算数吗？答应你的事，她做到的概率是？","options":[{"key":"A","text":"很高，她说了基本上会做到","sub":"高可靠度","score":85},{"key":"B","text":"一般，大事会做到，小事有时候忘了","sub":"中等","score":65},{"key":"C","text":"不太稳定，经常有变化","sub":"低可靠度","score":40},{"key":"D","text":"我没有太在意这个，也很少对她有期待","sub":"期待值已经很低","score":25}]}}'::jsonb, '{}'::jsonb, true
+FROM public.test_suites s WHERE s.slug = 's02_ros_male'
+ON CONFLICT (suite_id, external_question_id) DO UPDATE SET
+  display_order = EXCLUDED.display_order,
+  dimension_code = EXCLUDED.dimension_code,
+  question_type = EXCLUDED.question_type,
+  weight = EXCLUDED.weight,
+  direction = EXCLUDED.direction,
+  question_text = EXCLUDED.question_text,
+  question_payload = EXCLUDED.question_payload,
+  scoring_payload = EXCLUDED.scoring_payload,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)
+SELECT s.id, 'IN-M-21', 23, 'IN', 'slider', 1.5, 'positive', '在你们的关系里，你感觉自己被她真正理解的程度是多少？', '{"slider":{"min":0,"max":100,"min_label":"她不太了解真正的我","max_label":"她是少数真正懂我的人之一","feedback":[{"range":[0,25],"text":"你在这段关系里有一种孤独感"},{"range":[26,45],"text":"被了解的部分有限，很多东西她不知道"},{"range":[46,65],"text":"她了解你的一部分，还有一部分没打开"},{"range":[66,85],"text":"她真的懂你的很多，这很珍贵"},{"range":[86,100],"text":"你在她这里有一种被真正看见的感觉"}]},"source_question":{"id":"IN-M-21","order":21,"layer":"IN","weight":1.5,"type":"slider","direction":"positive","text":"在你们的关系里，你感觉自己被她真正理解的程度是多少？","slider":{"min":0,"max":100,"min_label":"她不太了解真正的我","max_label":"她是少数真正懂我的人之一","feedback":[{"range":[0,25],"text":"你在这段关系里有一种孤独感"},{"range":[26,45],"text":"被了解的部分有限，很多东西她不知道"},{"range":[46,65],"text":"她了解你的一部分，还有一部分没打开"},{"range":[66,85],"text":"她真的懂你的很多，这很珍贵"},{"range":[86,100],"text":"你在她这里有一种被真正看见的感觉"}]},"scoring":{"method":"direct"}}}'::jsonb, '{"method":"direct"}'::jsonb, true
+FROM public.test_suites s WHERE s.slug = 's02_ros_male'
+ON CONFLICT (suite_id, external_question_id) DO UPDATE SET
+  display_order = EXCLUDED.display_order,
+  dimension_code = EXCLUDED.dimension_code,
+  question_type = EXCLUDED.question_type,
+  weight = EXCLUDED.weight,
+  direction = EXCLUDED.direction,
+  question_text = EXCLUDED.question_text,
+  question_payload = EXCLUDED.question_payload,
+  scoring_payload = EXCLUDED.scoring_payload,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)
+SELECT s.id, 'IN-M-22', 24, 'IN', 'scenario', 1.5, 'positive', '你们有一件事意见不一样，都觉得自己是对的。通常最后是怎么解决的？', '{"scene":"分歧解决方式","options":[{"key":"A","text":"真的把各自的想法摆出来，找到双方能接受的方式","sub":"高质量冲突解决","score":90},{"key":"B","text":"其中一个人让步了，虽然不完全认同","sub":"让步式解决","score":60},{"key":"C","text":"搁置了，不了了之","sub":"回避型解决","score":45},{"key":"D","text":"争到最后变成情绪问题","sub":"冲突升级","score":25}],"source_question":{"id":"IN-M-22","order":22,"layer":"IN","weight":1.5,"type":"scenario","direction":"positive","text":"你们有一件事意见不一样，都觉得自己是对的。通常最后是怎么解决的？","scene":"分歧解决方式","options":[{"key":"A","text":"真的把各自的想法摆出来，找到双方能接受的方式","sub":"高质量冲突解决","score":90},{"key":"B","text":"其中一个人让步了，虽然不完全认同","sub":"让步式解决","score":60},{"key":"C","text":"搁置了，不了了之","sub":"回避型解决","score":45},{"key":"D","text":"争到最后变成情绪问题","sub":"冲突升级","score":25}]}}'::jsonb, '{}'::jsonb, true
+FROM public.test_suites s WHERE s.slug = 's02_ros_male'
+ON CONFLICT (suite_id, external_question_id) DO UPDATE SET
+  display_order = EXCLUDED.display_order,
+  dimension_code = EXCLUDED.dimension_code,
+  question_type = EXCLUDED.question_type,
+  weight = EXCLUDED.weight,
+  direction = EXCLUDED.direction,
+  question_text = EXCLUDED.question_text,
+  question_payload = EXCLUDED.question_payload,
+  scoring_payload = EXCLUDED.scoring_payload,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)
+SELECT s.id, 'IN-M-23', 25, 'IN', 'scale', 1.3, 'positive', '我们有了矛盾之后，会真正解决，不会让问题一直悬着。', '{"alt_text_secret_crush":"当我们有误会，我们能很快把它说清楚。","scale":{"min":1,"max":5,"min_label":"完全不符合","max_label":"完全符合"},"source_question":{"id":"IN-M-23","order":23,"layer":"IN","weight":1.3,"type":"scale","direction":"positive","text":"我们有了矛盾之后，会真正解决，不会让问题一直悬着。","alt_text_secret_crush":"当我们有误会，我们能很快把它说清楚。","scale":{"min":1,"max":5,"min_label":"完全不符合","max_label":"完全符合"},"scoring":{"method":"direct_times_20"}}}'::jsonb, '{"method":"direct_times_20"}'::jsonb, true
+FROM public.test_suites s WHERE s.slug = 's02_ros_male'
+ON CONFLICT (suite_id, external_question_id) DO UPDATE SET
+  display_order = EXCLUDED.display_order,
+  dimension_code = EXCLUDED.dimension_code,
+  question_type = EXCLUDED.question_type,
+  weight = EXCLUDED.weight,
+  direction = EXCLUDED.direction,
+  question_text = EXCLUDED.question_text,
+  question_payload = EXCLUDED.question_payload,
+  scoring_payload = EXCLUDED.scoring_payload,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)
+SELECT s.id, 'IN-M-24', 26, 'IN', 'card', 1.2, 'positive', '你们相处的日常，最接近哪张？', '{"options":[{"key":"A","text":"有很多话说，什么都能聊","sub":"高话题密度","score":80},{"key":"B","text":"不需要一直说话，待在一起就很舒服","sub":"高舒适度","score":85},{"key":"C","text":"有时候会不知道聊什么","sub":"联结感有待加深","score":50},{"key":"D","text":"各做各的，交集不多","sub":"平行状态","score":35}],"source_question":{"id":"IN-M-24","order":24,"layer":"IN","weight":1.2,"type":"card","direction":"positive","text":"你们相处的日常，最接近哪张？","options":[{"key":"A","text":"有很多话说，什么都能聊","sub":"高话题密度","score":80},{"key":"B","text":"不需要一直说话，待在一起就很舒服","sub":"高舒适度","score":85},{"key":"C","text":"有时候会不知道聊什么","sub":"联结感有待加深","score":50},{"key":"D","text":"各做各的，交集不多","sub":"平行状态","score":35}]}}'::jsonb, '{}'::jsonb, true
+FROM public.test_suites s WHERE s.slug = 's02_ros_male'
+ON CONFLICT (suite_id, external_question_id) DO UPDATE SET
+  display_order = EXCLUDED.display_order,
+  dimension_code = EXCLUDED.dimension_code,
+  question_type = EXCLUDED.question_type,
+  weight = EXCLUDED.weight,
+  direction = EXCLUDED.direction,
+  question_text = EXCLUDED.question_text,
+  question_payload = EXCLUDED.question_payload,
+  scoring_payload = EXCLUDED.scoring_payload,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)
+SELECT s.id, 'IN-M-25', 27, 'IN', 'binary', 1.5, 'positive', '你需要她，她出现了吗？', '{"options":[{"key":"left","text":"出现了，而且做到了我需要的","sub":"高情感在场","score":85},{"key":"right","text":"有时候出现，有时候顾不上，不太稳定","sub":"情感在场不稳定","score":40}],"source_question":{"id":"IN-M-25","order":25,"layer":"IN","weight":1.5,"type":"binary","direction":"positive","text":"你需要她，她出现了吗？","options":[{"key":"left","text":"出现了，而且做到了我需要的","sub":"高情感在场","score":85},{"key":"right","text":"有时候出现，有时候顾不上，不太稳定","sub":"情感在场不稳定","score":40}]}}'::jsonb, '{}'::jsonb, true
+FROM public.test_suites s WHERE s.slug = 's02_ros_male'
+ON CONFLICT (suite_id, external_question_id) DO UPDATE SET
+  display_order = EXCLUDED.display_order,
+  dimension_code = EXCLUDED.dimension_code,
+  question_type = EXCLUDED.question_type,
+  weight = EXCLUDED.weight,
+  direction = EXCLUDED.direction,
+  question_text = EXCLUDED.question_text,
+  question_payload = EXCLUDED.question_payload,
+  scoring_payload = EXCLUDED.scoring_payload,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)
+SELECT s.id, 'IN-M-26', 28, 'IN', 'scenario', 1.5, 'positive', '你工作上压力很大，状态不好。她有没有感觉到，她怎么做的？', '{"scene":"压力状态下对方的支持方式","options":[{"key":"A","text":"感觉到了，没有给我额外的压力，给了我空间","sub":"高情感智识","score":90},{"key":"B","text":"感觉到了，主动问我，想帮忙","sub":"关心型，出发点好","score":70},{"key":"C","text":"没太感觉到，照常","sub":"情感感知弱","score":45},{"key":"D","text":"感觉到了，但反而更需要我陪她","sub":"情感需求不对等，增加消耗","score":25}],"source_question":{"id":"IN-M-26","order":26,"layer":"IN","weight":1.5,"type":"scenario","direction":"positive","text":"你工作上压力很大，状态不好。她有没有感觉到，她怎么做的？","scene":"压力状态下对方的支持方式","options":[{"key":"A","text":"感觉到了，没有给我额外的压力，给了我空间","sub":"高情感智识","score":90},{"key":"B","text":"感觉到了，主动问我，想帮忙","sub":"关心型，出发点好","score":70},{"key":"C","text":"没太感觉到，照常","sub":"情感感知弱","score":45},{"key":"D","text":"感觉到了，但反而更需要我陪她","sub":"情感需求不对等，增加消耗","score":25}]}}'::jsonb, '{}'::jsonb, true
+FROM public.test_suites s WHERE s.slug = 's02_ros_male'
+ON CONFLICT (suite_id, external_question_id) DO UPDATE SET
+  display_order = EXCLUDED.display_order,
+  dimension_code = EXCLUDED.dimension_code,
+  question_type = EXCLUDED.question_type,
+  weight = EXCLUDED.weight,
+  direction = EXCLUDED.direction,
+  question_text = EXCLUDED.question_text,
+  question_payload = EXCLUDED.question_payload,
+  scoring_payload = EXCLUDED.scoring_payload,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)
+SELECT s.id, 'CO-M-27', 29, 'CO', 'scenario', 1.5, 'positive', '你们谈到了未来——住在哪里、要不要孩子、怎么分工。你们的方向是？', '{"alt_text_secret_crush":"从你对她的了解，你们对未来生活的设想大概一致吗？","scene":"未来规划的一致性","options":[{"key":"A","text":"基本一致，细节可以商量","sub":"高兼容性","score":90},{"key":"B","text":"有些不同，但都愿意妥协","sub":"中等，有弹性","score":70},{"key":"C","text":"有一个比较核心的分歧，暂时搁置着","sub":"潜在风险","score":45},{"key":"D","text":"没有认真谈过，或者谈了发现差很多","sub":"低兼容性或未探索","score":30}],"source_question":{"id":"CO-M-27","order":27,"layer":"CO","weight":1.5,"type":"scenario","direction":"positive","text":"你们谈到了未来——住在哪里、要不要孩子、怎么分工。你们的方向是？","alt_text_secret_crush":"从你对她的了解，你们对未来生活的设想大概一致吗？","scene":"未来规划的一致性","options":[{"key":"A","text":"基本一致，细节可以商量","sub":"高兼容性","score":90},{"key":"B","text":"有些不同，但都愿意妥协","sub":"中等，有弹性","score":70},{"key":"C","text":"有一个比较核心的分歧，暂时搁置着","sub":"潜在风险","score":45},{"key":"D","text":"没有认真谈过，或者谈了发现差很多","sub":"低兼容性或未探索","score":30}]}}'::jsonb, '{}'::jsonb, true
+FROM public.test_suites s WHERE s.slug = 's02_ros_male'
+ON CONFLICT (suite_id, external_question_id) DO UPDATE SET
+  display_order = EXCLUDED.display_order,
+  dimension_code = EXCLUDED.dimension_code,
+  question_type = EXCLUDED.question_type,
+  weight = EXCLUDED.weight,
+  direction = EXCLUDED.direction,
+  question_text = EXCLUDED.question_text,
+  question_payload = EXCLUDED.question_payload,
+  scoring_payload = EXCLUDED.scoring_payload,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)
+SELECT s.id, 'CO-M-28', 30, 'CO', 'binary', 1.3, 'positive', '她的生活节奏和习惯，跟你合得来吗？', '{"options":[{"key":"left","text":"合得来，不需要特别迁就","sub":"高生活兼容性","score":85},{"key":"right","text":"有差异，需要双方调整","sub":"需要磨合","score":55}],"source_question":{"id":"CO-M-28","order":28,"layer":"CO","weight":1.3,"type":"binary","direction":"positive","text":"她的生活节奏和习惯，跟你合得来吗？","options":[{"key":"left","text":"合得来，不需要特别迁就","sub":"高生活兼容性","score":85},{"key":"right","text":"有差异，需要双方调整","sub":"需要磨合","score":55}]}}'::jsonb, '{}'::jsonb, true
+FROM public.test_suites s WHERE s.slug = 's02_ros_male'
+ON CONFLICT (suite_id, external_question_id) DO UPDATE SET
+  display_order = EXCLUDED.display_order,
+  dimension_code = EXCLUDED.dimension_code,
+  question_type = EXCLUDED.question_type,
+  weight = EXCLUDED.weight,
+  direction = EXCLUDED.direction,
+  question_text = EXCLUDED.question_text,
+  question_payload = EXCLUDED.question_payload,
+  scoring_payload = EXCLUDED.scoring_payload,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)
+SELECT s.id, 'CO-M-29', 31, 'CO', 'choice', 1.5, 'positive', '她对你的工作和事业，是什么态度？', '{"options":[{"key":"A","text":"真心支持，会为我的成就高兴，不会因为我忙而给压力","sub":"高支持度，低阻力","score":90},{"key":"B","text":"支持，但有时候会因为我忙感到不满","sub":"中等，有潜在摩擦","score":65},{"key":"C","text":"态度一般，不太在意我的事业","sub":"关注度低","score":50},{"key":"D","text":"有时候会因为工作相关的事产生矛盾","sub":"事业观不兼容","score":30}],"source_question":{"id":"CO-M-29","order":29,"layer":"CO","weight":1.5,"type":"choice","direction":"positive","text":"她对你的工作和事业，是什么态度？","options":[{"key":"A","text":"真心支持，会为我的成就高兴，不会因为我忙而给压力","sub":"高支持度，低阻力","score":90},{"key":"B","text":"支持，但有时候会因为我忙感到不满","sub":"中等，有潜在摩擦","score":65},{"key":"C","text":"态度一般，不太在意我的事业","sub":"关注度低","score":50},{"key":"D","text":"有时候会因为工作相关的事产生矛盾","sub":"事业观不兼容","score":30}]}}'::jsonb, '{}'::jsonb, true
+FROM public.test_suites s WHERE s.slug = 's02_ros_male'
+ON CONFLICT (suite_id, external_question_id) DO UPDATE SET
+  display_order = EXCLUDED.display_order,
+  dimension_code = EXCLUDED.dimension_code,
+  question_type = EXCLUDED.question_type,
+  weight = EXCLUDED.weight,
+  direction = EXCLUDED.direction,
+  question_text = EXCLUDED.question_text,
+  question_payload = EXCLUDED.question_payload,
+  scoring_payload = EXCLUDED.scoring_payload,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)
+SELECT s.id, 'CO-M-30', 32, 'CO', 'slider', 1.5, 'positive', '你们在核心价值观上——对家庭、工作、生活方式的看法——有多一致？', '{"slider":{"min":0,"max":100,"min_label":"差异很大，经常感觉不是一路人","max_label":"高度一致，很少在这些事上有分歧","feedback":[{"range":[0,25],"text":"有一些根本性的差距，需要认真对待"},{"range":[26,45],"text":"有重要的分歧，但还没到无法共存的程度"},{"range":[46,65],"text":"大方向一致，细节有差异"},{"range":[66,85],"text":"你们底层逻辑相近，是同一类人"},{"range":[86,100],"text":"在很多根本性的问题上高度一致，这很难得"}]},"source_question":{"id":"CO-M-30","order":30,"layer":"CO","weight":1.5,"type":"slider","direction":"positive","text":"你们在核心价值观上——对家庭、工作、生活方式的看法——有多一致？","slider":{"min":0,"max":100,"min_label":"差异很大，经常感觉不是一路人","max_label":"高度一致，很少在这些事上有分歧","feedback":[{"range":[0,25],"text":"有一些根本性的差距，需要认真对待"},{"range":[26,45],"text":"有重要的分歧，但还没到无法共存的程度"},{"range":[46,65],"text":"大方向一致，细节有差异"},{"range":[66,85],"text":"你们底层逻辑相近，是同一类人"},{"range":[86,100],"text":"在很多根本性的问题上高度一致，这很难得"}]},"scoring":{"method":"direct"}}}'::jsonb, '{"method":"direct"}'::jsonb, true
+FROM public.test_suites s WHERE s.slug = 's02_ros_male'
+ON CONFLICT (suite_id, external_question_id) DO UPDATE SET
+  display_order = EXCLUDED.display_order,
+  dimension_code = EXCLUDED.dimension_code,
+  question_type = EXCLUDED.question_type,
+  weight = EXCLUDED.weight,
+  direction = EXCLUDED.direction,
+  question_text = EXCLUDED.question_text,
+  question_payload = EXCLUDED.question_payload,
+  scoring_payload = EXCLUDED.scoring_payload,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)
+SELECT s.id, 'CO-M-31', 33, 'CO', 'scale', 1.5, 'positive', '我觉得她是一个跟我能走很远的人，不只是现在合适。', '{"alt_text_secret_crush":"从我对她的了解，我觉得她是一个跟我能走很远的人。","scale":{"min":1,"max":5,"min_label":"完全不符合","max_label":"完全符合"},"source_question":{"id":"CO-M-31","order":31,"layer":"CO","weight":1.5,"type":"scale","direction":"positive","text":"我觉得她是一个跟我能走很远的人，不只是现在合适。","alt_text_secret_crush":"从我对她的了解，我觉得她是一个跟我能走很远的人。","scale":{"min":1,"max":5,"min_label":"完全不符合","max_label":"完全符合"},"scoring":{"method":"direct_times_20"}}}'::jsonb, '{"method":"direct_times_20"}'::jsonb, true
+FROM public.test_suites s WHERE s.slug = 's02_ros_male'
+ON CONFLICT (suite_id, external_question_id) DO UPDATE SET
+  display_order = EXCLUDED.display_order,
+  dimension_code = EXCLUDED.dimension_code,
+  question_type = EXCLUDED.question_type,
+  weight = EXCLUDED.weight,
+  direction = EXCLUDED.direction,
+  question_text = EXCLUDED.question_text,
+  question_payload = EXCLUDED.question_payload,
+  scoring_payload = EXCLUDED.scoring_payload,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)
+SELECT s.id, 'CO-M-32', 34, 'CO', 'scenario', 1.3, 'positive', '你们各自的家庭对这段关系的态度，大概是什么情况？', '{"skip_for":["secret_crush"],"scene":"家庭外部支持情况","options":[{"key":"A","text":"双方家庭都支持，没有外部压力","sub":"低风险，强支撑","score":90},{"key":"B","text":"一边支持，一边有些保留","sub":"中等，有潜在压力","score":65},{"key":"C","text":"双方家庭都有一些不同意见","sub":"中高风险","score":45},{"key":"D","text":"家庭因素是我们关系里一个比较大的挑战","sub":"高风险","score":25}],"source_question":{"id":"CO-M-32","order":32,"layer":"CO","weight":1.3,"type":"scenario","direction":"positive","text":"你们各自的家庭对这段关系的态度，大概是什么情况？","skip_for":["secret_crush"],"scene":"家庭外部支持情况","options":[{"key":"A","text":"双方家庭都支持，没有外部压力","sub":"低风险，强支撑","score":90},{"key":"B","text":"一边支持，一边有些保留","sub":"中等，有潜在压力","score":65},{"key":"C","text":"双方家庭都有一些不同意见","sub":"中高风险","score":45},{"key":"D","text":"家庭因素是我们关系里一个比较大的挑战","sub":"高风险","score":25}]}}'::jsonb, '{}'::jsonb, true
+FROM public.test_suites s WHERE s.slug = 's02_ros_male'
+ON CONFLICT (suite_id, external_question_id) DO UPDATE SET
+  display_order = EXCLUDED.display_order,
+  dimension_code = EXCLUDED.dimension_code,
+  question_type = EXCLUDED.question_type,
+  weight = EXCLUDED.weight,
+  direction = EXCLUDED.direction,
+  question_text = EXCLUDED.question_text,
+  question_payload = EXCLUDED.question_payload,
+  scoring_payload = EXCLUDED.scoring_payload,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)
+SELECT s.id, 'CO-M-33', 35, 'CO', 'binary', 1.5, 'positive', '她对你需要的个人空间，理解吗？', '{"options":[{"key":"left","text":"理解，她不会因为我需要一个人待着而有意见","sub":"高空间兼容","score":85},{"key":"right","text":"有时候不理解，我需要空间时会有摩擦","sub":"空间需求不对等","score":40}],"source_question":{"id":"CO-M-33","order":33,"layer":"CO","weight":1.5,"type":"binary","direction":"positive","text":"她对你需要的个人空间，理解吗？","options":[{"key":"left","text":"理解，她不会因为我需要一个人待着而有意见","sub":"高空间兼容","score":85},{"key":"right","text":"有时候不理解，我需要空间时会有摩擦","sub":"空间需求不对等","score":40}]}}'::jsonb, '{}'::jsonb, true
+FROM public.test_suites s WHERE s.slug = 's02_ros_male'
+ON CONFLICT (suite_id, external_question_id) DO UPDATE SET
+  display_order = EXCLUDED.display_order,
+  dimension_code = EXCLUDED.dimension_code,
+  question_type = EXCLUDED.question_type,
+  weight = EXCLUDED.weight,
+  direction = EXCLUDED.direction,
+  question_text = EXCLUDED.question_text,
+  question_payload = EXCLUDED.question_payload,
+  scoring_payload = EXCLUDED.scoring_payload,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)
+SELECT s.id, 'CO-M-34', 36, 'CO', 'choice', 1.3, 'positive', '你们对钱和消费的态度，大概是？', '{"options":[{"key":"A","text":"很接近，不会在这件事上有摩擦","sub":"高兼容","score":85},{"key":"B","text":"有差异，但互相理解，不影响关系","sub":"中等","score":70},{"key":"C","text":"有一些摩擦，还在可以接受的范围","sub":"中低，潜在压力","score":50},{"key":"D","text":"差距比较大，这是关系里的一个压力来源","sub":"低兼容，显性风险","score":25}],"source_question":{"id":"CO-M-34","order":34,"layer":"CO","weight":1.3,"type":"choice","direction":"positive","text":"你们对钱和消费的态度，大概是？","options":[{"key":"A","text":"很接近，不会在这件事上有摩擦","sub":"高兼容","score":85},{"key":"B","text":"有差异，但互相理解，不影响关系","sub":"中等","score":70},{"key":"C","text":"有一些摩擦，还在可以接受的范围","sub":"中低，潜在压力","score":50},{"key":"D","text":"差距比较大，这是关系里的一个压力来源","sub":"低兼容，显性风险","score":25}]}}'::jsonb, '{}'::jsonb, true
+FROM public.test_suites s WHERE s.slug = 's02_ros_male'
+ON CONFLICT (suite_id, external_question_id) DO UPDATE SET
+  display_order = EXCLUDED.display_order,
+  dimension_code = EXCLUDED.dimension_code,
+  question_type = EXCLUDED.question_type,
+  weight = EXCLUDED.weight,
+  direction = EXCLUDED.direction,
+  question_text = EXCLUDED.question_text,
+  question_payload = EXCLUDED.question_payload,
+  scoring_payload = EXCLUDED.scoring_payload,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)
+SELECT s.id, 'CO-M-35', 37, 'CO', 'scale', 1.5, 'positive', '我们对「这段关系会走向哪里」有相似的期待，不需要靠猜测来确认。', '{"scale":{"min":1,"max":5,"min_label":"完全不符合","max_label":"完全符合"},"source_question":{"id":"CO-M-35","order":35,"layer":"CO","weight":1.5,"type":"scale","direction":"positive","text":"我们对「这段关系会走向哪里」有相似的期待，不需要靠猜测来确认。","scale":{"min":1,"max":5,"min_label":"完全不符合","max_label":"完全符合"},"scoring":{"method":"direct_times_20"}}}'::jsonb, '{"method":"direct_times_20"}'::jsonb, true
+FROM public.test_suites s WHERE s.slug = 's02_ros_male'
+ON CONFLICT (suite_id, external_question_id) DO UPDATE SET
+  display_order = EXCLUDED.display_order,
+  dimension_code = EXCLUDED.dimension_code,
+  question_type = EXCLUDED.question_type,
+  weight = EXCLUDED.weight,
+  direction = EXCLUDED.direction,
+  question_text = EXCLUDED.question_text,
+  question_payload = EXCLUDED.question_payload,
+  scoring_payload = EXCLUDED.scoring_payload,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)
+SELECT s.id, 'CO-M-36', 38, 'CO', 'scenario', 1.2, 'positive', '你们聊到彼此的朋友圈和社交。她对你的朋友和社交，是什么态度？', '{"scene":"对对方社交圈的尊重程度","options":[{"key":"A","text":"尊重，不干涉，偶尔一起参与","sub":"高兼容，低阻力","score":90},{"key":"B","text":"基本尊重，但有时候会有意见","sub":"轻度干涉","score":65},{"key":"C","text":"她不太了解我的圈子，也不太感兴趣","sub":"低融合度","score":50},{"key":"D","text":"有时候会因为我的社交产生摩擦","sub":"社交兼容性低，有风险","score":30}],"source_question":{"id":"CO-M-36","order":36,"layer":"CO","weight":1.2,"type":"scenario","direction":"positive","text":"你们聊到彼此的朋友圈和社交。她对你的朋友和社交，是什么态度？","scene":"对对方社交圈的尊重程度","options":[{"key":"A","text":"尊重，不干涉，偶尔一起参与","sub":"高兼容，低阻力","score":90},{"key":"B","text":"基本尊重，但有时候会有意见","sub":"轻度干涉","score":65},{"key":"C","text":"她不太了解我的圈子，也不太感兴趣","sub":"低融合度","score":50},{"key":"D","text":"有时候会因为我的社交产生摩擦","sub":"社交兼容性低，有风险","score":30}]}}'::jsonb, '{}'::jsonb, true
+FROM public.test_suites s WHERE s.slug = 's02_ros_male'
+ON CONFLICT (suite_id, external_question_id) DO UPDATE SET
+  display_order = EXCLUDED.display_order,
+  dimension_code = EXCLUDED.dimension_code,
+  question_type = EXCLUDED.question_type,
+  weight = EXCLUDED.weight,
+  direction = EXCLUDED.direction,
+  question_text = EXCLUDED.question_text,
+  question_payload = EXCLUDED.question_payload,
+  scoring_payload = EXCLUDED.scoring_payload,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)
+SELECT s.id, 'CO-M-37', 39, 'CO', 'rank', 1.0, 'auxiliary', '在你们的关系里，哪些事情你们最一致？从最一致到最有分歧排序。', '{"items":[{"id":"a","text":"对未来生活方式的设想"},{"id":"b","text":"对家庭和婚育的看法"},{"id":"c","text":"对钱和消费的态度"},{"id":"d","text":"对彼此需要多少空间的理解"}],"source_question":{"id":"CO-M-37","order":37,"layer":"CO","weight":1.0,"type":"rank","direction":"auxiliary","text":"在你们的关系里，哪些事情你们最一致？从最一致到最有分歧排序。","items":[{"id":"a","text":"对未来生活方式的设想"},{"id":"b","text":"对家庭和婚育的看法"},{"id":"c","text":"对钱和消费的态度"},{"id":"d","text":"对彼此需要多少空间的理解"}],"scoring":{"method":"auxiliary","note":"辅助AI生成个性化建议，识别具体薄弱点"}}}'::jsonb, '{"method":"auxiliary","note":"辅助AI生成个性化建议，识别具体薄弱点"}'::jsonb, true
+FROM public.test_suites s WHERE s.slug = 's02_ros_male'
+ON CONFLICT (suite_id, external_question_id) DO UPDATE SET
+  display_order = EXCLUDED.display_order,
+  dimension_code = EXCLUDED.dimension_code,
+  question_type = EXCLUDED.question_type,
+  weight = EXCLUDED.weight,
+  direction = EXCLUDED.direction,
+  question_text = EXCLUDED.question_text,
+  question_payload = EXCLUDED.question_payload,
+  scoring_payload = EXCLUDED.scoring_payload,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)
+SELECT s.id, 'CO-M-38', 40, 'CO', 'binary', 1.3, 'positive', '从根本上来说，你们是同一类人吗？', '{"options":[{"key":"left","text":"是，底层的很多东西是相似的","sub":"高深层兼容","score":80},{"key":"right","text":"不完全是，有一些根本性的不同","sub":"差异型组合，需要更多努力","score":55}],"source_question":{"id":"CO-M-38","order":38,"layer":"CO","weight":1.3,"type":"binary","direction":"positive","text":"从根本上来说，你们是同一类人吗？","options":[{"key":"left","text":"是，底层的很多东西是相似的","sub":"高深层兼容","score":80},{"key":"right","text":"不完全是，有一些根本性的不同","sub":"差异型组合，需要更多努力","score":55}]}}'::jsonb, '{}'::jsonb, true
+FROM public.test_suites s WHERE s.slug = 's02_ros_male'
+ON CONFLICT (suite_id, external_question_id) DO UPDATE SET
+  display_order = EXCLUDED.display_order,
+  dimension_code = EXCLUDED.dimension_code,
+  question_type = EXCLUDED.question_type,
+  weight = EXCLUDED.weight,
+  direction = EXCLUDED.direction,
+  question_text = EXCLUDED.question_text,
+  question_payload = EXCLUDED.question_payload,
+  scoring_payload = EXCLUDED.scoring_payload,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)
+SELECT s.id, 'EV-M-39', 41, 'EV', 'slider', 1.5, 'positive', '跟她在一起这段时间，你觉得自己有没有在进步？', '{"slider":{"min":0,"max":100,"min_label":"这段关系让我停滞甚至退步了","max_label":"在这段关系里我明显变得更好了","feedback":[{"range":[0,20],"text":"这段关系在消耗你的精力，值得认真看"},{"range":[21,40],"text":"有一些被拖拽的感觉，但也有好的地方"},{"range":[41,60],"text":"平稳，没有特别的成长也没有明显的消耗"},{"range":[61,80],"text":"你在这段关系里是在往前走的"},{"range":[81,100],"text":"这段关系是你生命里真正有助力的关系之一"}]},"source_question":{"id":"EV-M-39","order":39,"layer":"EV","weight":1.5,"type":"slider","direction":"positive","text":"跟她在一起这段时间，你觉得自己有没有在进步？","slider":{"min":0,"max":100,"min_label":"这段关系让我停滞甚至退步了","max_label":"在这段关系里我明显变得更好了","feedback":[{"range":[0,20],"text":"这段关系在消耗你的精力，值得认真看"},{"range":[21,40],"text":"有一些被拖拽的感觉，但也有好的地方"},{"range":[41,60],"text":"平稳，没有特别的成长也没有明显的消耗"},{"range":[61,80],"text":"你在这段关系里是在往前走的"},{"range":[81,100],"text":"这段关系是你生命里真正有助力的关系之一"}]},"scoring":{"method":"direct"}}}'::jsonb, '{"method":"direct"}'::jsonb, true
+FROM public.test_suites s WHERE s.slug = 's02_ros_male'
+ON CONFLICT (suite_id, external_question_id) DO UPDATE SET
+  display_order = EXCLUDED.display_order,
+  dimension_code = EXCLUDED.dimension_code,
+  question_type = EXCLUDED.question_type,
+  weight = EXCLUDED.weight,
+  direction = EXCLUDED.direction,
+  question_text = EXCLUDED.question_text,
+  question_payload = EXCLUDED.question_payload,
+  scoring_payload = EXCLUDED.scoring_payload,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)
+SELECT s.id, 'EV-M-40', 42, 'EV', 'scenario', 1.5, 'positive', '你想象一年后的你们。第一个浮现的画面是？', '{"scene":"对关系未来的直觉预期","options":[{"key":"A","text":"比现在更好，我能清楚地想象我们在一起的样子","sub":"正向预期，关系上升期","score":90},{"key":"B","text":"差不多，继续现在这样","sub":"平台期，稳定但缺少动力","score":60},{"key":"C","text":"有点模糊，不确定","sub":"方向不清","score":45},{"key":"D","text":"很难想象，或者想到就有点担心","sub":"关系走向不乐观","score":25}],"source_question":{"id":"EV-M-40","order":40,"layer":"EV","weight":1.5,"type":"scenario","direction":"positive","text":"你想象一年后的你们。第一个浮现的画面是？","scene":"对关系未来的直觉预期","options":[{"key":"A","text":"比现在更好，我能清楚地想象我们在一起的样子","sub":"正向预期，关系上升期","score":90},{"key":"B","text":"差不多，继续现在这样","sub":"平台期，稳定但缺少动力","score":60},{"key":"C","text":"有点模糊，不确定","sub":"方向不清","score":45},{"key":"D","text":"很难想象，或者想到就有点担心","sub":"关系走向不乐观","score":25}]}}'::jsonb, '{}'::jsonb, true
+FROM public.test_suites s WHERE s.slug = 's02_ros_male'
+ON CONFLICT (suite_id, external_question_id) DO UPDATE SET
+  display_order = EXCLUDED.display_order,
+  dimension_code = EXCLUDED.dimension_code,
+  question_type = EXCLUDED.question_type,
+  weight = EXCLUDED.weight,
+  direction = EXCLUDED.direction,
+  question_text = EXCLUDED.question_text,
+  question_payload = EXCLUDED.question_payload,
+  scoring_payload = EXCLUDED.scoring_payload,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)
+SELECT s.id, 'EV-M-41', 43, 'EV', 'binary', 1.5, 'positive', '这段关系最近的趋势，你感觉是？', '{"options":[{"key":"left","text":"在变好，我们越来越有默契","sub":"上升趋势","score":85},{"key":"right","text":"有些东西在变淡，或者出现了以前没有的问题","sub":"下降或平台趋势","score":40}],"source_question":{"id":"EV-M-41","order":41,"layer":"EV","weight":1.5,"type":"binary","direction":"positive","text":"这段关系最近的趋势，你感觉是？","options":[{"key":"left","text":"在变好，我们越来越有默契","sub":"上升趋势","score":85},{"key":"right","text":"有些东西在变淡，或者出现了以前没有的问题","sub":"下降或平台趋势","score":40}]}}'::jsonb, '{}'::jsonb, true
+FROM public.test_suites s WHERE s.slug = 's02_ros_male'
+ON CONFLICT (suite_id, external_question_id) DO UPDATE SET
+  display_order = EXCLUDED.display_order,
+  dimension_code = EXCLUDED.dimension_code,
+  question_type = EXCLUDED.question_type,
+  weight = EXCLUDED.weight,
+  direction = EXCLUDED.direction,
+  question_text = EXCLUDED.question_text,
+  question_payload = EXCLUDED.question_payload,
+  scoring_payload = EXCLUDED.scoring_payload,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)
+SELECT s.id, 'EV-M-42', 44, 'EV', 'choice', 1.3, 'positive', '这段关系，有没有让你在某些方面改变？', '{"options":[{"key":"A","text":"有，而且是好的改变，我认可这些变化","sub":"正向成长","score":90},{"key":"B","text":"有，但不确定是不是好的","sub":"被动改变，需要审视","score":55},{"key":"C","text":"没有特别，我还是我自己","sub":"关系影响有限","score":65},{"key":"D","text":"有，但感觉失去了一些原来的东西","sub":"自我消融风险","score":30}],"source_question":{"id":"EV-M-42","order":42,"layer":"EV","weight":1.3,"type":"choice","direction":"positive","text":"这段关系，有没有让你在某些方面改变？","options":[{"key":"A","text":"有，而且是好的改变，我认可这些变化","sub":"正向成长","score":90},{"key":"B","text":"有，但不确定是不是好的","sub":"被动改变，需要审视","score":55},{"key":"C","text":"没有特别，我还是我自己","sub":"关系影响有限","score":65},{"key":"D","text":"有，但感觉失去了一些原来的东西","sub":"自我消融风险","score":30}]}}'::jsonb, '{}'::jsonb, true
+FROM public.test_suites s WHERE s.slug = 's02_ros_male'
+ON CONFLICT (suite_id, external_question_id) DO UPDATE SET
+  display_order = EXCLUDED.display_order,
+  dimension_code = EXCLUDED.dimension_code,
+  question_type = EXCLUDED.question_type,
+  weight = EXCLUDED.weight,
+  direction = EXCLUDED.direction,
+  question_text = EXCLUDED.question_text,
+  question_payload = EXCLUDED.question_payload,
+  scoring_payload = EXCLUDED.scoring_payload,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)
+SELECT s.id, 'EV-M-43', 45, 'EV', 'scale', 1.5, 'positive', '我对这段关系的未来有期待，不只是走一步看一步。', '{"scale":{"min":1,"max":5,"min_label":"完全不符合","max_label":"完全符合"},"source_question":{"id":"EV-M-43","order":43,"layer":"EV","weight":1.5,"type":"scale","direction":"positive","text":"我对这段关系的未来有期待，不只是走一步看一步。","scale":{"min":1,"max":5,"min_label":"完全不符合","max_label":"完全符合"},"scoring":{"method":"direct_times_20"}}}'::jsonb, '{"method":"direct_times_20"}'::jsonb, true
+FROM public.test_suites s WHERE s.slug = 's02_ros_male'
+ON CONFLICT (suite_id, external_question_id) DO UPDATE SET
+  display_order = EXCLUDED.display_order,
+  dimension_code = EXCLUDED.dimension_code,
+  question_type = EXCLUDED.question_type,
+  weight = EXCLUDED.weight,
+  direction = EXCLUDED.direction,
+  question_text = EXCLUDED.question_text,
+  question_payload = EXCLUDED.question_payload,
+  scoring_payload = EXCLUDED.scoring_payload,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)
+SELECT s.id, 'EV-M-44', 46, 'EV', 'mood', 1.5, 'positive', '你有没有想过结束这段关系？这个念头出现的频率是？', '{"options":[{"key":"A","icon":"ti-mood-smile","text":"几乎没有，我没有想过","score":90},{"key":"B","icon":"ti-mood-happy","text":"偶尔一闪而过，但很快就消了","score":75},{"key":"C","icon":"ti-mood-confuzed","text":"有时候会想，但不确定自己真的想","score":55},{"key":"D","icon":"ti-mood-sad","text":"认真想过，后来放下了","score":50},{"key":"E","icon":"ti-mood-nervous","text":"最近这个念头出现得比较频繁","score":30},{"key":"F","icon":"ti-mood-empty","text":"想过很多次，但一直没有行动","score":35},{"key":"G","icon":"ti-mood-angry","text":"情绪激动时想过，冷静了就不想了","score":55},{"key":"H","icon":"ti-mood-tongue","text":"这段关系还很新，没想到这一步","score":80}],"source_question":{"id":"EV-M-44","order":44,"layer":"EV","weight":1.5,"type":"mood","direction":"positive","text":"你有没有想过结束这段关系？这个念头出现的频率是？","options":[{"key":"A","icon":"ti-mood-smile","text":"几乎没有，我没有想过","score":90},{"key":"B","icon":"ti-mood-happy","text":"偶尔一闪而过，但很快就消了","score":75},{"key":"C","icon":"ti-mood-confuzed","text":"有时候会想，但不确定自己真的想","score":55},{"key":"D","icon":"ti-mood-sad","text":"认真想过，后来放下了","score":50},{"key":"E","icon":"ti-mood-nervous","text":"最近这个念头出现得比较频繁","score":30},{"key":"F","icon":"ti-mood-empty","text":"想过很多次，但一直没有行动","score":35},{"key":"G","icon":"ti-mood-angry","text":"情绪激动时想过，冷静了就不想了","score":55},{"key":"H","icon":"ti-mood-tongue","text":"这段关系还很新，没想到这一步","score":80}]}}'::jsonb, '{}'::jsonb, true
+FROM public.test_suites s WHERE s.slug = 's02_ros_male'
+ON CONFLICT (suite_id, external_question_id) DO UPDATE SET
+  display_order = EXCLUDED.display_order,
+  dimension_code = EXCLUDED.dimension_code,
+  question_type = EXCLUDED.question_type,
+  weight = EXCLUDED.weight,
+  direction = EXCLUDED.direction,
+  question_text = EXCLUDED.question_text,
+  question_payload = EXCLUDED.question_payload,
+  scoring_payload = EXCLUDED.scoring_payload,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)
+SELECT s.id, 'EV-M-45', 47, 'EV', 'scenario', 1.5, 'positive', '你回顾你们在一起的这段时间。整体感受是？', '{"scene":"关系整体价值的回顾","options":[{"key":"A","text":"值得，有很多真实的快乐，我不后悔","sub":"高关系价值感","score":90},{"key":"B","text":"有好有坏，总体还是值得的","sub":"中等，接受复杂性","score":70},{"key":"C","text":"有些累，但还没想清楚要怎样","sub":"消耗感明显","score":40},{"key":"D","text":"如果能重来，我可能会做不同的选择","sub":"低关系价值感","score":20}],"source_question":{"id":"EV-M-45","order":45,"layer":"EV","weight":1.5,"type":"scenario","direction":"positive","text":"你回顾你们在一起的这段时间。整体感受是？","scene":"关系整体价值的回顾","options":[{"key":"A","text":"值得，有很多真实的快乐，我不后悔","sub":"高关系价值感","score":90},{"key":"B","text":"有好有坏，总体还是值得的","sub":"中等，接受复杂性","score":70},{"key":"C","text":"有些累，但还没想清楚要怎样","sub":"消耗感明显","score":40},{"key":"D","text":"如果能重来，我可能会做不同的选择","sub":"低关系价值感","score":20}]}}'::jsonb, '{}'::jsonb, true
+FROM public.test_suites s WHERE s.slug = 's02_ros_male'
+ON CONFLICT (suite_id, external_question_id) DO UPDATE SET
+  display_order = EXCLUDED.display_order,
+  dimension_code = EXCLUDED.dimension_code,
+  question_type = EXCLUDED.question_type,
+  weight = EXCLUDED.weight,
+  direction = EXCLUDED.direction,
+  question_text = EXCLUDED.question_text,
+  question_payload = EXCLUDED.question_payload,
+  scoring_payload = EXCLUDED.scoring_payload,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)
+SELECT s.id, 'EV-M-46', 48, 'EV', 'binary', 1.3, 'positive', '你有没有在这段关系里，感觉过一种「这就是了」的确定感？', '{"options":[{"key":"left","text":"有，有时候会觉得她就是那个对的人","sub":"高关系确认感","score":85},{"key":"right","text":"不太确定，这种感觉偶尔有但不稳定","sub":"低确认感","score":50}],"source_question":{"id":"EV-M-46","order":46,"layer":"EV","weight":1.3,"type":"binary","direction":"positive","text":"你有没有在这段关系里，感觉过一种「这就是了」的确定感？","options":[{"key":"left","text":"有，有时候会觉得她就是那个对的人","sub":"高关系确认感","score":85},{"key":"right","text":"不太确定，这种感觉偶尔有但不稳定","sub":"低确认感","score":50}]}}'::jsonb, '{}'::jsonb, true
+FROM public.test_suites s WHERE s.slug = 's02_ros_male'
+ON CONFLICT (suite_id, external_question_id) DO UPDATE SET
+  display_order = EXCLUDED.display_order,
+  dimension_code = EXCLUDED.dimension_code,
+  question_type = EXCLUDED.question_type,
+  weight = EXCLUDED.weight,
+  direction = EXCLUDED.direction,
+  question_text = EXCLUDED.question_text,
+  question_payload = EXCLUDED.question_payload,
+  scoring_payload = EXCLUDED.scoring_payload,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)
+SELECT s.id, 'EV-M-47', 49, 'EV', 'choice', 1.5, 'positive', '她在你的未来计划里吗？', '{"options":[{"key":"A","text":"在，想到未来她自然就在里面","sub":"高未来整合度","score":90},{"key":"B","text":"有时候在，但不是每次都想到她","sub":"中等，不够稳定","score":65},{"key":"C","text":"不太确定，还没想到那么远","sub":"低未来整合度","score":50},{"key":"D","text":"我刻意不去想，因为想了会有压力","sub":"回避型，有焦虑","score":35}],"source_question":{"id":"EV-M-47","order":47,"layer":"EV","weight":1.5,"type":"choice","direction":"positive","text":"她在你的未来计划里吗？","options":[{"key":"A","text":"在，想到未来她自然就在里面","sub":"高未来整合度","score":90},{"key":"B","text":"有时候在，但不是每次都想到她","sub":"中等，不够稳定","score":65},{"key":"C","text":"不太确定，还没想到那么远","sub":"低未来整合度","score":50},{"key":"D","text":"我刻意不去想，因为想了会有压力","sub":"回避型，有焦虑","score":35}]}}'::jsonb, '{}'::jsonb, true
+FROM public.test_suites s WHERE s.slug = 's02_ros_male'
+ON CONFLICT (suite_id, external_question_id) DO UPDATE SET
+  display_order = EXCLUDED.display_order,
+  dimension_code = EXCLUDED.dimension_code,
+  question_type = EXCLUDED.question_type,
+  weight = EXCLUDED.weight,
+  direction = EXCLUDED.direction,
+  question_text = EXCLUDED.question_text,
+  question_payload = EXCLUDED.question_payload,
+  scoring_payload = EXCLUDED.scoring_payload,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)
+SELECT s.id, 'EV-M-48', 50, 'EV', 'slider', 1.5, 'positive', '你觉得你们现在的关系，处于什么动态？', '{"slider":{"min":0,"max":100,"min_label":"明显在走下坡","max_label":"明显在变好，越来越有默契","feedback":[{"range":[0,25],"text":"有一些让你担心的信号，值得正视"},{"range":[26,45],"text":"有些东西在消退，还有挽回的空间"},{"range":[46,60],"text":"处于平台期，稳定但缺少新的动力"},{"range":[61,80],"text":"整体在往好的方向走"},{"range":[81,100],"text":"你们正处于关系里的一个好阶段"}]},"source_question":{"id":"EV-M-48","order":48,"layer":"EV","weight":1.5,"type":"slider","direction":"positive","text":"你觉得你们现在的关系，处于什么动态？","slider":{"min":0,"max":100,"min_label":"明显在走下坡","max_label":"明显在变好，越来越有默契","feedback":[{"range":[0,25],"text":"有一些让你担心的信号，值得正视"},{"range":[26,45],"text":"有些东西在消退，还有挽回的空间"},{"range":[46,60],"text":"处于平台期，稳定但缺少新的动力"},{"range":[61,80],"text":"整体在往好的方向走"},{"range":[81,100],"text":"你们正处于关系里的一个好阶段"}]},"scoring":{"method":"direct"}}}'::jsonb, '{"method":"direct"}'::jsonb, true
+FROM public.test_suites s WHERE s.slug = 's02_ros_male'
+ON CONFLICT (suite_id, external_question_id) DO UPDATE SET
+  display_order = EXCLUDED.display_order,
+  dimension_code = EXCLUDED.dimension_code,
+  question_type = EXCLUDED.question_type,
+  weight = EXCLUDED.weight,
+  direction = EXCLUDED.direction,
+  question_text = EXCLUDED.question_text,
+  question_payload = EXCLUDED.question_payload,
+  scoring_payload = EXCLUDED.scoring_payload,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)
+SELECT s.id, 'EV-M-49', 51, 'EV', 'scale', 1.5, 'positive', '这段关系让我有动力往前走，而不是让我停在原地。', '{"scale":{"min":1,"max":5,"min_label":"完全不符合","max_label":"完全符合"},"source_question":{"id":"EV-M-49","order":49,"layer":"EV","weight":1.5,"type":"scale","direction":"positive","text":"这段关系让我有动力往前走，而不是让我停在原地。","scale":{"min":1,"max":5,"min_label":"完全不符合","max_label":"完全符合"},"scoring":{"method":"direct_times_20"}}}'::jsonb, '{"method":"direct_times_20"}'::jsonb, true
+FROM public.test_suites s WHERE s.slug = 's02_ros_male'
+ON CONFLICT (suite_id, external_question_id) DO UPDATE SET
+  display_order = EXCLUDED.display_order,
+  dimension_code = EXCLUDED.dimension_code,
+  question_type = EXCLUDED.question_type,
+  weight = EXCLUDED.weight,
+  direction = EXCLUDED.direction,
+  question_text = EXCLUDED.question_text,
+  question_payload = EXCLUDED.question_payload,
+  scoring_payload = EXCLUDED.scoring_payload,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)
+SELECT s.id, 'EV-M-50', 52, 'EV', 'scenario', 1.3, 'positive', '哥们问你「你们还会在一起吗」。你的第一反应是？', '{"scene":"关系稳定性的直觉判断","options":[{"key":"A","text":"会，这个我没有想过要结束","sub":"高稳定性","score":90},{"key":"B","text":"应该会，但没有完全确定","sub":"有不确定感","score":65},{"key":"C","text":"不知道，说不准","sub":"低稳定性","score":40},{"key":"D","text":"我也在想这个问题","sub":"关系处于评估期","score":35}],"source_question":{"id":"EV-M-50","order":50,"layer":"EV","weight":1.3,"type":"scenario","direction":"positive","text":"哥们问你「你们还会在一起吗」。你的第一反应是？","scene":"关系稳定性的直觉判断","options":[{"key":"A","text":"会，这个我没有想过要结束","sub":"高稳定性","score":90},{"key":"B","text":"应该会，但没有完全确定","sub":"有不确定感","score":65},{"key":"C","text":"不知道，说不准","sub":"低稳定性","score":40},{"key":"D","text":"我也在想这个问题","sub":"关系处于评估期","score":35}]}}'::jsonb, '{}'::jsonb, true
+FROM public.test_suites s WHERE s.slug = 's02_ros_male'
+ON CONFLICT (suite_id, external_question_id) DO UPDATE SET
+  display_order = EXCLUDED.display_order,
+  dimension_code = EXCLUDED.dimension_code,
+  question_type = EXCLUDED.question_type,
+  weight = EXCLUDED.weight,
+  direction = EXCLUDED.direction,
+  question_text = EXCLUDED.question_text,
+  question_payload = EXCLUDED.question_payload,
+  scoring_payload = EXCLUDED.scoring_payload,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)
+SELECT s.id, 'RK-M-51', 53, 'RK', 'scenario', 1.5, 'reverse', '她有时候会用情绪或者沉默来表达不满，而不是直接说。这种情况？', '{"scene":"间接表达不满的频率","options":[{"key":"A","text":"几乎没有，她会直接说她的感受","sub":"低风险","score":10},{"key":"B","text":"偶尔有，但她之后会说清楚","sub":"低中风险，有修复","score":30},{"key":"C","text":"有时候有，我需要自己猜她在不满什么","sub":"中高风险，沟通压力","score":60},{"key":"D","text":"比较频繁，这是我们关系里让我感到消耗的来源","sub":"高风险","score":85}],"source_question":{"id":"RK-M-51","order":51,"layer":"RK","weight":1.5,"type":"scenario","direction":"reverse","text":"她有时候会用情绪或者沉默来表达不满，而不是直接说。这种情况？","scene":"间接表达不满的频率","options":[{"key":"A","text":"几乎没有，她会直接说她的感受","sub":"低风险","score":10},{"key":"B","text":"偶尔有，但她之后会说清楚","sub":"低中风险，有修复","score":30},{"key":"C","text":"有时候有，我需要自己猜她在不满什么","sub":"中高风险，沟通压力","score":60},{"key":"D","text":"比较频繁，这是我们关系里让我感到消耗的来源","sub":"高风险","score":85}]}}'::jsonb, '{}'::jsonb, true
+FROM public.test_suites s WHERE s.slug = 's02_ros_male'
+ON CONFLICT (suite_id, external_question_id) DO UPDATE SET
+  display_order = EXCLUDED.display_order,
+  dimension_code = EXCLUDED.dimension_code,
+  question_type = EXCLUDED.question_type,
+  weight = EXCLUDED.weight,
+  direction = EXCLUDED.direction,
+  question_text = EXCLUDED.question_text,
+  question_payload = EXCLUDED.question_payload,
+  scoring_payload = EXCLUDED.scoring_payload,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)
+SELECT s.id, 'RK-M-52', 54, 'RK', 'binary', 1.5, 'reverse', '在这段关系里，你有没有感觉过一种「我在压抑自己」的时刻？', '{"options":[{"key":"left","text":"很少，我在她面前大多数时候可以做自己","sub":"低风险","score":15},{"key":"right","text":"有，有一些东西我不敢说或者不得不压着","sub":"中高风险，自我压抑信号","score":70}],"source_question":{"id":"RK-M-52","order":52,"layer":"RK","weight":1.5,"type":"binary","direction":"reverse","text":"在这段关系里，你有没有感觉过一种「我在压抑自己」的时刻？","options":[{"key":"left","text":"很少，我在她面前大多数时候可以做自己","sub":"低风险","score":15},{"key":"right","text":"有，有一些东西我不敢说或者不得不压着","sub":"中高风险，自我压抑信号","score":70}]}}'::jsonb, '{}'::jsonb, true
+FROM public.test_suites s WHERE s.slug = 's02_ros_male'
+ON CONFLICT (suite_id, external_question_id) DO UPDATE SET
+  display_order = EXCLUDED.display_order,
+  dimension_code = EXCLUDED.dimension_code,
+  question_type = EXCLUDED.question_type,
+  weight = EXCLUDED.weight,
+  direction = EXCLUDED.direction,
+  question_text = EXCLUDED.question_text,
+  question_payload = EXCLUDED.question_payload,
+  scoring_payload = EXCLUDED.scoring_payload,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)
+SELECT s.id, 'RK-M-53', 55, 'RK', 'choice', 1.5, 'reverse', '她对你的社交和朋友，态度是？', '{"options":[{"key":"A","text":"尊重，不干涉，偶尔一起参与","sub":"低风险","score":10},{"key":"B","text":"基本尊重，但有时候会有点意见","sub":"低中风险","score":30},{"key":"C","text":"经常有意见，会让我减少某些社交","sub":"中高风险，控制倾向","score":65},{"key":"D","text":"这是我们关系里比较大的摩擦来源","sub":"高风险","score":85}],"source_question":{"id":"RK-M-53","order":53,"layer":"RK","weight":1.5,"type":"choice","direction":"reverse","text":"她对你的社交和朋友，态度是？","options":[{"key":"A","text":"尊重，不干涉，偶尔一起参与","sub":"低风险","score":10},{"key":"B","text":"基本尊重，但有时候会有点意见","sub":"低中风险","score":30},{"key":"C","text":"经常有意见，会让我减少某些社交","sub":"中高风险，控制倾向","score":65},{"key":"D","text":"这是我们关系里比较大的摩擦来源","sub":"高风险","score":85}]}}'::jsonb, '{}'::jsonb, true
+FROM public.test_suites s WHERE s.slug = 's02_ros_male'
+ON CONFLICT (suite_id, external_question_id) DO UPDATE SET
+  display_order = EXCLUDED.display_order,
+  dimension_code = EXCLUDED.dimension_code,
+  question_type = EXCLUDED.question_type,
+  weight = EXCLUDED.weight,
+  direction = EXCLUDED.direction,
+  question_text = EXCLUDED.question_text,
+  question_payload = EXCLUDED.question_payload,
+  scoring_payload = EXCLUDED.scoring_payload,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)
+SELECT s.id, 'RK-M-54', 56, 'RK', 'slider', 1.5, 'reverse', '在这段关系里，你有多少空间做自己想做的事，不需要解释或者顾虑？', '{"slider":{"min":0,"max":100,"min_label":"很受限，很多事情要顾虑她的反应","max_label":"空间很大，我能做自己，不需要解释","feedback":[{"range":[0,25],"text":"你在这段关系里感受到明显的束缚感"},{"range":[26,45],"text":"有一些限制，但还能接受"},{"range":[46,65],"text":"大多数时候可以，但某些地方会有顾虑"},{"range":[66,85],"text":"整体空间感很好"},{"range":[86,100],"text":"这段关系给了你很大的自由度"}]},"source_question":{"id":"RK-M-54","order":54,"layer":"RK","weight":1.5,"type":"slider","direction":"reverse","text":"在这段关系里，你有多少空间做自己想做的事，不需要解释或者顾虑？","slider":{"min":0,"max":100,"min_label":"很受限，很多事情要顾虑她的反应","max_label":"空间很大，我能做自己，不需要解释","feedback":[{"range":[0,25],"text":"你在这段关系里感受到明显的束缚感"},{"range":[26,45],"text":"有一些限制，但还能接受"},{"range":[46,65],"text":"大多数时候可以，但某些地方会有顾虑"},{"range":[66,85],"text":"整体空间感很好"},{"range":[86,100],"text":"这段关系给了你很大的自由度"}]},"scoring":{"method":"reverse","formula":"100 - value"}}}'::jsonb, '{"method":"reverse","formula":"100 - value"}'::jsonb, true
+FROM public.test_suites s WHERE s.slug = 's02_ros_male'
+ON CONFLICT (suite_id, external_question_id) DO UPDATE SET
+  display_order = EXCLUDED.display_order,
+  dimension_code = EXCLUDED.dimension_code,
+  question_type = EXCLUDED.question_type,
+  weight = EXCLUDED.weight,
+  direction = EXCLUDED.direction,
+  question_text = EXCLUDED.question_text,
+  question_payload = EXCLUDED.question_payload,
+  scoring_payload = EXCLUDED.scoring_payload,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)
+SELECT s.id, 'RK-M-55', 57, 'RK', 'scenario', 1.5, 'reverse', '你们之间有没有反复出现、始终没有解决的问题？', '{"scene":"慢性问题的存在程度","options":[{"key":"A","text":"没有，遇到问题基本都能解决","sub":"低风险","score":10},{"key":"B","text":"有一个，但我们都知道，在慢慢改善","sub":"低中风险，有意识","score":30},{"key":"C","text":"有，说了很多次但没有真正改变","sub":"中高风险，模式固化","score":65},{"key":"D","text":"有几个，感觉已经说不下去了","sub":"高风险，消极循环","score":85}],"source_question":{"id":"RK-M-55","order":55,"layer":"RK","weight":1.5,"type":"scenario","direction":"reverse","text":"你们之间有没有反复出现、始终没有解决的问题？","scene":"慢性问题的存在程度","options":[{"key":"A","text":"没有，遇到问题基本都能解决","sub":"低风险","score":10},{"key":"B","text":"有一个，但我们都知道，在慢慢改善","sub":"低中风险，有意识","score":30},{"key":"C","text":"有，说了很多次但没有真正改变","sub":"中高风险，模式固化","score":65},{"key":"D","text":"有几个，感觉已经说不下去了","sub":"高风险，消极循环","score":85}]}}'::jsonb, '{}'::jsonb, true
+FROM public.test_suites s WHERE s.slug = 's02_ros_male'
+ON CONFLICT (suite_id, external_question_id) DO UPDATE SET
+  display_order = EXCLUDED.display_order,
+  dimension_code = EXCLUDED.dimension_code,
+  question_type = EXCLUDED.question_type,
+  weight = EXCLUDED.weight,
+  direction = EXCLUDED.direction,
+  question_text = EXCLUDED.question_text,
+  question_payload = EXCLUDED.question_payload,
+  scoring_payload = EXCLUDED.scoring_payload,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)
+SELECT s.id, 'RK-M-56', 58, 'RK', 'binary', 1.5, 'reverse', '她的情绪和需求，有没有让你感到一种持续的压力？', '{"options":[{"key":"left","text":"没有，她的状态对我的日常影响不大","sub":"低风险","score":10},{"key":"right","text":"有，有时候会因为她的情绪状态而感到紧张或者消耗","sub":"中高风险，情绪负担信号","score":70}],"source_question":{"id":"RK-M-56","order":56,"layer":"RK","weight":1.5,"type":"binary","direction":"reverse","text":"她的情绪和需求，有没有让你感到一种持续的压力？","options":[{"key":"left","text":"没有，她的状态对我的日常影响不大","sub":"低风险","score":10},{"key":"right","text":"有，有时候会因为她的情绪状态而感到紧张或者消耗","sub":"中高风险，情绪负担信号","score":70}]}}'::jsonb, '{}'::jsonb, true
+FROM public.test_suites s WHERE s.slug = 's02_ros_male'
+ON CONFLICT (suite_id, external_question_id) DO UPDATE SET
+  display_order = EXCLUDED.display_order,
+  dimension_code = EXCLUDED.dimension_code,
+  question_type = EXCLUDED.question_type,
+  weight = EXCLUDED.weight,
+  direction = EXCLUDED.direction,
+  question_text = EXCLUDED.question_text,
+  question_payload = EXCLUDED.question_payload,
+  scoring_payload = EXCLUDED.scoring_payload,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)
+SELECT s.id, 'RK-M-57', 59, 'RK', 'choice', 1.3, 'reverse', '你们之间有没有一些话，是你一直想说但没说的？', '{"options":[{"key":"A","text":"没有，没什么藏着掖着的","sub":"低风险，高透明度","score":10},{"key":"B","text":"有一些小事，不影响大局","sub":"低中风险","score":25},{"key":"C","text":"有一些比较重要的，一直没找到合适的时机","sub":"中风险，积压","score":55},{"key":"D","text":"有一些核心的东西，不确定说了会怎样","sub":"高风险，关键问题被回避","score":80}],"source_question":{"id":"RK-M-57","order":57,"layer":"RK","weight":1.3,"type":"choice","direction":"reverse","text":"你们之间有没有一些话，是你一直想说但没说的？","options":[{"key":"A","text":"没有，没什么藏着掖着的","sub":"低风险，高透明度","score":10},{"key":"B","text":"有一些小事，不影响大局","sub":"低中风险","score":25},{"key":"C","text":"有一些比较重要的，一直没找到合适的时机","sub":"中风险，积压","score":55},{"key":"D","text":"有一些核心的东西，不确定说了会怎样","sub":"高风险，关键问题被回避","score":80}]}}'::jsonb, '{}'::jsonb, true
+FROM public.test_suites s WHERE s.slug = 's02_ros_male'
+ON CONFLICT (suite_id, external_question_id) DO UPDATE SET
+  display_order = EXCLUDED.display_order,
+  dimension_code = EXCLUDED.dimension_code,
+  question_type = EXCLUDED.question_type,
+  weight = EXCLUDED.weight,
+  direction = EXCLUDED.direction,
+  question_text = EXCLUDED.question_text,
+  question_payload = EXCLUDED.question_payload,
+  scoring_payload = EXCLUDED.scoring_payload,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)
+SELECT s.id, 'RK-M-58', 60, 'RK', 'scale', 1.5, 'reverse', '在这段关系里，有时候我会感到一种不自由的感觉——做某些事需要顾虑她的反应。', '{"scale":{"min":1,"max":5,"min_label":"从不","max_label":"经常"},"source_question":{"id":"RK-M-58","order":58,"layer":"RK","weight":1.5,"type":"scale","direction":"reverse","text":"在这段关系里，有时候我会感到一种不自由的感觉——做某些事需要顾虑她的反应。","scale":{"min":1,"max":5,"min_label":"从不","max_label":"经常"},"scoring":{"method":"reverse_times_25","formula":"(value - 1) * 25"}}}'::jsonb, '{"method":"reverse_times_25","formula":"(value - 1) * 25"}'::jsonb, true
+FROM public.test_suites s WHERE s.slug = 's02_ros_male'
+ON CONFLICT (suite_id, external_question_id) DO UPDATE SET
+  display_order = EXCLUDED.display_order,
+  dimension_code = EXCLUDED.dimension_code,
+  question_type = EXCLUDED.question_type,
+  weight = EXCLUDED.weight,
+  direction = EXCLUDED.direction,
+  question_text = EXCLUDED.question_text,
+  question_payload = EXCLUDED.question_payload,
+  scoring_payload = EXCLUDED.scoring_payload,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)
+SELECT s.id, 'RK-M-59', 61, 'RK', 'mood', 1.5, 'reverse', '你对这段关系整体的感觉，最接近？', '{"options":[{"key":"A","icon":"ti-heart","text":"很珍惜，这段关系让我感到幸运","score":10},{"key":"B","icon":"ti-mood-happy","text":"满意，整体很好","score":15},{"key":"C","icon":"ti-mood-smile","text":"还不错，有小问题但可以接受","score":25},{"key":"D","icon":"ti-mood-confuzed","text":"复杂，好的坏的都有","score":45},{"key":"E","icon":"ti-mood-sad","text":"有些累，但还在坚持","score":60},{"key":"F","icon":"ti-mood-nervous","text":"有点不安，不确定哪里出了问题","score":65},{"key":"G","icon":"ti-mood-empty","text":"有时候感觉很空","score":70},{"key":"H","icon":"ti-mood-angry","text":"有一些压抑的情绪，还没处理","score":75}],"source_question":{"id":"RK-M-59","order":59,"layer":"RK","weight":1.5,"type":"mood","direction":"reverse","text":"你对这段关系整体的感觉，最接近？","options":[{"key":"A","icon":"ti-heart","text":"很珍惜，这段关系让我感到幸运","score":10},{"key":"B","icon":"ti-mood-happy","text":"满意，整体很好","score":15},{"key":"C","icon":"ti-mood-smile","text":"还不错，有小问题但可以接受","score":25},{"key":"D","icon":"ti-mood-confuzed","text":"复杂，好的坏的都有","score":45},{"key":"E","icon":"ti-mood-sad","text":"有些累，但还在坚持","score":60},{"key":"F","icon":"ti-mood-nervous","text":"有点不安，不确定哪里出了问题","score":65},{"key":"G","icon":"ti-mood-empty","text":"有时候感觉很空","score":70},{"key":"H","icon":"ti-mood-angry","text":"有一些压抑的情绪，还没处理","score":75}]}}'::jsonb, '{}'::jsonb, true
+FROM public.test_suites s WHERE s.slug = 's02_ros_male'
+ON CONFLICT (suite_id, external_question_id) DO UPDATE SET
+  display_order = EXCLUDED.display_order,
+  dimension_code = EXCLUDED.dimension_code,
+  question_type = EXCLUDED.question_type,
+  weight = EXCLUDED.weight,
+  direction = EXCLUDED.direction,
+  question_text = EXCLUDED.question_text,
+  question_payload = EXCLUDED.question_payload,
+  scoring_payload = EXCLUDED.scoring_payload,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+INSERT INTO public.test_questions (suite_id, external_question_id, display_order, dimension_code, question_type, weight, direction, question_text, question_payload, scoring_payload, is_active)
+SELECT s.id, 'RK-M-60', 62, 'RK', 'scenario', 1.5, 'reverse', '如果你最好的哥们跟你描述一段跟你们很相似的关系，问你怎么看。你会对他说什么？', '{"scene":"旁观者视角的关系评估","options":[{"key":"A","text":"挺好的，值得珍惜","sub":"低风险，关系认可度高","score":10},{"key":"B","text":"有些地方需要注意，但整体健康","sub":"中低风险，有觉察","score":30},{"key":"C","text":"我会有点担心，提醒他注意某些模式","sub":"中高风险，旁观者视角","score":60},{"key":"D","text":"我可能会建议他认真想想值不值得继续","sub":"高风险，理智层面已有判断","score":85}],"source_question":{"id":"RK-M-60","order":60,"layer":"RK","weight":1.5,"type":"scenario","direction":"reverse","text":"如果你最好的哥们跟你描述一段跟你们很相似的关系，问你怎么看。你会对他说什么？","scene":"旁观者视角的关系评估","options":[{"key":"A","text":"挺好的，值得珍惜","sub":"低风险，关系认可度高","score":10},{"key":"B","text":"有些地方需要注意，但整体健康","sub":"中低风险，有觉察","score":30},{"key":"C","text":"我会有点担心，提醒他注意某些模式","sub":"中高风险，旁观者视角","score":60},{"key":"D","text":"我可能会建议他认真想想值不值得继续","sub":"高风险，理智层面已有判断","score":85}]}}'::jsonb, '{}'::jsonb, true
+FROM public.test_suites s WHERE s.slug = 's02_ros_male'
+ON CONFLICT (suite_id, external_question_id) DO UPDATE SET
+  display_order = EXCLUDED.display_order,
+  dimension_code = EXCLUDED.dimension_code,
+  question_type = EXCLUDED.question_type,
+  weight = EXCLUDED.weight,
+  direction = EXCLUDED.direction,
+  question_text = EXCLUDED.question_text,
+  question_payload = EXCLUDED.question_payload,
+  scoring_payload = EXCLUDED.scoring_payload,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+COMMIT;

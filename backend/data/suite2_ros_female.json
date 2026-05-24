@@ -1,0 +1,885 @@
+{
+  "suite": {
+    "id": "S02_ROS_FEMALE",
+    "name": "关系画像测试",
+    "gender": "female",
+    "version": "1.0",
+    "total_questions": 60,
+    "pre_questions": 2,
+    "estimated_minutes": 15,
+    "is_free": false,
+    "layers": ["AT","IN","CO","EV","RK"],
+    "relationship_types": ["彼此生长","难舍难分","温水同行","心甘情愿地累","烈火烹油","此刻刚好"],
+    "relationship_stages": ["怦然相遇","渐入佳境","暗流初现","磨合阵痛","倦怠低谷","十字路口","重建信任","深度联结","并肩同行"],
+    "question_types_used": ["slider","scenario","binary","choice","scale","mood","card","rank"]
+  },
+
+  "pre_questions": [
+    {
+      "id": "PRE-F-00A",
+      "type": "choice",
+      "text": "在开始之前，先告诉我你们的关系状态。",
+      "note": "此答案影响题目措辞、阶段判断和结果语言，不计分。",
+      "options": [
+        {"key": "A", "text": "我在暗恋他，还没有任何进展", "tag": "secret_crush"},
+        {"key": "B", "text": "我们在暧昧中，还没正式在一起", "tag": "ambiguous"},
+        {"key": "C", "text": "我们在一起不到一年", "tag": "early"},
+        {"key": "D", "text": "我们在一起一到三年", "tag": "mid"},
+        {"key": "E", "text": "我们在一起三年以上", "tag": "long"},
+        {"key": "F", "text": "我们已婚或是长期伴侣", "tag": "married"}
+      ]
+    },
+    {
+      "id": "PRE-F-00B",
+      "type": "choice",
+      "text": "如果用一个词描述你们现在的关系，你会选哪个？",
+      "note": "辅助校准关系类型判断，不计分。",
+      "options": [
+        {"key": "A", "text": "心动但还没说出口"},
+        {"key": "B", "text": "说不清楚，但很在意"},
+        {"key": "C", "text": "在谈恋爱"},
+        {"key": "D", "text": "很稳定的伴侣"},
+        {"key": "E", "text": "复杂，一时说不清"}
+      ]
+    }
+  ],
+
+  "scoring_formula": {
+    "layers": {
+      "AT": {
+        "label": "吸引基础",
+        "direction": "positive",
+        "weight": 0.20,
+        "description": "你们当初为什么在一起，那个吸引力现在还在不在"
+      },
+      "IN": {
+        "label": "互动质量",
+        "direction": "positive",
+        "weight": 0.30,
+        "description": "日常相处的体验——沟通、陪伴、冲突处理的质量"
+      },
+      "CO": {
+        "label": "兼容程度",
+        "direction": "positive",
+        "weight": 0.25,
+        "description": "价值观、生活节奏和未来方向的契合度"
+      },
+      "EV": {
+        "label": "关系走向",
+        "direction": "positive",
+        "weight": 0.15,
+        "description": "这段关系在往哪里走，你在其中有没有在成长"
+      },
+      "RK": {
+        "label": "风险信号",
+        "direction": "reverse",
+        "weight": 0.10,
+        "description": "有没有需要正视的问题，分数越低风险越高"
+      }
+    },
+    "overall": {
+      "formula": "AT*0.20 + IN*0.30 + CO*0.25 + EV*0.15 + (100-RK)*0.10",
+      "display_adjustment": {
+        "note": "所有分数向上平移，底部有托底，最低显示55",
+        "mapping": [
+          {"raw_min": 0,  "raw_max": 40, "display_min": 55, "display_max": 65},
+          {"raw_min": 41, "raw_max": 60, "display_min": 65, "display_max": 75},
+          {"raw_min": 61, "raw_max": 80, "display_min": 75, "display_max": 88},
+          {"raw_min": 81, "raw_max": 100,"display_min": 88, "display_max": 96}
+        ]
+      }
+    },
+    "resonance_levels": [
+      {"min": 88, "max": 96, "name": "心有灵犀", "desc": "你们之间有一种很难被替代的默契"},
+      {"min": 75, "max": 87, "name": "深度共鸣", "desc": "真实的联结，值得好好珍惜"},
+      {"min": 65, "max": 74, "name": "温柔磨合", "desc": "你们在彼此靠近的路上，慢慢来"},
+      {"min": 55, "max": 64, "name": "初见雏形", "desc": "关系还在成形，有空间，也有可能"}
+    ]
+  },
+
+  "stage_rules": {
+    "note": "结合时间输入和各层得分综合判断",
+    "time_constraints": {
+      "secret_crush": {"locked_stages": ["重建信任","深度联结","并肩同行"]},
+      "ambiguous":    {"locked_stages": ["重建信任","深度联结","并肩同行"]},
+      "married":      {"low_resonance_language": "long_term_version"}
+    },
+    "score_mapping": {
+      "①怦然相遇": {"EV_range": [75,100], "AT_range": [80,100], "IN_range": [0,100]},
+      "②渐入佳境": {"EV_range": [70,100], "AT_range": [65,100], "IN_range": [60,100]},
+      "③暗流初现": {"EV_range": [50,75],  "AT_range": [50,80],  "RK_range": [30,60]},
+      "④磨合阵痛": {"EV_range": [40,65],  "IN_range": [30,60],  "RK_range": [40,70]},
+      "⑤倦怠低谷": {"EV_range": [20,45],  "RK_range": [60,100], "IN_range": [20,50]},
+      "⑥十字路口": {"EV_range": [25,50],  "RK_range": [55,85]},
+      "⑦重建信任": {"EV_range": [55,75],  "IN_range": [60,85],  "RK_range": [20,50]},
+      "⑧深度联结": {"EV_range": [70,90],  "IN_range": [75,100], "AT_range": [60,100]},
+      "⑨并肩同行": {"EV_range": [80,100], "CO_range": [75,100], "IN_range": [75,100]}
+    }
+  },
+
+  "relationship_type_rules": {
+    "彼此生长": {
+      "condition": "EV >= 75 && IN >= 70 && RK <= 35",
+      "tagline": "在一起让你成为更好的自己",
+      "desc": "被看见、被支持、有成长"
+    },
+    "难舍难分": {
+      "condition": "AT >= 75 && IN >= 65 && EV < 65",
+      "tagline": "深度融合，分不清是爱还是需要",
+      "desc": "离不开，但不确定是爱还是习惯"
+    },
+    "温水同行": {
+      "condition": "RK <= 40 && IN < 65 && EV < 60",
+      "tagline": "不冷不热，舒适但缺少真正的联结",
+      "desc": "不吵架，也没有真正在一起"
+    },
+    "心甘情愿地累": {
+      "condition": "RK >= 55 && EV < 55 && AT >= 60",
+      "tagline": "付出多于回报，但还在坚持",
+      "desc": "累，但走不掉"
+    },
+    "烈火烹油": {
+      "condition": "AT >= 75 && RK >= 50 && IN < 70",
+      "tagline": "极好极坏，情绪过山车",
+      "desc": "高强度的吸引和冲突并存"
+    },
+    "此刻刚好": {
+      "condition": "CO < 65 && EV < 60 && RK <= 45",
+      "tagline": "双方都知道这不是终点",
+      "desc": "舒适但没有未来感"
+    }
+  },
+
+  "prescription_rules": {
+    "stage_7_8_9": "你们走过了不容易的部分，能走到这里很不简单。下面这张处方，是给经历过风浪的你们用来继续走好的——",
+    "stage_1_2_3": "你们还在彼此发现的阶段，这是关系里最有生命力的时候。下面这张处方帮你们把这段时间过得更扎实一些——",
+    "stage_4_5_6": "能在这个阶段认真做这道题，说明你们都在认真对待这段关系。这张处方不是说你们有问题，是帮你们把问题说清楚——",
+    "low_resonance_long_term": "在一起久了，有些东西会钝化——这很正常，不是感情出了问题。这张处方是帮你们重新找到彼此的频道——"
+  },
+
+  "attachment_collision_map": {
+    "安全型×安全型": {"name": "天作之合", "desc": "两个内心稳定的人在一起，是最少内耗的组合。不是没有问题，是有能力一起解决。"},
+    "安全型×焦虑型": {"name": "避风港与浪", "desc": "稳定的人能给焦虑的人真实的安全感，但时间久了容易出现不平衡——一个一直在给，一个一直在要。"},
+    "安全型×回避型": {"name": "开门与关门", "desc": "安全型足够稳定，不会因为回避型的后退而崩溃——这是这个组合能走下去的原因。"},
+    "安全型×混合型": {"name": "稳中有变", "desc": "安全型是这段关系的锚，混合型的情绪起伏会被安全型的稳定慢慢平衡。"},
+    "焦虑型×焦虑型": {"name": "双向拉扯", "desc": "两个都需要确认的人在一起，前期浓烈，后期容易把彼此都耗尽。"},
+    "焦虑型×回避型": {"name": "欢喜冤家", "desc": "最常见也最戏剧性的组合。一个追，一个退，形成经典的追逃模式。吸引力是真实的，但如果不打破这个模式，最终会耗尽双方。"},
+    "焦虑型×混合型": {"name": "迷雾中的彼此", "desc": "两个人都不够稳定，但方式不同。对方的忽冷忽热会持续触发焦虑型的不安全感。"},
+    "回避型×回避型": {"name": "平行宇宙", "desc": "两个人都不主动靠近，关系很平静，但也很难真正深入。"},
+    "回避型×混合型": {"name": "捉摸不定", "desc": "混合型的忽冷忽热反而能让回避型感到相对舒适。但这个组合很难建立真正的深度。"},
+    "混合型×混合型": {"name": "一团烟火", "desc": "两个情绪都不稳定的人在一起，会非常热烈，也会非常混乱。"},
+    "高边界安全型×焦虑型": {"name": "冰与火", "desc": "高边界的安全感让焦虑型感到有依靠，但边界的硬度也会让焦虑型觉得进不去。"},
+    "高边界安全型×回避型": {"name": "两座山", "desc": "两个都有很强边界感的人在一起，相互尊重，但也可能相互疏远。"},
+    "低自我高投入型×任意": {"name": "全心付出", "desc": "无论对方是什么类型，这个组合的核心风险不在对方，在自己——需要先学会照顾自己。"},
+    "高边界安全型×混合型": {"name": "规则与例外", "desc": "高边界的清晰给混合型一种难得的稳定感，只要双方愿意沟通，互补性很强。"},
+    "低自我高投入型×回避型": {"name": "给不到的距离", "desc": "付出最多的人遇到了最难靠近的人。这个组合需要付出型学会有边界地爱。"}
+  },
+
+  "questions": [
+    {
+      "id": "AT-F-01", "order": 1, "layer": "AT", "weight": 1.5,
+      "type": "slider", "direction": "positive",
+      "text": "你现在对他的吸引感，跟最开始相比是什么状态？",
+      "alt_text_secret_crush": "你对他的吸引感，随着时间是在加深还是在消退？",
+      "slider": {
+        "min": 0, "max": 100,
+        "min_label": "比最开始淡了很多",
+        "max_label": "还是一样强烈，甚至更深了",
+        "feedback": [
+          {"range": [0,20],   "text": "吸引感明显减弱，这值得认真想一想"},
+          {"range": [21,40],  "text": "有些东西在消退，但还有留下来的理由"},
+          {"range": [41,60],  "text": "趋于平稳，是正常的关系演化"},
+          {"range": [61,80],  "text": "吸引感很稳定，有些地方甚至更深了"},
+          {"range": [81,100], "text": "你对他的感觉一直都在，甚至在加深"}
+        ]
+      },
+      "scoring": {"method": "direct"}
+    },
+    {
+      "id": "AT-F-02", "order": 2, "layer": "AT", "weight": 1.3,
+      "type": "scenario", "direction": "positive",
+      "text": "你们分开一段时间后再见面。你见到他的第一眼，脑子里闪过的是？",
+      "scene": "重逢的第一眼感受",
+      "options": [
+        {"key": "A", "text": "还是会心跳快一下，这个感觉还在", "sub": "吸引感持续", "score": 85},
+        {"key": "B", "text": "有些熟悉的温暖，不是心跳，是放松", "sub": "从吸引转向依恋，正常演化", "score": 75},
+        {"key": "C", "text": "没什么特别的感觉，就是见到了", "sub": "吸引感明显减弱", "score": 40},
+        {"key": "D", "text": "有点复杂，说不清楚是什么感觉", "sub": "关系进入模糊期", "score": 55}
+      ]
+    },
+    {
+      "id": "AT-F-03", "order": 3, "layer": "AT", "weight": 1.5,
+      "type": "binary", "direction": "positive",
+      "text": "当初让你喜欢上他的那些东西，现在还在吗？",
+      "options": [
+        {"key": "left",  "text": "在，而且我觉得了解越深越喜欢", "sub": "吸引力深化型", "score": 85},
+        {"key": "right", "text": "有些还在，但有些随着了解反而淡了", "sub": "吸引力分化型", "score": 55}
+      ]
+    },
+    {
+      "id": "AT-F-04", "order": 4, "layer": "AT", "weight": 1.0,
+      "type": "choice", "direction": "auxiliary",
+      "text": "你喜欢他，最核心的原因是？",
+      "note": "辅助关系类型判断，分数相近",
+      "options": [
+        {"key": "A", "text": "跟他在一起我感觉到真实的安全感", "sub": "依恋驱动", "score": 75},
+        {"key": "B", "text": "他让我觉得自己是值得被认真对待的", "sub": "自我价值感驱动", "score": 75},
+        {"key": "C", "text": "我们之间有一种说不清的吸引，就是想靠近", "sub": "本能吸引", "score": 70},
+        {"key": "D", "text": "他是一个我真正欣赏的人", "sub": "尊重驱动", "score": 80}
+      ]
+    },
+    {
+      "id": "AT-F-05", "order": 5, "layer": "AT", "weight": 1.5,
+      "type": "scale", "direction": "positive",
+      "text": "在这段关系里，我觉得自己是真心喜欢他这个人，不只是需要一段关系或者害怕孤独。",
+      "scale": {"min": 1, "max": 5, "min_label": "完全不符合", "max_label": "完全符合"},
+      "scoring": {"method": "direct_times_20"}
+    },
+    {
+      "id": "AT-F-06", "order": 6, "layer": "AT", "weight": 1.2,
+      "type": "mood", "direction": "positive",
+      "text": "你想到他的时候，出现频率最高的感觉是？",
+      "options": [
+        {"key": "A", "icon": "ti-heart",         "text": "暖，会不自觉地想笑", "score": 85},
+        {"key": "B", "icon": "ti-mood-happy",    "text": "期待，想见他", "score": 80},
+        {"key": "C", "icon": "ti-mood-nervous",  "text": "有点不安，不确定他怎么想", "score": 55},
+        {"key": "D", "icon": "ti-mood-confuzed", "text": "复杂，说不清楚", "score": 50},
+        {"key": "E", "icon": "ti-mood-sad",      "text": "有时候会觉得累", "score": 40},
+        {"key": "F", "icon": "ti-mood-empty",    "text": "没什么特别的感觉了", "score": 25},
+        {"key": "G", "icon": "ti-mood-smile",    "text": "习惯了，就是他在那里", "score": 65},
+        {"key": "H", "icon": "ti-mood-suprised", "text": "还是会因为他做的事情感动", "score": 85}
+      ]
+    },
+    {
+      "id": "AT-F-07", "order": 7, "layer": "AT", "weight": 1.2,
+      "type": "scenario", "direction": "positive",
+      "text": "他今天做了一件很普通的小事——帮你记住了你说过的某个细节。你的感受是？",
+      "scene": "被细节记住的感受",
+      "options": [
+        {"key": "A", "text": "心里会暖一下，这种小事让我觉得他在认真对待我", "sub": "吸引感在细节里加深", "score": 85},
+        {"key": "B", "text": "觉得还好，这是正常的事", "sub": "吸引感趋于平稳", "score": 65},
+        {"key": "C", "text": "没什么特别的感觉，已经习惯了", "sub": "吸引感钝化", "score": 45},
+        {"key": "D", "text": "反而有点意外，他不常这样", "sub": "基线不高，偶发惊喜", "score": 60}
+      ]
+    },
+    {
+      "id": "AT-F-08", "order": 8, "layer": "AT", "weight": 1.3,
+      "type": "binary", "direction": "positive",
+      "text": "如果他现在从你的生活里消失，你的第一反应会是？",
+      "options": [
+        {"key": "left",  "text": "很难受，他在我生命里有真实的重量", "sub": "深度依恋", "score": 80},
+        {"key": "right", "text": "会有影响，但我能想象没有他的生活", "sub": "吸引感有限，联结不够深", "score": 50}
+      ]
+    },
+    {
+      "id": "AT-F-09", "order": 9, "layer": "AT", "weight": 1.5,
+      "type": "slider", "direction": "positive",
+      "text": "你觉得你们之间的吸引是对等的吗？他对你的吸引感，跟你对他的吸引感，大概是几比几？",
+      "slider": {
+        "min": 0, "max": 100,
+        "min_label": "我明显更喜欢他",
+        "max_label": "他明显更喜欢我",
+        "midpoint_label": "50 = 大致对等",
+        "feedback": [
+          {"range": [0,30],   "text": "你在这段关系里投入更多，这值得留意"},
+          {"range": [31,45],  "text": "稍微不平衡，但在正常范围内"},
+          {"range": [46,55],  "text": "大致对等，关系基础比较稳"},
+          {"range": [56,70],  "text": "他对你的喜欢多一些，你是被珍视的那个"},
+          {"range": [71,100], "text": "你感觉他喜欢你很多，但要确认这不只是你的感觉"}
+        ]
+      },
+      "scoring": {
+        "method": "distance_from_midpoint",
+        "formula": "100 - abs(value - 50) * 1.5",
+        "note": "越接近50分越高，两端递减"
+      }
+    },
+    {
+      "id": "AT-F-10", "order": 10, "layer": "AT", "weight": 1.3,
+      "type": "scale", "direction": "positive",
+      "text": "我觉得他喜欢我这件事，是真实可感的，不需要靠猜测来确认。",
+      "alt_text_secret_crush": "我觉得他对我有一些不一样的感觉，哪怕还没说出来。",
+      "scale": {"min": 1, "max": 5, "min_label": "完全不符合，我经常不确定", "max_label": "完全符合，我感受得到"},
+      "scoring": {"method": "direct_times_20"}
+    },
+    {
+      "id": "IN-F-11", "order": 11, "layer": "IN", "weight": 1.5,
+      "type": "scenario", "direction": "positive",
+      "text": "你跟他说了一件让你很难受的事，说完之后他的回应是「会好的，别想太多」。你的感受是？",
+      "scene": "情感回应质量测试",
+      "options": [
+        {"key": "A", "text": "有点失落，我需要的不是这个", "sub": "沟通需求未被满足，有自我觉察", "score": 65},
+        {"key": "B", "text": "还好，他不擅长这个，我理解", "sub": "接受度高，但需求可能被压抑", "score": 70},
+        {"key": "C", "text": "很受伤，感觉他根本没在听", "sub": "沟通感严重缺失", "score": 45},
+        {"key": "D", "text": "没什么，我也没指望他能说什么", "sub": "期待值已经很低", "score": 30}
+      ]
+    },
+    {
+      "id": "IN-F-12", "order": 12, "layer": "IN", "weight": 1.5,
+      "type": "slider", "direction": "positive",
+      "text": "你觉得他真的在听你说话的频率有多高？",
+      "slider": {
+        "min": 0, "max": 100,
+        "min_label": "他很少真正在听，更多是在等我说完",
+        "max_label": "他大多数时候都真的在听，我感觉得到",
+        "feedback": [
+          {"range": [0,25],   "text": "你经常有一种「说了也没用」的感觉"},
+          {"range": [26,45],  "text": "偶尔被听见，但不稳定"},
+          {"range": [46,65],  "text": "他会听，但深度不够"},
+          {"range": [66,85],  "text": "他大多数时候是真的在听"},
+          {"range": [86,100], "text": "他让你感觉说什么都会被认真对待"}
+        ]
+      },
+      "scoring": {"method": "direct"}
+    },
+    {
+      "id": "IN-F-13", "order": 13, "layer": "IN", "weight": 1.5,
+      "type": "choice", "direction": "positive",
+      "text": "你们吵架或者发生矛盾之后，通常是怎么结束的？",
+      "alt_text_secret_crush": "当你们有过误会或者不愉快，通常怎么化解？",
+      "options": [
+        {"key": "A", "text": "真正把问题说清楚了，然后和好", "sub": "高质量修复", "score": 90},
+        {"key": "B", "text": "冷静了就和好了，但问题没有完全说清楚", "sub": "表面修复，问题积累", "score": 65},
+        {"key": "C", "text": "其中一个人先妥协了，然后就过去了", "sub": "不均衡修复，有委屈在", "score": 50},
+        {"key": "D", "text": "慢慢冷处理，然后假装没发生过", "sub": "低质量修复，风险积累", "score": 30}
+      ]
+    },
+    {
+      "id": "IN-F-14", "order": 14, "layer": "IN", "weight": 1.5,
+      "type": "binary", "direction": "positive",
+      "text": "跟他在一起，你大多数时候是？",
+      "options": [
+        {"key": "left",  "text": "轻松的，就是很舒服，不需要表演", "sub": "高相处质量", "score": 85},
+        {"key": "right", "text": "需要注意一些东西，有时候会累", "sub": "相处有消耗", "score": 45}
+      ]
+    },
+    {
+      "id": "IN-F-15", "order": 15, "layer": "IN", "weight": 1.5,
+      "type": "scenario", "direction": "positive",
+      "text": "你今天心情很差，他看出来了。他的反应最可能是？",
+      "scene": "对方的情感感知能力",
+      "options": [
+        {"key": "A", "text": "主动问我怎么了，然后认真听", "sub": "高情感响应", "score": 90},
+        {"key": "B", "text": "问了一下，然后尝试帮我解决问题", "sub": "中等，解决导向", "score": 70},
+        {"key": "C", "text": "看出来了，但没有主动问，等我说", "sub": "低主动性", "score": 50},
+        {"key": "D", "text": "没有特别注意到，或者注意到了也没什么反应", "sub": "情感感知弱", "score": 25}
+      ]
+    },
+    {
+      "id": "IN-F-16", "order": 16, "layer": "IN", "weight": 1.5,
+      "type": "scale", "direction": "positive",
+      "text": "当我跟他说一些对我很重要的事情，我感觉他是真的在乎，而不只是在配合我说话。",
+      "scale": {"min": 1, "max": 5, "min_label": "完全不符合", "max_label": "完全符合"},
+      "scoring": {"method": "direct_times_20"}
+    },
+    {
+      "id": "IN-F-17", "order": 17, "layer": "IN", "weight": 1.3,
+      "type": "mood", "direction": "positive",
+      "text": "你们最近一次发生矛盾，事后你的感受是？",
+      "options": [
+        {"key": "A", "icon": "ti-mood-happy",    "text": "说清楚了，反而感觉更近了", "score": 90},
+        {"key": "B", "icon": "ti-mood-smile",    "text": "和好了，虽然没说太清楚", "score": 65},
+        {"key": "C", "icon": "ti-mood-confuzed", "text": "和好了，但我不确定他理解了我", "score": 55},
+        {"key": "D", "icon": "ti-mood-sad",      "text": "委屈还在，只是不说了", "score": 35},
+        {"key": "E", "icon": "ti-mood-empty",    "text": "已经习惯了这种收场方式", "score": 30},
+        {"key": "F", "icon": "ti-mood-angry",    "text": "还有情绪，没有真正解决", "score": 35},
+        {"key": "G", "icon": "ti-mood-nervous",  "text": "担心下次还会这样", "score": 45},
+        {"key": "H", "icon": "ti-mood-tongue",   "text": "我们很少有真正的矛盾", "score": 75}
+      ]
+    },
+    {
+      "id": "IN-F-18", "order": 18, "layer": "IN", "weight": 1.5,
+      "type": "scenario", "direction": "positive",
+      "text": "你需要他，但他刚好很忙。他通常怎么做？",
+      "scene": "被需要时的响应优先级",
+      "options": [
+        {"key": "A", "text": "再忙也会挤出时间回应我，哪怕只是一条消息", "sub": "高优先级响应", "score": 90},
+        {"key": "B", "text": "说等他忙完，然后真的会来找我", "sub": "延迟但可靠", "score": 75},
+        {"key": "C", "text": "说等他忙完，但经常忘了或者没来", "sub": "意愿有但执行不足", "score": 45},
+        {"key": "D", "text": "基本上顾不上，要等他自己空了", "sub": "低响应优先级", "score": 25}
+      ]
+    },
+    {
+      "id": "IN-F-19", "order": 19, "layer": "IN", "weight": 1.5,
+      "type": "binary", "direction": "positive",
+      "text": "你们之间的沟通，你满意吗？",
+      "options": [
+        {"key": "left",  "text": "满意，我觉得我们能真正说到对方心里去", "sub": "高沟通质量", "score": 85},
+        {"key": "right", "text": "有时候觉得隔着什么，说了但没有被接住", "sub": "沟通有障碍", "score": 40}
+      ]
+    },
+    {
+      "id": "IN-F-20", "order": 20, "layer": "IN", "weight": 1.3,
+      "type": "choice", "direction": "positive",
+      "text": "跟他在一起，你会主动分享你生活里的事情吗？",
+      "options": [
+        {"key": "A", "text": "很愿意，什么都想跟他说", "sub": "高开放度，联结感强", "score": 85},
+        {"key": "B", "text": "重要的会说，日常小事不一定", "sub": "中等，选择性分享", "score": 70},
+        {"key": "C", "text": "说了他也不一定感兴趣，慢慢就少说了", "sub": "分享欲被打压", "score": 40},
+        {"key": "D", "text": "不太习惯跟他分享，更多是各自的生活", "sub": "低联结感", "score": 45}
+      ]
+    },
+    {
+      "id": "IN-F-21", "order": 21, "layer": "IN", "weight": 1.5,
+      "type": "slider", "direction": "positive",
+      "text": "在你们的关系里，你感觉自己被他真正理解的程度是多少？",
+      "slider": {
+        "min": 0, "max": 100,
+        "min_label": "他不太了解真正的我",
+        "max_label": "他是少数真正懂我的人之一",
+        "feedback": [
+          {"range": [0,25],   "text": "你在这段关系里有一种孤独感"},
+          {"range": [26,45],  "text": "被了解的部分有限，还有很多他不知道"},
+          {"range": [46,65],  "text": "他了解你的一部分，还有一部分还没打开"},
+          {"range": [66,85],  "text": "他真的懂你的很多，这很珍贵"},
+          {"range": [86,100], "text": "你在他这里有一种被完整看见的感觉"}
+        ]
+      },
+      "scoring": {"method": "direct"}
+    },
+    {
+      "id": "IN-F-22", "order": 22, "layer": "IN", "weight": 1.5,
+      "type": "scenario", "direction": "positive",
+      "text": "你们有一件事意见不一样，都觉得自己是对的。通常最后是怎么解决的？",
+      "scene": "分歧解决方式",
+      "options": [
+        {"key": "A", "text": "真的把各自的想法说清楚，找到双方都接受的方式", "sub": "高质量冲突解决", "score": 90},
+        {"key": "B", "text": "其中一个人让步了，虽然不完全认同", "sub": "让步式解决，有压抑", "score": 60},
+        {"key": "C", "text": "搁置了，不了了之", "sub": "回避型解决", "score": 45},
+        {"key": "D", "text": "争到最后变成情绪问题，忘了最初在讨论什么", "sub": "冲突升级，解决质量低", "score": 25}
+      ]
+    },
+    {
+      "id": "IN-F-23", "order": 23, "layer": "IN", "weight": 1.3,
+      "type": "scale", "direction": "positive",
+      "text": "我们吵架之后，他会主动修复，不会让矛盾一直悬着。",
+      "alt_text_secret_crush": "当我们有误会，他会主动来沟通解释。",
+      "scale": {"min": 1, "max": 5, "min_label": "完全不符合", "max_label": "完全符合"},
+      "scoring": {"method": "direct_times_20"}
+    },
+    {
+      "id": "IN-F-24", "order": 24, "layer": "IN", "weight": 1.2,
+      "type": "card", "direction": "positive",
+      "text": "你们相处的日常，最接近哪张？",
+      "options": [
+        {"key": "A", "text": "有很多话说，聊什么都能聊很久", "sub": "高话题密度，联结感强", "score": 80},
+        {"key": "B", "text": "不需要一直说话，沉默也很舒服", "sub": "高舒适度，联结感深", "score": 85},
+        {"key": "C", "text": "有时候会不知道聊什么，有点冷场", "sub": "联结感有待加深", "score": 50},
+        {"key": "D", "text": "各做各的，交集不是很多", "sub": "平行状态，联结感弱", "score": 35}
+      ]
+    },
+    {
+      "id": "IN-F-25", "order": 25, "layer": "IN", "weight": 1.5,
+      "type": "binary", "direction": "positive",
+      "text": "他说话算数吗？答应你的事，他做到的概率是？",
+      "options": [
+        {"key": "left",  "text": "很高，他说了基本上会做到", "sub": "高可靠度", "score": 85},
+        {"key": "right", "text": "不一定，经常有变化或者忘了", "sub": "低可靠度", "score": 35}
+      ]
+    },
+    {
+      "id": "IN-F-26", "order": 26, "layer": "IN", "weight": 1.5,
+      "type": "scenario", "direction": "positive",
+      "text": "你有一件重要的事，很需要他的支持和陪伴。他出现了吗？",
+      "scene": "关键时刻的情感在场",
+      "options": [
+        {"key": "A", "text": "出现了，而且做到了我需要的", "sub": "高情感在场", "score": 90},
+        {"key": "B", "text": "出现了，但不太知道怎么支持我", "sub": "意愿有，能力待提升", "score": 65},
+        {"key": "C", "text": "说会来，但最后没有", "sub": "低可靠度", "score": 30},
+        {"key": "D", "text": "我没有开口，因为我不确定他会来", "sub": "信任度不足，已经开始自我保护", "score": 40}
+      ]
+    },
+    {
+      "id": "CO-F-27", "order": 27, "layer": "CO", "weight": 1.5,
+      "type": "scenario", "direction": "positive",
+      "text": "你们谈到了未来——住在哪里、要不要孩子、怎么分配家庭和工作。你们的方向是？",
+      "alt_text_secret_crush": "从你对他的了解来看，你们对未来生活的设想大概一致吗？",
+      "scene": "未来规划的一致性",
+      "options": [
+        {"key": "A", "text": "基本一致，细节可以商量", "sub": "高兼容性", "score": 90},
+        {"key": "B", "text": "有一些不同，但都愿意妥协", "sub": "中等，有弹性", "score": 70},
+        {"key": "C", "text": "有一个比较核心的分歧，暂时搁置着", "sub": "潜在风险，未解决", "score": 45},
+        {"key": "D", "text": "没有认真谈过，或者谈了发现差很多", "sub": "低兼容性或未探索", "score": 30}
+      ]
+    },
+    {
+      "id": "CO-F-28", "order": 28, "layer": "CO", "weight": 1.3,
+      "type": "binary", "direction": "positive",
+      "text": "你们的生活节奏和日常习惯，合得来吗？",
+      "options": [
+        {"key": "left",  "text": "合得来，不需要特别迁就对方", "sub": "高生活兼容性", "score": 85},
+        {"key": "right", "text": "有一些差异，需要双方调整", "sub": "中等，需要磨合", "score": 55}
+      ]
+    },
+    {
+      "id": "CO-F-29", "order": 29, "layer": "CO", "weight": 1.3,
+      "type": "choice", "direction": "positive",
+      "text": "你们对于钱的态度和消费方式，大概是？",
+      "options": [
+        {"key": "A", "text": "很接近，不会在这件事上有摩擦", "sub": "高兼容", "score": 85},
+        {"key": "B", "text": "有差异，但互相理解，不影响关系", "sub": "中等，接受差异", "score": 70},
+        {"key": "C", "text": "有一些摩擦，但还在可以接受的范围", "sub": "中低，潜在压力", "score": 50},
+        {"key": "D", "text": "差距比较大，这是我们关系里的一个压力来源", "sub": "低兼容，显性风险", "score": 25}
+      ]
+    },
+    {
+      "id": "CO-F-30", "order": 30, "layer": "CO", "weight": 1.5,
+      "type": "slider", "direction": "positive",
+      "text": "你们在核心价值观上——比如对家庭的看法、对工作的态度、对生活的优先级——有多一致？",
+      "slider": {
+        "min": 0, "max": 100,
+        "min_label": "差异很大，经常感觉我们不是一路人",
+        "max_label": "非常一致，很少在这些事上有分歧",
+        "feedback": [
+          {"range": [0,25],   "text": "你们在一些根本性的问题上有差距，这需要认真对待"},
+          {"range": [26,45],  "text": "有一些重要的分歧，但还没有到无法共存的程度"},
+          {"range": [46,65],  "text": "大方向一致，细节上有差异"},
+          {"range": [66,85],  "text": "你们是比较像的两个人，底层逻辑相近"},
+          {"range": [86,100], "text": "你们在很多根本性的问题上都高度一致，这很难得"}
+        ]
+      },
+      "scoring": {"method": "direct"}
+    },
+    {
+      "id": "CO-F-31", "order": 31, "layer": "CO", "weight": 1.5,
+      "type": "scale", "direction": "positive",
+      "text": "我觉得他是一个跟我能走很远的人，不只是现在合适，是长期来看也合适。",
+      "alt_text_secret_crush": "从我对他的了解，我觉得他是一个跟我能走很远的人。",
+      "scale": {"min": 1, "max": 5, "min_label": "完全不符合", "max_label": "完全符合"},
+      "scoring": {"method": "direct_times_20"}
+    },
+    {
+      "id": "CO-F-32", "order": 32, "layer": "CO", "weight": 1.3,
+      "type": "scenario", "direction": "positive",
+      "text": "你们各自的家庭对这段关系的态度，大概是什么情况？",
+      "skip_for": ["secret_crush"],
+      "scene": "家庭外部支持情况",
+      "options": [
+        {"key": "A", "text": "双方家庭都支持，没有外部压力", "sub": "低风险，强支撑", "score": 90},
+        {"key": "B", "text": "一边支持，一边有些保留", "sub": "中等，有潜在压力", "score": 65},
+        {"key": "C", "text": "双方家庭都有一些不同意见", "sub": "中高风险", "score": 45},
+        {"key": "D", "text": "家庭因素是我们关系里一个比较大的挑战", "sub": "高风险，需要认真面对", "score": 25}
+      ]
+    },
+    {
+      "id": "CO-F-33", "order": 33, "layer": "CO", "weight": 1.3,
+      "type": "binary", "direction": "positive",
+      "text": "你们对于「关系里各自需要多少空间」这件事，理解一致吗？",
+      "options": [
+        {"key": "left",  "text": "一致，我们都知道彼此需要什么", "sub": "高空间兼容性", "score": 85},
+        {"key": "right", "text": "有差距，一个需要更多空间，一个需要更多陪伴", "sub": "空间需求不对等", "score": 45}
+      ]
+    },
+    {
+      "id": "CO-F-34", "order": 34, "layer": "CO", "weight": 1.2,
+      "type": "choice", "direction": "positive",
+      "text": "你觉得他的朋友圈和社交，跟你的世界有多少交集？",
+      "options": [
+        {"key": "A", "text": "很多，我们的生活有很深的融合", "sub": "高社交兼容", "score": 75},
+        {"key": "B", "text": "有一些交集，但各自也有独立的圈子", "sub": "健康平衡", "score": 85},
+        {"key": "C", "text": "很少，我们的生活几乎是平行的", "sub": "低融合度", "score": 45},
+        {"key": "D", "text": "我不太了解他的社交，他这部分对我不太透明", "sub": "信息不对称，潜在风险", "score": 35}
+      ]
+    },
+    {
+      "id": "CO-F-35", "order": 35, "layer": "CO", "weight": 1.5,
+      "type": "scale", "direction": "positive",
+      "text": "我们对于「这段关系会走向哪里」有相似的期待，不需要靠猜测来确认对方的想法。",
+      "scale": {"min": 1, "max": 5, "min_label": "完全不符合", "max_label": "完全符合"},
+      "scoring": {"method": "direct_times_20"}
+    },
+    {
+      "id": "CO-F-36", "order": 36, "layer": "CO", "weight": 1.2,
+      "type": "scenario", "direction": "positive",
+      "text": "你们谈到彼此的工作和事业。他对你的工作和发展，是什么态度？",
+      "scene": "对彼此事业的支持态度",
+      "options": [
+        {"key": "A", "text": "真心支持，会为我的成就感到高兴", "sub": "高支持度", "score": 90},
+        {"key": "B", "text": "支持，但有时候会有一些不理解", "sub": "中等，意愿有，理解有限", "score": 65},
+        {"key": "C", "text": "态度一般，工作对他来说不是优先关注的", "sub": "低兴趣，有潜在摩擦", "score": 45},
+        {"key": "D", "text": "有时候会因为工作问题有矛盾", "sub": "事业观不兼容", "score": 30}
+      ]
+    },
+    {
+      "id": "CO-F-37", "order": 37, "layer": "CO", "weight": 1.0,
+      "type": "rank", "direction": "auxiliary",
+      "text": "在你们的关系里，哪些事情你们最一致？从最一致到最有分歧排序。",
+      "items": [
+        {"id": "a", "text": "对未来生活方式的设想"},
+        {"id": "b", "text": "对家庭和婚育的看法"},
+        {"id": "c", "text": "对钱和消费的态度"},
+        {"id": "d", "text": "对彼此需要多少空间的理解"}
+      ],
+      "scoring": {
+        "method": "auxiliary",
+        "note": "用于辅助AI生成个性化建议，识别具体薄弱点"
+      }
+    },
+    {
+      "id": "CO-F-38", "order": 38, "layer": "CO", "weight": 1.3,
+      "type": "binary", "direction": "positive",
+      "text": "你觉得你们两个人，从根本上是同一类人吗？",
+      "options": [
+        {"key": "left",  "text": "是，我们底层的很多东西是相似的", "sub": "高深层兼容", "score": 80},
+        {"key": "right", "text": "不完全是，我们有一些根本性的不同", "sub": "差异型组合，需要更多努力", "score": 55}
+      ]
+    },
+    {
+      "id": "EV-F-39", "order": 39, "layer": "EV", "weight": 1.5,
+      "type": "slider", "direction": "positive",
+      "text": "跟他在一起这段时间，你觉得自己有没有在成长？",
+      "slider": {
+        "min": 0, "max": 100,
+        "min_label": "我感觉自己在这段关系里反而萎缩了",
+        "max_label": "我在这段关系里明显成为了更好的自己",
+        "feedback": [
+          {"range": [0,20],   "text": "这段关系让你消耗多于滋养，这值得认真看一看"},
+          {"range": [21,40],  "text": "有一些被消耗的感觉，但也有好的部分"},
+          {"range": [41,60],  "text": "平稳，没有特别的成长也没有特别的消耗"},
+          {"range": [61,80],  "text": "你在这段关系里是在成长的"},
+          {"range": [81,100], "text": "这段关系是你生命里真正滋养你的关系之一"}
+        ]
+      },
+      "scoring": {"method": "direct"}
+    },
+    {
+      "id": "EV-F-40", "order": 40, "layer": "EV", "weight": 1.5,
+      "type": "scenario", "direction": "positive",
+      "text": "你想象一年后的你们。第一个浮现的画面是？",
+      "scene": "对关系未来的直觉预期",
+      "options": [
+        {"key": "A", "text": "比现在更好，我能想象我们在一起的样子", "sub": "正向预期，关系上升期", "score": 90},
+        {"key": "B", "text": "差不多，继续维持现在的状态", "sub": "平台期，稳定但缺少动力", "score": 60},
+        {"key": "C", "text": "有点模糊，不确定一年后会怎样", "sub": "方向不清，潜在风险", "score": 45},
+        {"key": "D", "text": "我很难想象，或者想到就有点担心", "sub": "关系走向不乐观", "score": 25}
+      ]
+    },
+    {
+      "id": "EV-F-41", "order": 41, "layer": "EV", "weight": 1.5,
+      "type": "binary", "direction": "positive",
+      "text": "这段关系最近的趋势，你感觉是？",
+      "options": [
+        {"key": "left",  "text": "在变好，我们越来越懂彼此", "sub": "上升趋势", "score": 85},
+        {"key": "right", "text": "有一些东西在变淡，或者出现了一些以前没有的问题", "sub": "下降或平台趋势", "score": 40}
+      ]
+    },
+    {
+      "id": "EV-F-42", "order": 42, "layer": "EV", "weight": 1.3,
+      "type": "choice", "direction": "positive",
+      "text": "你在这段关系里，有没有因为他而改变过什么？",
+      "options": [
+        {"key": "A", "text": "有，而且是往好的方向，我喜欢这些变化", "sub": "正向成长", "score": 90},
+        {"key": "B", "text": "有，但不确定这些变化是不是好的", "sub": "被动改变，需要审视", "score": 55},
+        {"key": "C", "text": "没有特别的，我还是我自己", "sub": "关系影响有限，可正可负", "score": 65},
+        {"key": "D", "text": "有一些，但有时候感觉失去了一些原来的自己", "sub": "自我消融风险", "score": 35}
+      ]
+    },
+    {
+      "id": "EV-F-43", "order": 43, "layer": "EV", "weight": 1.5,
+      "type": "scale", "direction": "positive",
+      "text": "我对这段关系的未来是有期待的，不只是走一步看一步。",
+      "scale": {"min": 1, "max": 5, "min_label": "完全不符合", "max_label": "完全符合"},
+      "scoring": {"method": "direct_times_20"}
+    },
+    {
+      "id": "EV-F-44", "order": 44, "layer": "EV", "weight": 1.5,
+      "type": "mood", "direction": "positive",
+      "text": "你有没有想过结束这段关系？这个念头出现的频率是？",
+      "options": [
+        {"key": "A", "icon": "ti-mood-smile",    "text": "几乎没有，我没有想过", "score": 90},
+        {"key": "B", "icon": "ti-mood-happy",    "text": "偶尔有过一闪而过的念头，但很快就消了", "score": 75},
+        {"key": "C", "icon": "ti-mood-confuzed", "text": "有时候会想，但不确定自己真的想", "score": 55},
+        {"key": "D", "icon": "ti-mood-sad",      "text": "有过认真想过，后来放下了", "score": 50},
+        {"key": "E", "icon": "ti-mood-nervous",  "text": "最近这个念头出现得比较频繁", "score": 30},
+        {"key": "F", "icon": "ti-mood-empty",    "text": "想过很多次，但一直没有行动", "score": 35},
+        {"key": "G", "icon": "ti-mood-angry",    "text": "情绪激动的时候想过，但冷静了就不想了", "score": 55},
+        {"key": "H", "icon": "ti-mood-tongue",   "text": "这段关系还很新，没有想到这一步", "score": 80}
+      ]
+    },
+    {
+      "id": "EV-F-45", "order": 45, "layer": "EV", "weight": 1.5,
+      "type": "scenario", "direction": "positive",
+      "text": "你回顾你们在一起的这段时间。整体感受是？",
+      "scene": "关系整体价值的回顾",
+      "options": [
+        {"key": "A", "text": "值得，有很多真实的快乐和成长", "sub": "高关系价值感", "score": 90},
+        {"key": "B", "text": "有好有坏，总体还是值得的", "sub": "中等，接受复杂性", "score": 70},
+        {"key": "C", "text": "有些累，但还没想清楚要怎样", "sub": "消耗感明显，方向模糊", "score": 40},
+        {"key": "D", "text": "如果能重来，我可能会做不同的选择", "sub": "低关系价值感，风险信号", "score": 20}
+      ]
+    },
+    {
+      "id": "EV-F-46", "order": 46, "layer": "EV", "weight": 1.3,
+      "type": "binary", "direction": "positive",
+      "text": "你有没有在这段关系里，感觉过一种「这就是了」的确定感？",
+      "options": [
+        {"key": "left",  "text": "有，有时候会感觉他就是那个对的人", "sub": "高关系确认感", "score": 85},
+        {"key": "right", "text": "不太确定，这种感觉偶尔有但不稳定", "sub": "低确认感，关系方向模糊", "score": 50}
+      ]
+    },
+    {
+      "id": "EV-F-47", "order": 47, "layer": "EV", "weight": 1.5,
+      "type": "choice", "direction": "positive",
+      "text": "他在你的未来计划里吗？",
+      "options": [
+        {"key": "A", "text": "在，我想象未来的时候他自然就在里面", "sub": "高未来整合度", "score": 90},
+        {"key": "B", "text": "有时候在，但不是每次都想到他", "sub": "中等，不够稳定", "score": 65},
+        {"key": "C", "text": "不太确定，还没想到那么远", "sub": "低未来整合度，或关系阶段还早", "score": 50},
+        {"key": "D", "text": "我刻意不去想，因为想了会有压力", "sub": "回避型，有焦虑", "score": 35}
+      ]
+    },
+    {
+      "id": "EV-F-48", "order": 48, "layer": "EV", "weight": 1.5,
+      "type": "slider", "direction": "positive",
+      "text": "你觉得你们现在的关系，处于一个什么样的动态？",
+      "slider": {
+        "min": 0, "max": 100,
+        "min_label": "明显在走下坡，很多东西在消退",
+        "max_label": "明显在变好，我们越来越有默契",
+        "feedback": [
+          {"range": [0,25],   "text": "有一些让你担心的信号，值得认真正视"},
+          {"range": [26,45],  "text": "有些东西在消退，但还有可以挽回的空间"},
+          {"range": [46,60],  "text": "处于平台期，稳定但缺少新的动力"},
+          {"range": [61,80],  "text": "整体是在往好的方向走的"},
+          {"range": [81,100], "text": "你们正处于关系里的一个好阶段"}
+        ]
+      },
+      "scoring": {"method": "direct"}
+    },
+    {
+      "id": "EV-F-49", "order": 49, "layer": "EV", "weight": 1.5,
+      "type": "scale", "direction": "positive",
+      "text": "跟他在一起，我觉得自己是在往前走的，不是在原地等或者在后退。",
+      "scale": {"min": 1, "max": 5, "min_label": "完全不符合", "max_label": "完全符合"},
+      "scoring": {"method": "direct_times_20"}
+    },
+    {
+      "id": "EV-F-50", "order": 50, "layer": "EV", "weight": 1.3,
+      "type": "scenario", "direction": "positive",
+      "text": "你的朋友问你「你们还会在一起吗」。你的第一反应是？",
+      "scene": "关系稳定性的直觉判断",
+      "options": [
+        {"key": "A", "text": "会，我没有想过结束这段关系", "sub": "高稳定性", "score": 90},
+        {"key": "B", "text": "应该会，但我没有完全确定", "sub": "中等，有不确定感", "score": 65},
+        {"key": "C", "text": "不知道，说不准", "sub": "低稳定性，方向模糊", "score": 40},
+        {"key": "D", "text": "我也在想这个问题", "sub": "关系处于评估期", "score": 35}
+      ]
+    },
+    {
+      "id": "RK-F-51", "order": 51, "layer": "RK", "weight": 1.5,
+      "type": "scenario", "direction": "reverse",
+      "text": "他有时候会说一些让你感到被否定或者不被尊重的话。这种情况？",
+      "scene": "言语尊重程度",
+      "options": [
+        {"key": "A", "text": "几乎没有，他说话很注意我的感受", "sub": "低风险", "score": 10},
+        {"key": "B", "text": "偶尔有，但他会意识到并道歉", "sub": "低中风险，有修复机制", "score": 30},
+        {"key": "C", "text": "有时候有，他不太意识到，或者觉得我太敏感", "sub": "中高风险", "score": 60},
+        {"key": "D", "text": "比较频繁，这是让我感到受伤的一个来源", "sub": "高风险，需要认真对待", "score": 85}
+      ]
+    },
+    {
+      "id": "RK-F-52", "order": 52, "layer": "RK", "weight": 1.5,
+      "type": "binary", "direction": "reverse",
+      "text": "在这段关系里，你有没有感觉过一种「我在压抑自己」的时刻？",
+      "options": [
+        {"key": "left",  "text": "很少，我在他面前大多数时候可以做自己", "sub": "低风险", "score": 15},
+        {"key": "right", "text": "有，有一些东西我不敢说或者不得不压着", "sub": "中高风险，自我压抑信号", "score": 70}
+      ]
+    },
+    {
+      "id": "RK-F-53", "order": 53, "layer": "RK", "weight": 1.5,
+      "type": "choice", "direction": "reverse",
+      "text": "他对你的情绪和感受，通常是什么态度？",
+      "options": [
+        {"key": "A", "text": "认真对待，就算他不完全理解也会尊重", "sub": "低风险", "score": 10},
+        {"key": "B", "text": "大多数时候会回应，但有时候觉得我想多了", "sub": "中低风险", "score": 35},
+        {"key": "C", "text": "经常觉得我太敏感或者小题大做", "sub": "中高风险，情感否定倾向", "score": 65},
+        {"key": "D", "text": "基本上不太在意，或者会用情绪反应来压过我", "sub": "高风险", "score": 85}
+      ]
+    },
+    {
+      "id": "RK-F-54", "order": 54, "layer": "RK", "weight": 1.5,
+      "type": "slider", "direction": "reverse",
+      "text": "在这段关系里，你感觉自己是否有足够的安全感，可以真实地表达自己？",
+      "slider": {
+        "min": 0, "max": 100,
+        "min_label": "我经常不敢说真实的想法",
+        "max_label": "我可以完全做自己，不需要表演",
+        "feedback": [
+          {"range": [0,25],   "text": "你在这段关系里有一种压抑感，这值得认真看"},
+          {"range": [26,45],  "text": "有一些部分你不太敢展示，慢慢在开放"},
+          {"range": [46,65],  "text": "大多数时候可以，但某些话题还是会收着"},
+          {"range": [66,85],  "text": "整体很有安全感，能做自己"},
+          {"range": [86,100], "text": "这段关系给了你真实的安全感"}
+        ]
+      },
+      "scoring": {"method": "reverse", "formula": "100 - value"}
+    },
+    {
+      "id": "RK-F-55", "order": 55, "layer": "RK", "weight": 1.5,
+      "type": "scenario", "direction": "reverse",
+      "text": "你们之间有没有一些反复出现、始终没有解决的问题？",
+      "scene": "慢性问题的存在程度",
+      "options": [
+        {"key": "A", "text": "没有，我们遇到问题基本都能解决", "sub": "低风险", "score": 10},
+        {"key": "B", "text": "有一个，但我们都知道，在慢慢改善", "sub": "中低风险，有意识", "score": 30},
+        {"key": "C", "text": "有，而且说了很多次但没有真正改变", "sub": "中高风险，模式固化", "score": 65},
+        {"key": "D", "text": "有几个，感觉已经没什么好说的了", "sub": "高风险，消极循环", "score": 85}
+      ]
+    },
+    {
+      "id": "RK-F-56", "order": 56, "layer": "RK", "weight": 1.3,
+      "type": "binary", "direction": "reverse",
+      "text": "你在这段关系里，有没有感觉过一种「我失去了自己」的时刻？",
+      "options": [
+        {"key": "left",  "text": "没有，我在这段关系里还是我自己", "sub": "低风险", "score": 10},
+        {"key": "right", "text": "有，有时候感觉自己为了这段关系失去了一些东西", "sub": "中高风险，自我消融信号", "score": 70}
+      ]
+    },
+    {
+      "id": "RK-F-57", "order": 57, "layer": "RK", "weight": 1.3,
+      "type": "choice", "direction": "reverse",
+      "text": "你们之间有没有一些话，是你一直想说但没说的？",
+      "options": [
+        {"key": "A", "text": "没有，我们之间没有什么藏着掖着的", "sub": "低风险，高透明度", "score": 10},
+        {"key": "B", "text": "有一些小事，但不影响大局", "sub": "低中风险", "score": 25},
+        {"key": "C", "text": "有一些比较重要的话，一直没找到好的时机", "sub": "中风险，沟通有积压", "score": 55},
+        {"key": "D", "text": "有一些核心的东西，我不确定说了会怎样，所以没说", "sub": "高风险，关键问题被回避", "score": 80}
+      ]
+    },
+    {
+      "id": "RK-F-58", "order": 58, "layer": "RK", "weight": 1.5,
+      "type": "scale", "direction": "reverse",
+      "text": "我在这段关系里，有时候会感到害怕——害怕说真心话，或者害怕他的反应。",
+      "scale": {"min": 1, "max": 5, "min_label": "从不", "max_label": "经常"},
+      "scoring": {"method": "reverse_times_25", "formula": "(value - 1) * 25"}
+    },
+    {
+      "id": "RK-F-59", "order": 59, "layer": "RK", "weight": 1.5,
+      "type": "mood", "direction": "reverse",
+      "text": "你对这段关系整体的感觉，最接近？",
+      "options": [
+        {"key": "A", "icon": "ti-heart",         "text": "珍惜，这段关系让我感到幸运", "score": 10},
+        {"key": "B", "icon": "ti-mood-happy",    "text": "满意，整体很好", "score": 15},
+        {"key": "C", "icon": "ti-mood-smile",    "text": "还不错，有一些小问题但可以接受", "score": 25},
+        {"key": "D", "icon": "ti-mood-confuzed", "text": "复杂，好的坏的都有", "score": 45},
+        {"key": "E", "icon": "ti-mood-sad",      "text": "有些疲惫，但还在坚持", "score": 60},
+        {"key": "F", "icon": "ti-mood-nervous",  "text": "有点不安，不确定在哪里出了问题", "score": 65},
+        {"key": "G", "icon": "ti-mood-empty",    "text": "有时候感觉很空，说不清楚为什么", "score": 70},
+        {"key": "H", "icon": "ti-mood-angry",    "text": "有一些委屈和不满，还没说出来", "score": 75}
+      ]
+    },
+    {
+      "id": "RK-F-60", "order": 60, "layer": "RK", "weight": 1.5,
+      "type": "scenario", "direction": "reverse",
+      "text": "如果你最好的朋友跟你描述一段跟你们很相似的关系，问你怎么看。你会对她说什么？",
+      "scene": "旁观者视角的关系评估",
+      "options": [
+        {"key": "A", "text": "我会说这段关系挺好的，值得好好珍惜", "sub": "低风险，关系认可度高", "score": 10},
+        {"key": "B", "text": "我会说有些地方需要注意，但整体是健康的", "sub": "中低风险，有自我觉察", "score": 30},
+        {"key": "C", "text": "我会有些担心，会提醒她注意某些模式", "sub": "中高风险，旁观者视角能看到问题", "score": 60},
+        {"key": "D", "text": "我可能会建议她认真想一想这段关系值不值得继续", "sub": "高风险，理智层面已有判断", "score": 85}
+      ]
+    }
+  ]
+}

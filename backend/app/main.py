@@ -21,6 +21,7 @@ from app.chat_context import (
     save_message,
     summarize_context,
 )
+from app.admin import router as admin_router
 from app.core_traits import attach_core_traits_to_payload
 from app.profile_center import rebuild_and_cache_portrait
 
@@ -39,6 +40,7 @@ def _cors_allow_vercel_previews() -> bool:
 
 
 app = FastAPI(title="LoveCompass API", version="0.1.0")
+app.include_router(admin_router)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins(),

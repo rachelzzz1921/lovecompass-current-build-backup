@@ -1,0 +1,219 @@
+{
+  "productName": "ROS关系测评系统·套二",
+  "version": "V2.0",
+  "suiteSlugs": {
+    "female": "s02_ros_female",
+    "male": "s02_ros_male"
+  },
+  "scoringModelType": "ROS_V3",
+  "productOverview": {
+    "position": "测「你们之间怎么样」——评估对象是一段具体的关系，作答者心里必须有一个真实存在的人",
+    "purpose": "套一自我底片 + 套二关系测评，双层分析「你 × 这段关系」的真实互动模式",
+    "businessLogic": {
+      "basic": "收费解锁，需兑换码",
+      "upgrade": "联动套一，AI 深度双层分析，价值更高",
+      "spread": "用户购买后可免费邀请一位伴侣参与，社交裂变"
+    },
+    "theoryBase": {
+      "AT": "吸引层 - 关系起点与吸引力",
+      "IN": "互动层 - 日常相处与沟通质量",
+      "CO": "兼容层 - 价值观与生活方式匹配度",
+      "EV": "演化层 - 关系发展轨迹",
+      "RK": "风险层 - 关系红线与潜在问题"
+    }
+  },
+  "coreProcess": {
+    "initiatorFlow": [
+      "进入测试 → 询问是否有伴侣匹配码",
+      "无码：购码开始测试；有码：免费开始，预加载对方数据",
+      "完成 60 题 → 获得单人关系报告",
+      "系统生成关系码 + 专属邀请链接",
+      "分享给伴侣"
+    ],
+    "inviteeFlow": [
+      "点开链接 → 自动预填发起方关系码",
+      "独立注册账号",
+      "完成对应性别版本 60 题 → 获得个人单人报告",
+      "双方数据自动合并",
+      "双人报告双向免费解锁"
+    ]
+  },
+  "relationCode": {
+    "format": "ROS-XXXX-XXXX",
+    "storageContent": [
+      "五维得分 (AT/IN/CO/EV/RK)",
+      "套一依恋类型 (如有)",
+      "用户性别",
+      "生成时间戳"
+    ],
+    "function": "数据凭证，无需账号绑定，输入即可关联双方数据"
+  },
+  "relationStages": [
+    { "id": 1, "name": "怦然相遇", "feature": "新鲜感最强，滤镜最厚，所有缺点都是可爱", "position": "上升" },
+    { "id": 2, "name": "渐入佳境", "feature": "开始展示真实的自己，关系在加深", "position": "峰值" },
+    { "id": 3, "name": "暗流初现", "feature": "第一次感受到摩擦，开始有不确定感", "position": "下降" },
+    { "id": 4, "name": "磨合阵痛", "feature": "误解和争执开始出现，考验真正开始", "position": "低谷" },
+    { "id": 5, "name": "倦怠低谷", "feature": "消耗感明显，开始怀疑这段关系", "position": "最低点" },
+    { "id": 6, "name": "十字路口", "feature": "有过放弃的念头，但还没走", "position": "转折点" },
+    { "id": 7, "name": "重建信任", "feature": "经历过风浪，开始真正理解彼此", "position": "上升" },
+    { "id": 8, "name": "深度联结", "feature": "不只是喜欢，是真正懂得", "position": "上升" },
+    { "id": 9, "name": "并肩同行", "feature": "稳定、成熟、有未来感", "position": "峰值" }
+  ],
+  "relationTypes": [
+    { "originalName": "滋养型", "newName": "彼此生长", "feature": "让你成为更好的自己，被看见、被支持、有成长" },
+    { "originalName": "共生型", "newName": "难舍难分", "feature": "深度融合，分不清是爱还是需要，离不开但不确定是爱还是习惯" },
+    { "originalName": "平行型", "newName": "温水同行", "feature": "不冷不热，舒适但缺少真正的联结，不吵架也没有真正在一起" },
+    { "originalName": "消耗型", "newName": "心甘情愿地累", "feature": "付出多于回报，但还在坚持，累但走不掉" },
+    { "originalName": "燃烧型", "newName": "烈火烹油", "feature": "极好极坏，情绪过山车，高强度的吸引和冲突并存" },
+    { "originalName": "过渡型", "newName": "此刻刚好", "feature": "双方都知道这不是终点，舒适但没有未来感" }
+  ],
+  "fiveDimensions": {
+    "AT": {
+      "name": "吸引基础",
+      "weight": 0.2,
+      "direction": "positive",
+      "questionCount": 10,
+      "femaleFocus": "他当初吸引你的是什么，现在还是吗",
+      "maleFocus": "你对她的吸引感有没有在减退，为什么"
+    },
+    "IN": {
+      "name": "互动质量",
+      "weight": 0.3,
+      "direction": "positive",
+      "questionCount": 16,
+      "femaleFocus": "他有没有真正听你说话，冲突后有没有修复",
+      "maleFocus": "相处是否轻松，她的情绪状态对你的影响"
+    },
+    "CO": {
+      "name": "兼容程度",
+      "weight": 0.25,
+      "direction": "positive",
+      "questionCount": 12,
+      "femaleFocus": "他的生活规划和你的方向能不能走到一起",
+      "maleFocus": "她的家庭观、消费观、生活节奏跟你的差距"
+    },
+    "EV": {
+      "name": "关系走向",
+      "weight": 0.15,
+      "direction": "positive",
+      "questionCount": 12,
+      "femaleFocus": "你在这段关系里有没有在成长，还是在萎缩",
+      "maleFocus": "这段关系有没有让你有动力往前走"
+    },
+    "RK": {
+      "name": "风险信号",
+      "weight": 0.1,
+      "direction": "reverse",
+      "questionCount": 10,
+      "femaleFocus": "共用核心维度，部分题目差异化",
+      "maleFocus": "共用核心维度，部分题目差异化"
+    }
+  },
+  "coupleMatchAnalysis": {
+    "resonanceIndex": {
+      "name": "共鸣指数",
+      "bottomScore": 55,
+      "scoreRule": [
+        { "originalScore": "81-100", "showScore": "88-96", "level": "心有灵犀", "desc": "你们之间有一种很难被替代的默契" },
+        { "originalScore": "61-80", "showScore": "75-87", "level": "深度共鸣", "desc": "真实的联结，值得好好珍惜" },
+        { "originalScore": "41-60", "showScore": "65-74", "level": "温柔磨合", "desc": "你们在彼此靠近的路上，慢慢来" },
+        { "originalScore": "0-40", "showScore": "55-64", "level": "初见雏形", "desc": "关系还在成形，有空间，也有可能" }
+      ],
+      "formula": "AT均值×0.20 + IN均值×0.30 + CO均值×0.25 + EV均值×0.15 + (100-RK均值)×0.10；每层差值超20分，指数-3"
+    },
+    "perceptionDifference": "你们对这段关系的感受有一些不同的地方——你感受到的联结感比他/她高出一些。这不代表谁对谁错，更可能的是你们表达爱的方式不太一样。有时候，付出的人感受更深，接收的人习以为常——试着让他/她知道，你在意哪些细节。",
+    "dimensionMisalignment": {
+      "AT": "吸引感不对等，一方比另一方更投入",
+      "IN": "对相处质量的感受完全不同",
+      "CO": "对这段关系的未来判断不一样",
+      "EV": "一个在成长，一个在原地",
+      "RK": "双方都察觉到了问题，但可能没说出来"
+    },
+    "attachmentCollision": [
+      { "combination": "安全型×安全型", "name": "天作之合", "desc": "两个内心稳定的人在一起，是最少内耗的组合。不是没有问题，是有能力一起解决" },
+      { "combination": "安全型×焦虑型", "name": "避风港与浪", "desc": "稳定的人能给焦虑的人安全感，长期易不平衡，焦虑型需学会内化" },
+      { "combination": "安全型×回避型", "name": "开门与关门", "desc": "安全型稳定不崩溃，回避型会慢慢打开，需要时间和耐心" },
+      { "combination": "安全型×混合型", "name": "稳中有变", "desc": "安全型是锚，平衡混合型情绪起伏，整体可长久发展" },
+      { "combination": "焦虑型×焦虑型", "name": "双向拉扯", "desc": "前期浓烈，后期易耗尽，需双方从自身寻找安全感" },
+      { "combination": "焦虑型×回避型", "name": "欢喜冤家", "desc": "经典追逃模式，吸引力真实，不打破模式终将耗尽双方" },
+      { "combination": "焦虑型×混合型", "name": "迷雾中的彼此", "desc": "双方不稳定，需大量沟通和边界建设" },
+      { "combination": "回避型×回避型", "name": "平行宇宙", "desc": "平静但难深入，双方都在回避真正的亲密" },
+      { "combination": "回避型×混合型", "name": "捉摸不定", "desc": "相处舒适，但难以建立深度联结" },
+      { "combination": "混合型×混合型", "name": "一团烟火", "desc": "热烈又混乱，有觉察可在磨合中走向成熟" },
+      { "combination": "高边界安全型×焦虑型", "name": "冰与火", "desc": "安全型给依靠，需主动示弱；焦虑型需尊重边界" },
+      { "combination": "高边界安全型×回避型", "name": "两座山", "desc": "相互尊重，需主动创造亲密，避免变成室友关系" },
+      { "combination": "低自我高投入型×任意类型", "name": "全心付出", "desc": "核心风险在自身，长期无回应易委屈崩溃，需先爱自己" },
+      { "combination": "高边界安全型×混合型", "name": "规则与例外", "desc": "清晰稳定感互补，愿意沟通可长久发展" },
+      { "combination": "低自我高投入型×回避型", "name": "给不到的距离", "desc": "付出型需有边界，回避型需主动表达感谢" }
+    ]
+  },
+  "reportDesign": {
+    "singleReport": [
+      "关系类型判定",
+      "关系曲线定位",
+      "五维雷达图",
+      "三条 AI 洞察 (优势/注意点/建议)",
+      "关系码 + 邀请链接"
+    ],
+    "coupleReport": [
+      "共鸣指数 + 段位名",
+      "关系天气预报 (晴天/多云转晴/阴雨/暴风雨前)",
+      "双人关系曲线定位",
+      "双层叠加雷达图",
+      "感知差值分析",
+      "依恋碰撞分析",
+      "AI 三条专属建议",
+      "关系处方签",
+      "社交分享卡片"
+    ],
+    "prescriptionWarmUp": {
+      "stage7-9": "你们走过了不容易的部分，能走到这里很不简单。下面这张处方，是给经历过风浪的你们用来继续走好的——",
+      "stage1-3": "你们还在彼此发现的阶段，这是关系里最有生命力的时候。下面这张处方帮你们把这段时间过得更扎实一些——",
+      "stage4-6": "能在这个阶段认真做这道题，说明你们都在认真对待这段关系。这张处方不是说你们有问题，是帮你们把问题说清楚——",
+      "lowIndexLateStage": "在一起久了，有些东西会钝化——这很正常，不是感情出了问题。这张处方是帮你们重新找到彼此的频道——"
+    },
+    "prescriptionFormat": "┌─────────────────────────┐\n│  Rx  你们的关系处方      │\n│                         │\n│  主诉：联结感不均衡      │\n│  建议：每周一次          │\n│        不带手机的        │\n│        两小时对话        │\n│  复诊：三个月后          │\n└─────────────────────────┘"
+  },
+  "questionDesign": {
+    "basicParams": {
+      "femaleTotal": 60,
+      "maleTotal": 60,
+      "questionTypes": ["slider", "scenario", "binary", "choice", "scale", "mood", "card", "rank"],
+      "questionTypeCount": 8,
+      "dimensionCount": {
+        "AT": 10,
+        "IN": 16,
+        "CO": 12,
+        "EV": 12,
+        "RK": 10
+      },
+      "preQuestions": 2
+    },
+    "genderLanguage": {
+      "female": "情感感受类：你感觉到、你有没有觉得",
+      "male": "行为事实类：你们通常会、你发现"
+    },
+    "preQuestion": "你们现在处于哪个阶段？\n○ 暗恋 / 还没在一起\n○ 暧昧中（三个月以内）\n○ 在一起不久（三个月到一年）\n○ 在一起一到三年\n○ 在一起三年以上\n○ 已婚 / 长期伴侣",
+    "timeCalibration": [
+      "暗恋/暧昧：锁定阶段①②，不出现高阶阶段",
+      "三年以上：降低①②权重，侧重 EV/IN 得分",
+      "已婚/长期：低共鸣解读为「需要新鲜感」，非「关系消退」"
+    ],
+    "specialAdaptation": "暗恋/未在一起状态提供专属题目替换版，适配非恋爱关系场景"
+  },
+  "corePrinciples": [
+    "人情世故原则：语言委婉，分数调优，绝不劝分",
+    "独立用户原则：受邀方为独立用户，优先获得个人报告",
+    "真实精准原则：性别视角差异化，贴合真实关系感受",
+    "传播友好原则：结果适配社交分享，自带传播属性",
+    "校准纠错原则：关系时长 + 阶段校准结果，避免常识性错误"
+  ],
+  "dataFiles": {
+    "femaleQuestionBank": "backend/data/suite2_ros_female.json",
+    "maleQuestionBank": "backend/data/suite2_ros_male.json",
+    "importSql": [
+      "backend/data/004_import_suite2_ros_female.sql",
+      "backend/data/004_import_suite2_ros_male.sql"
+    ]
+  }
+}

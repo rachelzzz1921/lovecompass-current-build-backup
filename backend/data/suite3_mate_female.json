@@ -1,0 +1,1094 @@
+{
+  "suite": {
+    "id": "S03_MATE_FEMALE",
+    "name": "择偶坐标测试",
+    "gender": "female",
+    "version": "1.0",
+    "total_questions": 80,
+    "estimated_minutes": 18,
+    "is_free": false,
+    "modules": ["FS1","FS2","FS3","FS4","FS5"],
+    "result_types": [
+      "让人想留下来的人",
+      "被读懂之前的人",
+      "一眼就懂的人",
+      "需要被正确打开的人",
+      "还没到时候的人",
+      "越了解越值钱的人"
+    ],
+    "question_types_used": ["slider","scenario","binary","choice","scale","card","mood","rank"]
+  },
+
+  "scoring_formula": {
+    "axes": {
+      "horizontal": {
+        "name": "市场显示度",
+        "formula": "FS1 * 0.55 + FS2 * 0.45",
+        "description": "别人第一眼和相处后感受到的吸引力综合"
+      },
+      "vertical": {
+        "name": "现实支撑力",
+        "formula": "FS3 * 0.60 + (100 - FS5) * 0.40",
+        "description": "你能给关系托底的现实能力和风险净值"
+      }
+    },
+    "modules": {
+      "FS1": {
+        "label": "吸引力资产",
+        "weight": 0.35,
+        "sub": {
+          "FS1_A": {"label": "外形管理水平", "weight": 0.40},
+          "FS1_B": {"label": "气质与存在感", "weight": 0.35},
+          "FS1_C": {"label": "新鲜感存续力", "weight": 0.25}
+        }
+      },
+      "FS2": {
+        "label": "情感价值输出",
+        "weight": 0.30,
+        "sub": {
+          "FS2_A": {"label": "情绪滋养能力", "weight": 0.40},
+          "FS2_B": {"label": "趣味与话题质量", "weight": 0.30},
+          "FS2_C": {"label": "被需要感制造力", "weight": 0.30}
+        }
+      },
+      "FS3": {
+        "label": "现实自主性",
+        "weight": 0.20,
+        "sub": {
+          "FS3_A": {"label": "经济独立程度", "weight": 0.40},
+          "FS3_B": {"label": "家庭助力情况", "weight": 0.35},
+          "FS3_C": {"label": "生活自主能力", "weight": 0.25}
+        }
+      },
+      "FS4": {
+        "label": "关系成熟度",
+        "weight": 0.10,
+        "sub": {
+          "FS4_A": {"label": "边界清晰度", "weight": 0.40},
+          "FS4_B": {"label": "情绪处理方式", "weight": 0.35},
+          "FS4_C": {"label": "依赖与独立平衡", "weight": 0.25}
+        }
+      },
+      "FS5": {
+        "label": "风险净值",
+        "weight": 0.05,
+        "direction": "reverse",
+        "note": "此模块分数越低越好，反向计入纵轴",
+        "sub": {
+          "FS5_A": {"label": "过去关系包袱", "weight": 0.35},
+          "FS5_B": {"label": "情感依赖风险", "weight": 0.40},
+          "FS5_C": {"label": "家庭干预风险", "weight": 0.25}
+        }
+      }
+    }
+  },
+
+  "type_rules": {
+    "quadrant_logic": {
+      "note": "以50分为轴线中点，判断所在象限",
+      "Q1": {"condition": "horizontal >= 60 && vertical >= 60", "type": "让人想留下来的人"},
+      "Q2": {"condition": "horizontal < 50 && vertical >= 60", "type": "被读懂之前的人"},
+      "Q4": {"condition": "horizontal >= 60 && vertical < 50", "type": "一眼就懂的人"},
+      "Q3": {"condition": "horizontal < 50 && vertical < 50", "type": "还没到时候的人"},
+      "special_1": {"condition": "50 <= horizontal < 60 && 50 <= vertical < 60", "type": "需要被正确打开的人"},
+      "special_2": {"condition": "horizontal < 50 && vertical >= 55 && FS2 >= 65", "type": "越了解越值钱的人"}
+    }
+  },
+
+  "result_profiles": {
+    "让人想留下来的人": {
+      "tagline": "你不是最耀眼的那个，但待在你身边有一种说不清的舒服。",
+      "tags": ["情感浓度高", "安全感制造者", "越处越好"],
+      "market_read": "你的吸引力是慢热型的，第一眼不一定赢，但留存率极高。你在关系里能给对方持续的情绪价值，对方很难找到替代品。",
+      "upper_match": "需要稳定情感着陆点、有一定阅历、不追求即时刺激的成熟男性",
+      "sweet_spot": "重视稳定感、不喜欢刺激和不确定性、愿意花时间了解你的男性",
+      "lower_match": "追求即时吸引力、需要强存在感刺激的男性",
+      "radar_baseline": {"FS1": 72, "FS2": 78, "FS3": 70, "FS4": 75, "FS5_risk": 25}
+    },
+    "被读懂之前的人": {
+      "tagline": "你有很多好，但它们藏得很深——大多数人没有耐心等到那一刻。",
+      "tags": ["高价值低显示度", "需要对的频道", "慢慢升值"],
+      "market_read": "你的牌面没有被充分展示出来，第一印象可能低于你的实际价值。你不缺好，缺的是一个愿意停下来读你的人。",
+      "upper_match": "有阅历、不被表面吸引、懂得欣赏内在深度的男性",
+      "sweet_spot": "务实、重视稳定、不追求即时浪漫刺激的男性",
+      "lower_match": "追求第一眼感觉、需要你主动展示自己才能看见你的男性",
+      "radar_baseline": {"FS1": 48, "FS2": 68, "FS3": 72, "FS4": 70, "FS5_risk": 20}
+    },
+    "一眼就懂的人": {
+      "tagline": "你把自己放在那里，清清楚楚，喜欢就来，不喜欢走开。",
+      "tags": ["高辨识度", "低迷失率", "所见即所得"],
+      "market_read": "你的吸引力是显性的，门面资产和气质都摆在明面上。筛选效率极高，但也意味着你吸引的范围已经被框定，制造惊喜感的空间需要主动创造。",
+      "upper_match": "资源好、审美在线、有一定阅历的成熟男性",
+      "sweet_spot": "目标清晰、不喜欢猜谜、追求匹配效率的务实型男性",
+      "lower_match": "条件一般、需要靠你的吸引力维持自信的男性",
+      "radar_baseline": {"FS1": 82, "FS2": 65, "FS3": 55, "FS4": 65, "FS5_risk": 35}
+    },
+    "需要被正确打开的人": {
+      "tagline": "你对了频道就是惊喜，频道不对就是误解——你不难，只是要对的人。",
+      "tags": ["高个性", "强烈的存在感", "非标品"],
+      "market_read": "你不走大众审美，也不符合标准模板，但你在特定人群里的吸引力是无可替代的。你的市场窄但深，找到就是真命。",
+      "upper_match": "有独立审美、不从众、愿意接受非标准答案的男性",
+      "sweet_spot": "同样有鲜明个性、能欣赏你独特之处的男性",
+      "lower_match": "追求大众标准、需要你符合某种模板的男性",
+      "radar_baseline": {"FS1": 62, "FS2": 72, "FS3": 60, "FS4": 68, "FS5_risk": 30}
+    },
+    "还没到时候的人": {
+      "tagline": "你现在的状态还不是最好版本，但方向是对的——时间站在你这边。",
+      "tags": ["成长轨道清晰", "当下不完整", "潜力可见"],
+      "market_read": "你目前的现实底牌或吸引力资产还在建设中，市场给你的即时报价低于你的长期价值。你需要的不是将就，而是等自己准备好。",
+      "upper_match": "有耐心、看重潜力而非现状、愿意一起成长的男性",
+      "sweet_spot": "同样在成长阶段、不追求即时完美、把关系当长期项目的男性",
+      "lower_match": "追求现成条件、不愿意等待的男性",
+      "radar_baseline": {"FS1": 45, "FS2": 50, "FS3": 42, "FS4": 48, "FS5_risk": 55}
+    },
+    "越了解越值钱的人": {
+      "tagline": "停留的时间越长，你给的东西越多——你不适合被快速评估。",
+      "tags": ["复利型价值", "深度体验者", "长期主义"],
+      "market_read": "你的价值不在第一印象，而在第三个月、第一年、第五年。你在短期市场里容易被低估，但一旦进入长期关系，你的优势会持续放大。",
+      "upper_match": "不追求即时满足、愿意投入时间、把关系当长期项目经营的男性",
+      "sweet_spot": "成熟稳重、有长期规划意识、不急于求成的男性",
+      "lower_match": "喜欢快节奏、需要即时回报、耐心不足的男性",
+      "radar_baseline": {"FS1": 50, "FS2": 75, "FS3": 70, "FS4": 72, "FS5_risk": 22}
+    }
+  },
+
+  "score_display_rules": {
+    "note": "所有分数转化为描述性语言输出，不直接显示数字",
+    "ranges": [
+      {"min": 0,  "max": 30, "label": "这个维度还有很大的成长空间"},
+      {"min": 31, "max": 50, "label": "这个维度处于发展阶段"},
+      {"min": 51, "max": 65, "label": "这个维度表现稳定"},
+      {"min": 66, "max": 80, "label": "这个维度是你的重要资产"},
+      {"min": 81, "max": 100,"label": "这个维度是你的核心竞争力"}
+    ],
+    "sensitive_fields": {
+      "FS1_A_base": "外形基础值不直接显示，转化为：高辨识度/中等辨识度/自然型/待提升",
+      "FS3_A_income": "收入档位不直接显示，转化为：经济独立/基本独立/发展阶段",
+      "FS3_A_education": "学历作为修正系数，不单独显示"
+    }
+  },
+
+  "questions": [
+    {
+      "id": "FS1-A-F-01", "order": 1, "module": "FS1", "sub": "FS1_A",
+      "type": "slider", "weight": 2.0, "direction": "positive",
+      "text": "先来校准一下你的外形基础。根据下面的参考，你觉得自己大概在哪个区间？",
+      "note": "这个分数只帮助系统理解你的起点，不会直接出现在你的结果里。",
+      "slider": {
+        "min": 1, "max": 10,
+        "reference": [
+          {"score": 5, "desc": "普通大众，走在街上不会被特别注意到"},
+          {"score": 6, "desc": "有辨识度，朋友会说你挺好看的"},
+          {"score": 7, "desc": "明显好看，陌生场合经常有人注意你"},
+          {"score": 8, "desc": "同龄人里前10%，有人专门为你的外形回头"},
+          {"score": 9, "desc": "同龄人里前3%，经常被建议去拍照拍视频"},
+          {"score": 10, "desc": "极少数，几乎没有人说你不好看"}
+        ]
+      },
+      "scoring": {"method": "direct_times_10", "formula": "value * 10"}
+    },
+    {
+      "id": "FS1-A-F-02", "order": 2, "module": "FS1", "sub": "FS1_A",
+      "type": "scenario", "weight": 1.2, "direction": "positive",
+      "text": "你和朋友们一起去参加一个聚会，里面大多数是你们不太熟的人。聚会结束后，你朋友悄悄告诉你，今晚有人问起你了。你听到这个消息的第一反应是？",
+      "scene": "社交聚会场合",
+      "options": [
+        {"key": "A", "text": "有点意外，没想到会有人注意我", "sub": "自我外形认知偏低", "score": 25},
+        {"key": "B", "text": "还好，我今天状态不错", "sub": "状态依赖型，有感知", "score": 55},
+        {"key": "C", "text": "正常吧，这种场合还挺常见的", "sub": "自我认知稳定", "score": 75},
+        {"key": "D", "text": "谁啊，我去看看", "sub": "习以为常，高自信", "score": 90}
+      ]
+    },
+    {
+      "id": "FS1-A-F-03", "order": 3, "module": "FS1", "sub": "FS1_A",
+      "type": "scale", "weight": 1.3, "direction": "positive",
+      "text": "我会主动维护自己的外形状态——比如定期护肤、注意穿搭、保持体重在自己满意的范围内。",
+      "scale": {"min": 1, "max": 5, "min_label": "几乎不在意", "max_label": "非常主动维护"},
+      "scoring": {"method": "direct_times_20"}
+    },
+    {
+      "id": "FS1-A-F-04", "order": 4, "module": "FS1", "sub": "FS1_A",
+      "type": "binary", "weight": 1.0, "direction": "positive",
+      "text": "你觉得自己的外形吸引力，更多来自哪里？",
+      "options": [
+        {"key": "left",  "text": "天生的底子，基础条件不错", "sub": "先天优势型", "score": 70},
+        {"key": "right", "text": "后天维护出来的，我花了功夫", "sub": "管理维护型", "score": 80}
+      ]
+    },
+    {
+      "id": "FS1-A-F-05", "order": 5, "module": "FS1", "sub": "FS1_A",
+      "type": "choice", "weight": 1.3, "direction": "positive",
+      "text": "你上一次被陌生人主动要联系方式或者表白，大概是什么时候？",
+      "options": [
+        {"key": "A", "text": "好几年前了，记不太清", "sub": "低频", "score": 25},
+        {"key": "B", "text": "一两年以内", "sub": "中低频", "score": 50},
+        {"key": "C", "text": "半年以内", "sub": "中高频", "score": 70},
+        {"key": "D", "text": "最近三个月内就有", "sub": "高频，吸引力持续有效", "score": 90}
+      ]
+    },
+    {
+      "id": "FS1-A-F-06", "order": 6, "module": "FS1", "sub": "FS1_A",
+      "type": "slider", "weight": 1.0, "direction": "positive",
+      "text": "你对自己目前外形状态的满意程度是多少？",
+      "slider": {
+        "min": 0, "max": 100,
+        "min_label": "很不满意，觉得自己还差很多",
+        "max_label": "非常满意，觉得自己状态很好",
+        "feedback": [
+          {"range": [0,30],   "text": "你对自己的外形有明确的不满意点，这说明你有感知，也有提升空间"},
+          {"range": [31,50],  "text": "你觉得自己还不在最好的状态，还在努力中"},
+          {"range": [51,70],  "text": "基本满意，偶尔觉得可以更好"},
+          {"range": [71,85],  "text": "整体满意，状态稳定"},
+          {"range": [86,100], "text": "你对自己的外形状态很自信"}
+        ]
+      },
+      "scoring": {"method": "direct"}
+    },
+    {
+      "id": "FS1-B-F-07", "order": 7, "module": "FS1", "sub": "FS1_B",
+      "type": "scenario", "weight": 1.5, "direction": "positive",
+      "text": "你走进一家咖啡馆找朋友，朋友还没到，你一个人在那儿等。这时候店里还有几桌陌生人。通常会发生什么？",
+      "scene": "独自等待的公共场合",
+      "options": [
+        {"key": "A", "text": "我找个角落坐下，尽量不引人注意", "sub": "存在感主动收敛", "score": 25},
+        {"key": "B", "text": "坐下来刷手机，没注意周围", "sub": "中性，无特别存在感信号", "score": 45},
+        {"key": "C", "text": "偶尔会感觉到有人看了我一眼，但不确定", "sub": "有一定存在感", "score": 70},
+        {"key": "D", "text": "我进去的时候，通常会有人抬头看", "sub": "自然存在感强", "score": 90}
+      ]
+    },
+    {
+      "id": "FS1-B-F-08", "order": 8, "module": "FS1", "sub": "FS1_B",
+      "type": "slider", "weight": 1.2, "direction": "positive",
+      "text": "在你的朋友圈里，你觉得自己的颜值排名大概在哪里？",
+      "slider": {
+        "min": 0, "max": 100,
+        "min_label": "我是朋友里比较普通的那个",
+        "max_label": "我是朋友里明显好看的那个",
+        "feedback": [
+          {"range": [0,30],   "text": "你在朋友圈里不以外形见长，其他特质更突出"},
+          {"range": [31,55],  "text": "中等偏下，外形不是你的核心优势"},
+          {"range": [56,70],  "text": "中等偏上，朋友里算好看的"},
+          {"range": [71,85],  "text": "明显好看，是朋友圈里被认可的"},
+          {"range": [86,100], "text": "你是朋友圈里的颜值担当"}
+        ]
+      },
+      "scoring": {"method": "direct"}
+    },
+    {
+      "id": "FS1-B-F-09", "order": 9, "module": "FS1", "sub": "FS1_B",
+      "type": "card", "weight": 1.3, "direction": "positive",
+      "text": "你的朋友或者同事，通常怎么形容你的整体气质？选一张最接近的。",
+      "options": [
+        {"key": "A", "text": "清新自然，看着舒服", "sub": "亲和气质型", "score": 65},
+        {"key": "B", "text": "有点神秘，不太好猜", "sub": "神秘感型", "score": 70},
+        {"key": "C", "text": "很有存在感，进来就注意到你", "sub": "强存在感型", "score": 85},
+        {"key": "D", "text": "普通，但相处久了觉得你好看", "sub": "慢热吸引力型", "score": 60}
+      ]
+    },
+    {
+      "id": "FS1-B-F-10", "order": 10, "module": "FS1", "sub": "FS1_B",
+      "type": "binary", "weight": 1.0, "direction": "positive",
+      "text": "你发的自拍或者照片，朋友们的反应通常是？",
+      "options": [
+        {"key": "left",  "text": "夸的人挺多的，经常有人说好看", "sub": "外形认可度高", "score": 80},
+        {"key": "right", "text": "朋友不怎么评论外形，更多聊内容", "sub": "外形认可度中等，内容感更强", "score": 55}
+      ]
+    },
+    {
+      "id": "FS1-B-F-11", "order": 11, "module": "FS1", "sub": "FS1_B",
+      "type": "choice", "weight": 1.2, "direction": "positive",
+      "text": "你拍照出来的效果，跟你真人相比？",
+      "options": [
+        {"key": "A", "text": "拍出来比真人好看很多，镜头很喜欢我", "sub": "真人可能略低于照片预期", "score": 60},
+        {"key": "B", "text": "差不多，照片和真人相符", "sub": "一致性高，预期稳定", "score": 70},
+        {"key": "C", "text": "真人比照片好看，见到真人会惊喜", "sub": "真人加分项，线下吸引力更强", "score": 85},
+        {"key": "D", "text": "看情况，有时候照片好，有时候真人好", "sub": "不稳定，状态依赖型", "score": 55}
+      ]
+    },
+    {
+      "id": "FS1-B-F-12", "order": 12, "module": "FS1", "sub": "FS1_B",
+      "type": "scale", "weight": 1.3, "direction": "positive",
+      "text": "我走在路上或者在公共场合，会感觉到有人注意我。",
+      "scale": {"min": 1, "max": 5, "min_label": "几乎从来没有", "max_label": "经常会感觉到"},
+      "scoring": {"method": "direct_times_20"}
+    },
+    {
+      "id": "FS1-C-F-13", "order": 13, "module": "FS1", "sub": "FS1_C",
+      "type": "scenario", "weight": 1.5, "direction": "positive",
+      "text": "你跟一个男生约会了三次。第一次他很主动，第二次也还好，但第三次开始你感觉他没有最开始那么热情了。你觉得这种情况最可能的原因是？",
+      "scene": "约会热度下降的判断",
+      "options": [
+        {"key": "A", "text": "他可能对我失去兴趣了，我也没想太多", "sub": "吸引力自评偏低，归因外部", "score": 30},
+        {"key": "B", "text": "他可能只是最近有事，我的吸引力应该没问题", "sub": "自我认知稳定", "score": 65},
+        {"key": "C", "text": "我感觉我们相处久了我反而更有意思了，可能是他不懂欣赏", "sub": "慢热吸引力自信", "score": 80},
+        {"key": "D", "text": "约会第三次热度降一点挺正常的，不一定说明什么", "sub": "理性认知，不过度解读", "score": 70}
+      ]
+    },
+    {
+      "id": "FS1-C-F-14", "order": 14, "module": "FS1", "sub": "FS1_C",
+      "type": "slider", "weight": 1.2, "direction": "positive",
+      "text": "你觉得自己的吸引力，是「第一眼型」还是「越处越好看型」？",
+      "slider": {
+        "min": 0, "max": 100,
+        "min_label": "完全是第一眼型，初见最惊艳",
+        "max_label": "完全是越处越好看型，相处才出来",
+        "feedback": [
+          {"range": [0,25],   "text": "你的吸引力在第一印象最强，需要主动创造相处机会来维持"},
+          {"range": [26,45],  "text": "偏第一眼，但相处也有加分"},
+          {"range": [46,60],  "text": "两者都有，比较平衡"},
+          {"range": [61,80],  "text": "偏慢热，了解后吸引力上升"},
+          {"range": [81,100], "text": "典型慢热型，第一眼可能平平，深处有惊喜"}
+        ]
+      },
+      "scoring": {"method": "slow_heat_mapping", "note": "两端各有优势，映射到FS1_C慢热系数"}
+    },
+    {
+      "id": "FS1-C-F-15", "order": 15, "module": "FS1", "sub": "FS1_C",
+      "type": "choice", "weight": 1.3, "direction": "positive",
+      "text": "跟你相处过一段时间的男生，通常会怎么评价你？",
+      "options": [
+        {"key": "A", "text": "「跟你在一起很舒服，就是有时候不知道你在想什么」", "sub": "安全感强，神秘感存在", "score": 70},
+        {"key": "B", "text": "「你这个人太有意思了，老是有新东西」", "sub": "新鲜感持续输出型", "score": 85},
+        {"key": "C", "text": "「跟你在一起很开心，但感觉你不怎么需要我」", "sub": "独立性强，情感粘性待提升", "score": 65},
+        {"key": "D", "text": "「我觉得你很好，就是刚开始还好，后来好像慢慢有点了解了」", "sub": "新鲜感存续力中等", "score": 55}
+      ]
+    },
+    {
+      "id": "FS1-C-F-16", "order": 16, "module": "FS1", "sub": "FS1_C",
+      "type": "binary", "weight": 1.5, "direction": "positive",
+      "text": "你跟一个人相处越久，你觉得自己对他的吸引力会？",
+      "options": [
+        {"key": "left",  "text": "越来越强，了解我才知道我好", "sub": "慢热升值型", "score": 80},
+        {"key": "right", "text": "一开始最强，后来慢慢正常化", "sub": "初始冲击型", "score": 60}
+      ]
+    },
+    {
+      "id": "FS1-C-F-17", "order": 17, "module": "FS1", "sub": "FS1_C",
+      "type": "mood", "weight": 1.0, "direction": "positive",
+      "text": "你发了一条没有特别用心拍的日常照片到朋友圈，收到的反应通常让你感觉？",
+      "options": [
+        {"key": "A", "icon": "ti-mood-happy",    "text": "挺多人点赞，正常", "score": 70},
+        {"key": "B", "icon": "ti-mood-smile",    "text": "有几个人说好看，挺开心的", "score": 65},
+        {"key": "C", "icon": "ti-mood-confuzed", "text": "反应一般，没什么特别", "score": 45},
+        {"key": "D", "icon": "ti-mood-sad",      "text": "感觉没人在意", "score": 25},
+        {"key": "E", "icon": "ti-mood-suprised", "text": "经常有人专门来说「你好看」", "score": 90},
+        {"key": "F", "icon": "ti-mood-nervous",  "text": "我很少发日常照，不确定", "score": 50},
+        {"key": "G", "icon": "ti-mood-tongue",   "text": "我不太在意这个", "score": 60},
+        {"key": "H", "icon": "ti-mood-empty",    "text": "基本上就是朋友互动，没有外形评价", "score": 55}
+      ]
+    },
+    {
+      "id": "FS1-C-F-18", "order": 18, "module": "FS1", "sub": "FS1_C",
+      "type": "scale", "weight": 1.2, "direction": "positive",
+      "text": "我觉得自己在关系里，越相处越有吸引力，而不是越处越平淡。",
+      "scale": {"min": 1, "max": 5, "min_label": "完全不符合", "max_label": "完全符合"},
+      "scoring": {"method": "direct_times_20"}
+    },
+    {
+      "id": "FS2-A-F-19", "order": 19, "module": "FS2", "sub": "FS2_A",
+      "type": "scenario", "weight": 1.5, "direction": "positive",
+      "text": "你男朋友今天工作上遇到了很糟糕的事，回家之后一句话不说，坐在那里发呆。你的第一反应是？",
+      "scene": "对方情绪低落时的应对",
+      "options": [
+        {"key": "A", "text": "走过去坐在他旁边，不说话，陪着他", "sub": "情绪容纳型，高情感价值", "score": 90},
+        {"key": "B", "text": "问他怎么了，发生什么事了", "sub": "主动关心型，略偏解决导向", "score": 70},
+        {"key": "C", "text": "给他倒杯水或者做点吃的，用行动表达", "sub": "行动型情感支持", "score": 80},
+        {"key": "D", "text": "等他自己缓过来，不打扰他", "sub": "边界尊重型，但情感主动性低", "score": 55}
+      ]
+    },
+    {
+      "id": "FS2-A-F-20", "order": 20, "module": "FS2", "sub": "FS2_A",
+      "type": "mood", "weight": 1.2, "direction": "positive",
+      "text": "你跟对方分享了一件让你很难受的事，他回应了一句「你想多了，没事的」。你的感受是？",
+      "options": [
+        {"key": "A", "icon": "ti-mood-angry",    "text": "有点生气，这种回答根本没用", "score": 60},
+        {"key": "B", "icon": "ti-mood-sad",      "text": "有点失落，感觉他不理解我", "score": 65},
+        {"key": "C", "icon": "ti-mood-confuzed", "text": "一时不知道怎么反应", "score": 55},
+        {"key": "D", "icon": "ti-mood-smile",    "text": "没关系，他不擅长这个，我理解", "score": 85},
+        {"key": "E", "icon": "ti-mood-nervous",  "text": "开始怀疑他是不是不在乎我", "score": 40},
+        {"key": "F", "icon": "ti-mood-empty",    "text": "算了，下次不说了", "score": 45},
+        {"key": "G", "icon": "ti-mood-tongue",   "text": "跟他说这种话本来就是错误", "score": 70},
+        {"key": "H", "icon": "ti-mood-happy",    "text": "其实他说得也对，我真的想多了", "score": 80}
+      ]
+    },
+    {
+      "id": "FS2-A-F-21", "order": 21, "module": "FS2", "sub": "FS2_A",
+      "type": "scale", "weight": 1.3, "direction": "positive",
+      "text": "当对方情绪低落时，我通常能感知到，并且知道用什么方式让他感觉好一点。",
+      "scale": {"min": 1, "max": 5, "min_label": "完全不符合", "max_label": "完全符合"},
+      "scoring": {"method": "direct_times_20"}
+    },
+    {
+      "id": "FS2-A-F-22", "order": 22, "module": "FS2", "sub": "FS2_A",
+      "type": "binary", "weight": 1.5, "direction": "positive",
+      "text": "对方跟你倾诉一件烦心事，你的本能反应更接近？",
+      "options": [
+        {"key": "left",  "text": "先听完，给他一个感受被理解的空间", "sub": "情感接收型", "score": 85},
+        {"key": "right", "text": "边听边想，帮他分析问题在哪里", "sub": "解决导向型", "score": 60}
+      ]
+    },
+    {
+      "id": "FS2-A-F-23", "order": 23, "module": "FS2", "sub": "FS2_A",
+      "type": "choice", "weight": 1.3, "direction": "positive",
+      "text": "你在关系里，通常扮演什么角色？",
+      "options": [
+        {"key": "A", "text": "那个给情绪价值的人，他有什么事都喜欢跟我说", "sub": "高情感供给", "score": 85},
+        {"key": "B", "text": "比较平衡，互相给，互相接", "sub": "健康互动型", "score": 80},
+        {"key": "C", "text": "我也需要被照顾，我不太擅长一直输出", "sub": "情感供给有限", "score": 50},
+        {"key": "D", "text": "看人，有些人我给得多，有些人我没什么感觉", "sub": "情感选择性供给", "score": 65}
+      ]
+    },
+    {
+      "id": "FS2-A-F-24", "order": 24, "module": "FS2", "sub": "FS2_A",
+      "type": "scenario", "weight": 1.2, "direction": "positive",
+      "text": "你们异地，他今晚发消息说很想你，但你今天也很累，真的不想打电话。你通常会怎么做？",
+      "scene": "异地情感需求与个人状态冲突",
+      "options": [
+        {"key": "A", "text": "跟他说我今天太累了，明天补，然后发个晚安", "sub": "直接表达，有边界", "score": 65},
+        {"key": "B", "text": "撑着跟他打了，累是累但他需要我", "sub": "高情感供给，但可能过度消耗", "score": 70},
+        {"key": "C", "text": "发几条消息回应他，没有打电话", "sub": "折中，维持连接", "score": 60},
+        {"key": "D", "text": "跟他说今天状态不好，但给他发了段语音", "sub": "有情感温度，找到平衡", "score": 85}
+      ]
+    },
+    {
+      "id": "FS2-B-F-25", "order": 25, "module": "FS2", "sub": "FS2_B",
+      "type": "scenario", "weight": 1.3, "direction": "positive",
+      "text": "你和他约会，饭吃完了，还不想回去。通常接下来你们会怎么办？",
+      "scene": "约会续集安排",
+      "options": [
+        {"key": "A", "text": "我会提议去哪里，他一般都跟着", "sub": "主导型，趣味输出强", "score": 80},
+        {"key": "B", "text": "我们会聊着聊着自然想到去哪里", "sub": "互动自然，双向趣味", "score": 85},
+        {"key": "C", "text": "他来决定，我跟着就好", "sub": "被动型，趣味输出低", "score": 50},
+        {"key": "D", "text": "通常就各自回家了，没有特别的续集", "sub": "话题和互动密度偏低", "score": 40}
+      ]
+    },
+    {
+      "id": "FS2-B-F-26", "order": 26, "module": "FS2", "sub": "FS2_B",
+      "type": "choice", "weight": 1.3, "direction": "positive",
+      "text": "你跟喜欢的人聊天，通常是什么状态？",
+      "options": [
+        {"key": "A", "text": "我话比较多，能聊很多东西，他经常说跟我聊天不无聊", "sub": "高话题输出", "score": 80},
+        {"key": "B", "text": "双方都挺有话说，很自然", "sub": "均衡互动", "score": 85},
+        {"key": "C", "text": "我不太擅长主动找话题，更多是接话", "sub": "被动聊天型", "score": 45},
+        {"key": "D", "text": "看对方，遇到聊得来的我话很多，遇不到就很安静", "sub": "选择性输出", "score": 65}
+      ]
+    },
+    {
+      "id": "FS2-B-F-27", "order": 27, "module": "FS2", "sub": "FS2_B",
+      "type": "slider", "weight": 1.2, "direction": "positive",
+      "text": "你觉得跟你在一起，对方会觉得有意思的程度是多少？",
+      "slider": {
+        "min": 0, "max": 100,
+        "min_label": "我可能比较无聊，没什么特别",
+        "max_label": "跟我在一起很有意思，不无聊",
+        "feedback": [
+          {"range": [0,30],   "text": "你可能需要发展一些让对方感到有趣的话题或者兴趣点"},
+          {"range": [31,55],  "text": "中等，有的时候有趣，有的时候比较平"},
+          {"range": [56,75],  "text": "整体有趣，对方跟你在一起体验不错"},
+          {"range": [76,100], "text": "你是那种让人觉得跟你在一起不会无聊的人"}
+        ]
+      },
+      "scoring": {"method": "direct"}
+    },
+    {
+      "id": "FS2-B-F-28", "order": 28, "module": "FS2", "sub": "FS2_B",
+      "type": "binary", "weight": 1.0, "direction": "positive",
+      "text": "你在关系里，更多是？",
+      "options": [
+        {"key": "left",  "text": "制造惊喜和新鲜感的那个", "sub": "主动趣味输出", "score": 75},
+        {"key": "right", "text": "稳定舒适、让他放松的那个", "sub": "安全感输出型", "score": 80}
+      ]
+    },
+    {
+      "id": "FS2-B-F-29", "order": 29, "module": "FS2", "sub": "FS2_B",
+      "type": "rank", "weight": 1.2, "direction": "positive",
+      "text": "在你看来，让一段关系保持新鲜感，最重要的是什么？从最重要到最不重要排序。",
+      "items": [
+        {"id": "a", "text": "我本身就很有趣，有自己的生活和想法"},
+        {"id": "b", "text": "经常一起做新鲜的事情"},
+        {"id": "c", "text": "保持适当的神秘感，不把自己全部摊开"},
+        {"id": "d", "text": "对方足够好奇，愿意持续了解我"}
+      ],
+      "scoring": {
+        "method": "rank_self_awareness",
+        "note": "a排第一=自身趣味性强=高分；d排第一=依赖对方=偏低分",
+        "score_map": {"a_first": 85, "b_first": 75, "c_first": 70, "d_first": 50}
+      }
+    },
+    {
+      "id": "FS2-C-F-30", "order": 30, "module": "FS2", "sub": "FS2_C",
+      "type": "scenario", "weight": 1.5, "direction": "positive",
+      "text": "你们在一起六个月了，最近他朋友问他「你女朋友有什么特别的地方」。你觉得他最可能说的是？",
+      "scene": "被问及你的特别之处",
+      "options": [
+        {"key": "A", "text": "「跟她在一起很舒服，说不清楚，就是不想离开」", "sub": "高情感粘性，被需要感强", "score": 90},
+        {"key": "B", "text": "「她很好看/很温柔/很体贴」——具体某一个特质", "sub": "有明确辨识点", "score": 75},
+        {"key": "C", "text": "「她挺好的」——然后说不下去了", "sub": "存在感和差异化不够明显", "score": 40},
+        {"key": "D", "text": "「她对我很好，我们相处不错」", "sub": "关系质量好但独特性待提升", "score": 65}
+      ]
+    },
+    {
+      "id": "FS2-C-F-31", "order": 31, "module": "FS2", "sub": "FS2_C",
+      "type": "binary", "weight": 1.5, "direction": "positive",
+      "text": "你觉得如果你们分开，他会？",
+      "options": [
+        {"key": "left",  "text": "很难找到像我这样的，会想起我很久", "sub": "不可替代感强", "score": 85},
+        {"key": "right", "text": "慢慢会好，我不确定我有多难被替代", "sub": "替代性评估中等", "score": 50}
+      ]
+    },
+    {
+      "id": "FS2-C-F-32", "order": 32, "module": "FS2", "sub": "FS2_C",
+      "type": "choice", "weight": 1.3, "direction": "positive",
+      "text": "在一段关系里，对方通常更需要你，还是你更需要对方？",
+      "options": [
+        {"key": "A", "text": "他更需要我，他依赖我多一些", "sub": "被需要感强", "score": 85},
+        {"key": "B", "text": "差不多，互相需要", "sub": "均衡型", "score": 75},
+        {"key": "C", "text": "我需要他多一些，我比较黏", "sub": "被需要感弱，依赖倾向", "score": 40},
+        {"key": "D", "text": "看阶段，不同时期不一样", "sub": "动态型", "score": 65}
+      ]
+    },
+    {
+      "id": "FS2-C-F-33", "order": 33, "module": "FS2", "sub": "FS2_C",
+      "type": "scale", "weight": 1.2, "direction": "positive",
+      "text": "在关系里，我有自己的价值和位置，不容易被替代。",
+      "scale": {"min": 1, "max": 5, "min_label": "完全不符合", "max_label": "完全符合"},
+      "scoring": {"method": "direct_times_20"}
+    },
+    {
+      "id": "FS2-C-F-34", "order": 34, "module": "FS2", "sub": "FS2_C",
+      "type": "slider", "weight": 1.0, "direction": "positive",
+      "text": "你觉得在你经历过的关系里，对方对你的依赖程度有多深？",
+      "slider": {
+        "min": 0, "max": 100,
+        "min_label": "他们很独立，不太需要我",
+        "max_label": "对方非常依赖我，我在他生活里很重要",
+        "feedback": [
+          {"range": [0,25],   "text": "你在关系里的存在感可能偏弱，或者你遇到的都是非常独立的人"},
+          {"range": [26,50],  "text": "中等依赖，正常范围"},
+          {"range": [51,75],  "text": "你在对方生活里有重要位置"},
+          {"range": [76,100], "text": "你制造被需要感的能力很强"}
+        ]
+      },
+      "scoring": {"method": "direct"}
+    },
+    {
+      "id": "FS3-A-F-35", "order": 35, "module": "FS3", "sub": "FS3_A",
+      "type": "choice", "weight": 1.5, "direction": "positive",
+      "text": "你目前的经济状态，最接近哪种描述？",
+      "options": [
+        {"key": "A", "text": "有稳定工作，收入能覆盖自己的生活，还有余钱可以存或者花", "sub": "经济独立", "score": 70},
+        {"key": "B", "text": "有收入，但不多，基本够用，偶尔需要家里补贴", "sub": "半独立", "score": 50},
+        {"key": "C", "text": "主要靠家里，自己收入很少或者没有", "sub": "依赖型", "score": 25},
+        {"key": "D", "text": "我收入很好，明显高于同龄人平均水平", "sub": "高度独立，资源强", "score": 90}
+      ]
+    },
+    {
+      "id": "FS3-A-F-36", "order": 36, "module": "FS3", "sub": "FS3_A",
+      "type": "binary", "weight": 1.5, "direction": "positive",
+      "text": "如果你们分手，你的生活质量会？",
+      "options": [
+        {"key": "left",  "text": "基本不受影响，我自己过得很好", "sub": "经济完全独立", "score": 85},
+        {"key": "right", "text": "会有一些影响，我有一部分依赖对方", "sub": "有一定经济依赖", "score": 45}
+      ]
+    },
+    {
+      "id": "FS3-A-F-37", "order": 37, "module": "FS3", "sub": "FS3_A",
+      "type": "scale", "weight": 1.3, "direction": "positive",
+      "text": "我不需要靠对方的收入或者资源来维持我想要的生活方式。",
+      "scale": {"min": 1, "max": 5, "min_label": "完全不符合", "max_label": "完全符合"},
+      "scoring": {"method": "direct_times_20"}
+    },
+    {
+      "id": "FS3-A-F-38", "order": 38, "module": "FS3", "sub": "FS3_A",
+      "type": "choice", "weight": 1.0, "direction": "positive",
+      "text": "你的最高学历是？",
+      "note": "学历作为修正系数，结合职业和收入综合判断，不单独显示在结果里。",
+      "options": [
+        {"key": "A", "text": "高中/中专及以下", "score": 30},
+        {"key": "B", "text": "大专", "score": 45},
+        {"key": "C", "text": "本科", "score": 65},
+        {"key": "D", "text": "硕士研究生", "score": 80},
+        {"key": "E", "text": "博士及以上", "score": 90}
+      ],
+      "scoring": {"method": "modifier", "note": "作为FS3_A的修正系数，不直接计分"}
+    },
+    {
+      "id": "FS3-A-F-39", "order": 39, "module": "FS3", "sub": "FS3_A",
+      "type": "scenario", "weight": 1.2, "direction": "positive",
+      "text": "你和对方讨论未来的生活规划，他说他希望你可以专注家庭，收入他来负责。你的真实感受是？",
+      "scene": "关于经济分工的讨论",
+      "options": [
+        {"key": "A", "text": "挺好的，我本来就不太在意工作，专心生活挺好", "sub": "低经济独立需求", "score": 35},
+        {"key": "B", "text": "可以接受，但我也想保留一份自己的工作", "sub": "平衡型", "score": 65},
+        {"key": "C", "text": "不太舒服，我需要有自己的经济来源", "sub": "高独立意识", "score": 80},
+        {"key": "D", "text": "完全不接受，我不会放弃工作和经济独立", "sub": "强独立型", "score": 90}
+      ]
+    },
+    {
+      "id": "FS3-B-F-40", "order": 40, "module": "FS3", "sub": "FS3_B",
+      "type": "card", "weight": 1.5, "direction": "positive",
+      "text": "你的原生家庭，在你的感情和生活里，通常扮演什么角色？选最接近的一张。",
+      "options": [
+        {"key": "A", "text": "后盾——需要的时候支持我，不干涉我的选择", "sub": "家庭是净资产", "score": 85},
+        {"key": "B", "text": "存在感不强——基本不管我，我自己做决定", "sub": "中性，独立型", "score": 75},
+        {"key": "C", "text": "有时候会有意见——偶尔干预，但总体还好", "sub": "轻度干预", "score": 55},
+        {"key": "D", "text": "参与度很高——他们对我的感情有很多想法和要求", "sub": "高干预，潜在风险", "score": 30}
+      ]
+    },
+    {
+      "id": "FS3-B-F-41", "order": 41, "module": "FS3", "sub": "FS3_B",
+      "type": "binary", "weight": 1.3, "direction": "positive",
+      "text": "如果你男朋友和你家人之间有摩擦，你通常会？",
+      "options": [
+        {"key": "left",  "text": "先站在他那边，私下再跟家人沟通", "sub": "边界感强，关系优先", "score": 80},
+        {"key": "right", "text": "先照顾家人感受，再跟他解释", "sub": "家庭优先，边界待建立", "score": 50}
+      ]
+    },
+    {
+      "id": "FS3-B-F-42", "order": 42, "module": "FS3", "sub": "FS3_B",
+      "type": "choice", "weight": 1.5, "direction": "positive",
+      "text": "你家里对你未来伴侣的条件，大概是什么态度？",
+      "options": [
+        {"key": "A", "text": "基本尊重我的选择，没有太具体的硬性要求", "sub": "低干预，低风险", "score": 85},
+        {"key": "B", "text": "有一些期待，比如希望对方工作稳定，但不强求", "sub": "轻度期待，可沟通", "score": 70},
+        {"key": "C", "text": "有比较明确的条件要求，比如户籍/职业/收入", "sub": "中度干预，需要协调", "score": 50},
+        {"key": "D", "text": "要求比较多，而且很坚持，这是我谈恋爱的压力来源之一", "sub": "高干预，显著风险", "score": 25}
+      ]
+    },
+    {
+      "id": "FS3-B-F-43", "order": 43, "module": "FS3", "sub": "FS3_B",
+      "type": "rank", "weight": 1.2, "direction": "positive",
+      "text": "在你看来，家庭背景对一段关系的影响，主要体现在哪里？从影响最大到最小排序。",
+      "items": [
+        {"id": "a", "text": "家人的态度和支持程度"},
+        {"id": "b", "text": "自己的经济和生活背景"},
+        {"id": "c", "text": "原生家庭带来的性格和习惯"},
+        {"id": "d", "text": "家庭对未来婚育的期待和干预"}
+      ],
+      "scoring": {
+        "method": "rank_awareness",
+        "note": "d排第一=家庭干预意识强=中高风险信号；c排第一=自我觉察强=正向",
+        "score_map": {"a_first": 60, "b_first": 70, "c_first": 80, "d_first": 45}
+      }
+    },
+    {
+      "id": "FS3-B-F-44", "order": 44, "module": "FS3", "sub": "FS3_B",
+      "type": "scenario", "weight": 1.3, "direction": "positive",
+      "text": "你们谈了半年，他第一次见你父母。你对这件事的预期是？",
+      "scene": "男友见家长的预期判断",
+      "options": [
+        {"key": "A", "text": "应该没问题，我爸妈挺好相处的，不会为难他", "sub": "低风险，家庭助力", "score": 85},
+        {"key": "B", "text": "会有点紧张，但应该能过，我爸妈有要求但讲理", "sub": "中等，可控", "score": 65},
+        {"key": "C", "text": "我比他更紧张，我爸妈比较难搞，不好说", "sub": "中高风险，家庭是挑战", "score": 40},
+        {"key": "D", "text": "我一般不太想让他们见面，见了容易出问题", "sub": "高风险，家庭干预大", "score": 20}
+      ]
+    },
+    {
+      "id": "FS3-C-F-45", "order": 45, "module": "FS3", "sub": "FS3_C",
+      "type": "binary", "weight": 1.3, "direction": "positive",
+      "text": "你一个人生活的话，能不能过得很好？",
+      "options": [
+        {"key": "left",  "text": "完全没问题，我很能照顾自己", "sub": "高生活自主", "score": 85},
+        {"key": "right", "text": "还好，但有很多事我需要有人帮我", "sub": "中等，有依赖点", "score": 50}
+      ]
+    },
+    {
+      "id": "FS3-C-F-46", "order": 46, "module": "FS3", "sub": "FS3_C",
+      "type": "choice", "weight": 1.2, "direction": "positive",
+      "text": "生活里需要做决定的时候，你通常是？",
+      "options": [
+        {"key": "A", "text": "自己想清楚就做，很少需要别人帮我拿主意", "sub": "高自主", "score": 85},
+        {"key": "B", "text": "会跟身边人商量，但最终自己决定", "sub": "中等，参考型", "score": 75},
+        {"key": "C", "text": "比较依赖别人的意见，不太敢一个人做决定", "sub": "低自主", "score": 35},
+        {"key": "D", "text": "看事情大小，小事自己决定，大事需要支撑", "sub": "分类型，正常", "score": 70}
+      ]
+    },
+    {
+      "id": "FS3-C-F-47", "order": 47, "module": "FS3", "sub": "FS3_C",
+      "type": "scale", "weight": 1.2, "direction": "positive",
+      "text": "我能独立处理生活里大多数事务，不需要依赖对方解决问题。",
+      "scale": {"min": 1, "max": 5, "min_label": "完全不符合", "max_label": "完全符合"},
+      "scoring": {"method": "direct_times_20"}
+    },
+    {
+      "id": "FS3-C-F-48", "order": 48, "module": "FS3", "sub": "FS3_C",
+      "type": "slider", "weight": 1.3, "direction": "positive",
+      "text": "如果你现在单身，你觉得自己一个人生活的质量是多少分？",
+      "slider": {
+        "min": 0, "max": 100,
+        "min_label": "一个人过得很差，需要有人陪才行",
+        "max_label": "一个人也过得很好，不依赖任何人",
+        "feedback": [
+          {"range": [0,30],   "text": "你对关系的依赖度比较高，一个人状态不太好"},
+          {"range": [31,55],  "text": "中等，一个人能过，但不太享受"},
+          {"range": [56,75],  "text": "一个人过得还不错，有自己的生活"},
+          {"range": [76,100], "text": "你是那种单身状态依然很好的人，关系对你是锦上添花"}
+        ]
+      },
+      "scoring": {"method": "direct"}
+    },
+    {
+      "id": "FS4-A-F-49", "order": 49, "module": "FS4", "sub": "FS4_A",
+      "type": "scenario", "weight": 1.5, "direction": "positive",
+      "text": "你男朋友做了一件让你很不舒服的事，但他没有意识到。你通常会？",
+      "scene": "边界被越过的处理方式",
+      "options": [
+        {"key": "A", "text": "直接告诉他，这件事让我不舒服，我希望你注意", "sub": "边界清晰，直接表达", "score": 90},
+        {"key": "B", "text": "暗示一下，希望他能自己意识到", "sub": "间接表达，边界模糊", "score": 55},
+        {"key": "C", "text": "忍着，不想因为这个闹矛盾", "sub": "边界弱，自我压抑", "score": 30},
+        {"key": "D", "text": "先冷处理，看他有没有反应", "sub": "被动边界，测试性", "score": 45}
+      ]
+    },
+    {
+      "id": "FS4-A-F-50", "order": 50, "module": "FS4", "sub": "FS4_A",
+      "type": "binary", "weight": 1.5, "direction": "positive",
+      "text": "在关系里，你对自己的底线清不清楚？",
+      "options": [
+        {"key": "left",  "text": "很清楚，我知道什么能接受什么不能", "sub": "边界意识强", "score": 85},
+        {"key": "right", "text": "不太确定，有时候自己也说不清楚", "sub": "边界模糊", "score": 40}
+      ]
+    },
+    {
+      "id": "FS4-A-F-51", "order": 51, "module": "FS4", "sub": "FS4_A",
+      "type": "choice", "weight": 1.3, "direction": "positive",
+      "text": "你在关系里说「没事」的时候，通常是？",
+      "options": [
+        {"key": "A", "text": "真的没事，我不憋着", "sub": "内外一致，边界健康", "score": 90},
+        {"key": "B", "text": "有时候是真没事，有时候是懒得说", "sub": "混合型", "score": 65},
+        {"key": "C", "text": "大多数时候是有事但不想说", "sub": "内外不一致，压抑型", "score": 35},
+        {"key": "D", "text": "说没事但其实心里记着，等以后一起算", "sub": "积压型，高风险", "score": 20}
+      ]
+    },
+    {
+      "id": "FS4-A-F-52", "order": 52, "module": "FS4", "sub": "FS4_A",
+      "type": "scale", "weight": 1.2, "direction": "positive",
+      "text": "我知道自己在感情里要什么，不要什么，而且我能直接说出来。",
+      "scale": {"min": 1, "max": 5, "min_label": "完全不符合", "max_label": "完全符合"},
+      "scoring": {"method": "direct_times_20"}
+    },
+    {
+      "id": "FS4-A-F-53", "order": 53, "module": "FS4", "sub": "FS4_A",
+      "type": "scenario", "weight": 1.5, "direction": "positive",
+      "text": "他希望你减少跟某个男性朋友的联系，理由是他不舒服。但那个朋友是你的老朋友，关系很正常。你会？",
+      "scene": "社交自主权与关系安全感的冲突",
+      "options": [
+        {"key": "A", "text": "告诉他我跟那个朋友只是普通朋友，不会改变来往", "sub": "边界清晰，自主性强", "score": 90},
+        {"key": "B", "text": "跟他解释清楚，但也会主动减少一些让他安心", "sub": "折中，有边界但会妥协", "score": 65},
+        {"key": "C", "text": "为了不让他不开心，就减少了", "sub": "边界弱，讨好型", "score": 30},
+        {"key": "D", "text": "当面答应，但实际上没有改变", "sub": "回避冲突，内外不一", "score": 40}
+      ]
+    },
+    {
+      "id": "FS4-B-F-54", "order": 54, "module": "FS4", "sub": "FS4_B",
+      "type": "mood", "weight": 1.5, "direction": "positive",
+      "text": "你跟他吵架了，气还没消。你现在的状态最接近？",
+      "options": [
+        {"key": "A", "icon": "ti-mood-angry",    "text": "很生气，可能说出一些激烈的话", "score": 30},
+        {"key": "B", "icon": "ti-mood-sad",      "text": "委屈，想哭但不想让他看到", "score": 45},
+        {"key": "C", "icon": "ti-mood-empty",    "text": "冷着，不想说话", "score": 50},
+        {"key": "D", "icon": "ti-mood-confuzed", "text": "乱，不知道怎么处理", "score": 40},
+        {"key": "E", "icon": "ti-mood-nervous",  "text": "担心他会不会因此不要我了", "score": 35},
+        {"key": "F", "icon": "ti-mood-smile",    "text": "冷静下来了，想着怎么解决", "score": 80},
+        {"key": "G", "icon": "ti-mood-tongue",   "text": "给自己一点时间，然后去沟通", "score": 85},
+        {"key": "H", "icon": "ti-mood-happy",    "text": "已经想好要说什么了", "score": 90}
+      ]
+    },
+    {
+      "id": "FS4-B-F-55", "order": 55, "module": "FS4", "sub": "FS4_B",
+      "type": "scenario", "weight": 1.5, "direction": "positive",
+      "text": "你工作上受了委屈，情绪很差。回家后他随口说了一句让你不舒服的话（他不是故意的）。你通常会？",
+      "scene": "情绪迁移的自我觉察",
+      "options": [
+        {"key": "A", "text": "告诉他我今天状态不好，那句话让我有点难受", "sub": "情绪清晰，能区分来源", "score": 90},
+        {"key": "B", "text": "比平时敏感，有点过激，但事后知道是自己的问题", "sub": "有觉察，控制有限", "score": 65},
+        {"key": "C", "text": "直接爆发，后来才意识到是工作的事影响的", "sub": "情绪迁移，觉察晚", "score": 40},
+        {"key": "D", "text": "没说什么，心里憋着，开始冷战", "sub": "积压型，不表达", "score": 35}
+      ]
+    },
+    {
+      "id": "FS4-B-F-56", "order": 56, "module": "FS4", "sub": "FS4_B",
+      "type": "binary", "weight": 1.3, "direction": "positive",
+      "text": "你委屈了，你更倾向于？",
+      "options": [
+        {"key": "left",  "text": "直接说出来，我不憋着", "sub": "直接表达型", "score": 85},
+        {"key": "right", "text": "等他自己发现，或者等我气消了再说", "sub": "间接表达型", "score": 50}
+      ]
+    },
+    {
+      "id": "FS4-B-F-57", "order": 57, "module": "FS4", "sub": "FS4_B",
+      "type": "choice", "weight": 1.3, "direction": "positive",
+      "text": "你在关系里最常用的情绪处理方式是？",
+      "options": [
+        {"key": "A", "text": "直接说，当下处理，不拖", "sub": "健康表达", "score": 85},
+        {"key": "B", "text": "先给自己一点时间冷静，然后再说", "sub": "节奏型，健康", "score": 90},
+        {"key": "C", "text": "靠时间消化，不一定会说出来", "sub": "内化型，有积压风险", "score": 50},
+        {"key": "D", "text": "用行动表示，比如冷战或者突然很好，让他感觉到", "sub": "间接表达，高风险", "score": 25}
+      ]
+    },
+    {
+      "id": "FS4-B-F-58", "order": 58, "module": "FS4", "sub": "FS4_B",
+      "type": "scale", "weight": 1.3, "direction": "positive",
+      "text": "我在关系里不会用冷战、消失或者发脾气来表达情绪，我更倾向于直接说出来。",
+      "scale": {"min": 1, "max": 5, "min_label": "完全不符合", "max_label": "完全符合"},
+      "scoring": {"method": "direct_times_20"}
+    },
+    {
+      "id": "FS4-C-F-59", "order": 59, "module": "FS4", "sub": "FS4_C",
+      "type": "slider", "weight": 1.3, "direction": "positive",
+      "text": "在一段关系里，你有多能保持自己原来的生活——朋友、爱好、个人目标？",
+      "slider": {
+        "min": 0, "max": 100,
+        "min_label": "我容易把全部重心放在关系上",
+        "max_label": "我能很好地保持自己的生活",
+        "feedback": [
+          {"range": [0,25],   "text": "你倾向于把关系放在一切之上，容易在感情里失去自我"},
+          {"range": [26,45],  "text": "会有一些迷失，关系会占据你大部分注意力"},
+          {"range": [46,65],  "text": "中等，能保持一部分，但关系会明显影响你"},
+          {"range": [66,85],  "text": "大多数时候能守住自己的生活节奏"},
+          {"range": [86,100], "text": "你在关系里依然活得很完整，不依附"}
+        ]
+      },
+      "scoring": {"method": "direct"}
+    },
+    {
+      "id": "FS4-C-F-60", "order": 60, "module": "FS4", "sub": "FS4_C",
+      "type": "binary", "weight": 1.5, "direction": "positive",
+      "text": "自从谈恋爱之后，你的个人生活？",
+      "options": [
+        {"key": "left",  "text": "基本没变，我还是我，关系是额外的部分", "sub": "独立型，健康", "score": 85},
+        {"key": "right", "text": "变了很多，他成了我生活的中心", "sub": "融合型，依赖风险", "score": 35}
+      ]
+    },
+    {
+      "id": "FS4-C-F-61", "order": 61, "module": "FS4", "sub": "FS4_C",
+      "type": "rank", "weight": 1.2, "direction": "positive",
+      "text": "在关系里，你最看重哪种状态？从最理想到最不重要排序。",
+      "items": [
+        {"id": "a", "text": "我们非常亲密，彼此是对方最重要的人"},
+        {"id": "b", "text": "我们各有各的生活，但感情很深"},
+        {"id": "c", "text": "他非常需要我，我在他生活里不可或缺"},
+        {"id": "d", "text": "我们一起成长，互相推动变得更好"}
+      ],
+      "scoring": {
+        "method": "rank_independence",
+        "note": "b或d排第一=独立型关系观=高分；c排第一=依赖倾向=中低分",
+        "score_map": {"a_first": 60, "b_first": 85, "c_first": 45, "d_first": 80}
+      }
+    },
+    {
+      "id": "FS4-C-F-62", "order": 62, "module": "FS4", "sub": "FS4_C",
+      "type": "choice", "weight": 1.2, "direction": "positive",
+      "text": "分手之后，你通常需要多长时间走出来？",
+      "options": [
+        {"key": "A", "text": "很快，我能理清楚，继续过自己的生活", "sub": "情感弹性好，独立性强", "score": 85},
+        {"key": "B", "text": "需要一段时间，但能恢复", "sub": "正常范围", "score": 70},
+        {"key": "C", "text": "需要很久，分手对我影响很大", "sub": "依赖度高，恢复慢", "score": 35},
+        {"key": "D", "text": "我没怎么经历过分手，不确定", "sub": "样本不足，中性处理", "score": 60}
+      ]
+    },
+    {
+      "id": "FS5-A-F-63", "order": 63, "module": "FS5", "sub": "FS5_A",
+      "type": "scenario", "weight": 1.5, "direction": "reverse",
+      "text": "新认识一个男生，聊得很好，他问你上一段感情是怎么结束的。你最真实的回答是？",
+      "scene": "被问及过去感情",
+      "options": [
+        {"key": "A", "text": "简单说了，双方都有问题，已经过去了", "sub": "处理成熟，包袱轻", "score": 10},
+        {"key": "B", "text": "说了一些，但没有完全展开，还有一些说不清楚的部分", "sub": "中等，尚未完全消化", "score": 35},
+        {"key": "C", "text": "说了很多，有点收不住，那段感情对我影响还挺大的", "sub": "情感创伤尚未愈合", "score": 65},
+        {"key": "D", "text": "不太想提，提了情绪会有波动", "sub": "高包袱，前任阴影明显", "score": 80}
+      ]
+    },
+    {
+      "id": "FS5-A-F-64", "order": 64, "module": "FS5", "sub": "FS5_A",
+      "type": "binary", "weight": 1.5, "direction": "reverse",
+      "text": "你现在跟前任还有联系吗？",
+      "options": [
+        {"key": "left",  "text": "没有，已经完全断开了", "sub": "低风险", "score": 10},
+        {"key": "right", "text": "偶尔还有，关系说复杂也不复杂", "sub": "中高风险", "score": 60}
+      ]
+    },
+    {
+      "id": "FS5-A-F-65", "order": 65, "module": "FS5", "sub": "FS5_A",
+      "type": "choice", "weight": 1.3, "direction": "reverse",
+      "text": "过去的感情经历对你现在的影响是？",
+      "options": [
+        {"key": "A", "text": "基本没有，我已经走出来了", "sub": "低包袱", "score": 10},
+        {"key": "B", "text": "让我更了解自己，有一些收获", "sub": "正向消化", "score": 20},
+        {"key": "C", "text": "让我在某些方面变得谨慎，有一些防御", "sub": "中等，有轻度影响", "score": 50},
+        {"key": "D", "text": "还是会影响我，有时候会把过去的事情带进现在", "sub": "高包袱，影响显著", "score": 75}
+      ]
+    },
+    {
+      "id": "FS5-A-F-66", "order": 66, "module": "FS5", "sub": "FS5_A",
+      "type": "scale", "weight": 1.3, "direction": "reverse",
+      "text": "我过去的感情经历，有时候会让我在新的关系里变得过度谨慎或者不信任。",
+      "scale": {"min": 1, "max": 5, "min_label": "完全不符合", "max_label": "完全符合"},
+      "scoring": {"method": "reverse_times_25", "formula": "(value - 1) * 25"}
+    },
+    {
+      "id": "FS5-A-F-67", "order": 67, "module": "FS5", "sub": "FS5_A",
+      "type": "slider", "weight": 1.2, "direction": "reverse",
+      "text": "你觉得自己目前从过去感情里走出来的程度是多少？",
+      "slider": {
+        "min": 0, "max": 100,
+        "min_label": "完全没走出来，还在那段感情里",
+        "max_label": "完全走出来了，已经是另一个阶段",
+        "feedback": [
+          {"range": [0,30],   "text": "你还在消化过去，现在可能不是最好的开始新关系的时机"},
+          {"range": [31,55],  "text": "还有一些残留，但在慢慢好转"},
+          {"range": [56,75],  "text": "基本走出来了，偶尔会想起"},
+          {"range": [76,100], "text": "完全走出来了，已经是新的开始"}
+        ]
+      },
+      "scoring": {"method": "reverse", "formula": "100 - value"}
+    },
+    {
+      "id": "FS5-A-F-68", "order": 68, "module": "FS5", "sub": "FS5_A",
+      "type": "scenario", "weight": 1.2, "direction": "reverse",
+      "text": "新男友发现你手机里还有前任的照片。他问你为什么留着。你最真实的答案是？",
+      "scene": "前任照片的留存原因",
+      "options": [
+        {"key": "A", "text": "我删了，我习惯定期清理", "sub": "低风险，干净利落", "score": 5},
+        {"key": "B", "text": "忘记删了，没什么特别的意思", "sub": "低风险，无刻意保留", "score": 15},
+        {"key": "C", "text": "留着是因为那段时间有意义，不是因为人", "sub": "中等，可解释", "score": 45},
+        {"key": "D", "text": "有点舍不得删，说不清楚为什么", "sub": "较高风险，情感未完全割断", "score": 70}
+      ]
+    },
+    {
+      "id": "FS5-B-F-69", "order": 69, "module": "FS5", "sub": "FS5_B",
+      "type": "scenario", "weight": 1.5, "direction": "reverse",
+      "text": "你发消息给他，两个小时没回。你的状态最接近？",
+      "scene": "消息未回时的焦虑程度",
+      "options": [
+        {"key": "A", "text": "没什么，他可能在忙", "sub": "低依赖，安全感内化", "score": 10},
+        {"key": "B", "text": "有点在意，但能控制住不乱想", "sub": "轻微焦虑，可控", "score": 30},
+        {"key": "C", "text": "开始想是不是我说错了什么", "sub": "中等焦虑，依赖倾向", "score": 60},
+        {"key": "D", "text": "很不安，忍不住发第二条消息确认他还好", "sub": "高依赖，安全感外化", "score": 85}
+      ]
+    },
+    {
+      "id": "FS5-B-F-70", "order": 70, "module": "FS5", "sub": "FS5_B",
+      "type": "binary", "weight": 1.5, "direction": "reverse",
+      "text": "你在关系里，安全感主要来自？",
+      "options": [
+        {"key": "left",  "text": "我自己内心比较稳，不太需要对方时刻确认", "sub": "低依赖风险", "score": 10},
+        {"key": "right", "text": "对方的回应和行动，他不稳定我就不稳定", "sub": "高依赖风险", "score": 80}
+      ]
+    },
+    {
+      "id": "FS5-B-F-71", "order": 71, "module": "FS5", "sub": "FS5_B",
+      "type": "choice", "weight": 1.3, "direction": "reverse",
+      "text": "当对方比平时冷淡一些的时候，你的第一反应是？",
+      "options": [
+        {"key": "A", "text": "观察一下，可能他最近有事", "sub": "低依赖，理性判断", "score": 10},
+        {"key": "B", "text": "有点在意，会找机会问一下他怎么了", "sub": "中等，主动沟通", "score": 35},
+        {"key": "C", "text": "开始反思是不是自己哪里出了问题", "sub": "高依赖，自我归因", "score": 65},
+        {"key": "D", "text": "情绪会受影响，开始担心关系出了问题", "sub": "高依赖，灾难化思维", "score": 80}
+      ]
+    },
+    {
+      "id": "FS5-B-F-72", "order": 72, "module": "FS5", "sub": "FS5_B",
+      "type": "scale", "weight": 1.3, "direction": "reverse",
+      "text": "当对方没有及时回应我时，我会感到焦虑或者开始怀疑关系。",
+      "scale": {"min": 1, "max": 5, "min_label": "从不", "max_label": "经常"},
+      "scoring": {"method": "reverse_times_25", "formula": "(value - 1) * 25"}
+    },
+    {
+      "id": "FS5-B-F-73", "order": 73, "module": "FS5", "sub": "FS5_B",
+      "type": "scenario", "weight": 1.5, "direction": "reverse",
+      "text": "你们吵架了，他说需要冷静一下，今晚不想说话。你会怎么做？",
+      "scene": "冷静期的等待能力",
+      "options": [
+        {"key": "A", "text": "好，给他时间，我也去做自己的事", "sub": "低依赖，尊重边界", "score": 10},
+        {"key": "B", "text": "忍着，但心里很不安，一直看手机", "sub": "中高焦虑，表面克制", "score": 45},
+        {"key": "C", "text": "过一会儿忍不住发消息确认他还好", "sub": "高依赖，难以等待", "score": 70},
+        {"key": "D", "text": "越想越不对，开始担心他是不是要分手", "sub": "极高依赖，灾难化", "score": 90}
+      ]
+    },
+    {
+      "id": "FS5-B-F-74", "order": 74, "module": "FS5", "sub": "FS5_B",
+      "type": "slider", "weight": 1.2, "direction": "reverse",
+      "text": "在关系里，你需要多高频率的确认才能感到安心？",
+      "slider": {
+        "min": 0, "max": 100,
+        "min_label": "完全不需要，我内心很稳",
+        "max_label": "需要非常频繁的回应才能放心",
+        "feedback": [
+          {"range": [0,20],   "text": "你的安全感来自内部，很独立"},
+          {"range": [21,40],  "text": "偶尔需要确认，但不依赖"},
+          {"range": [41,60],  "text": "中等需求，正常范围"},
+          {"range": [61,80],  "text": "比较依赖对方的回应"},
+          {"range": [81,100], "text": "高度依赖，安全感来自外部确认"}
+        ]
+      },
+      "scoring": {"method": "direct_as_risk"}
+    },
+    {
+      "id": "FS5-C-F-75", "order": 75, "module": "FS5", "sub": "FS5_C",
+      "type": "card", "weight": 1.5, "direction": "reverse",
+      "text": "你父母对你的感情生活，态度最接近哪张？",
+      "options": [
+        {"key": "A", "text": "「你自己决定，我们信任你」", "sub": "低干预，健康边界", "score": 10},
+        {"key": "B", "text": "「会问问，有意见，但最终尊重你」", "sub": "中等，可沟通", "score": 35},
+        {"key": "C", "text": "「有具体要求，不太容易商量」", "sub": "中高干预", "score": 60},
+        {"key": "D", "text": "「参与度很高，我的感情他们必须满意」", "sub": "高干预，显著风险", "score": 85}
+      ]
+    },
+    {
+      "id": "FS5-C-F-76", "order": 76, "module": "FS5", "sub": "FS5_C",
+      "type": "binary", "weight": 1.5, "direction": "reverse",
+      "text": "你家里有没有需要你承担的经济或者情感责任？比如补贴家用、照顾弟妹、处理家庭矛盾等。",
+      "options": [
+        {"key": "left",  "text": "没有，或者很少，家里不需要我操心", "sub": "低负担", "score": 10},
+        {"key": "right", "text": "有，我在家里承担了一些责任", "sub": "中高负担，需了解程度", "score": 55}
+      ]
+    },
+    {
+      "id": "FS5-C-F-77", "order": 77, "module": "FS5", "sub": "FS5_C",
+      "type": "choice", "weight": 1.3, "direction": "reverse",
+      "text": "如果你跟对方因为家庭原因产生矛盾，你通常倾向于？",
+      "options": [
+        {"key": "A", "text": "跟家人说清楚，我的感情我做主", "sub": "边界清晰，低风险", "score": 10},
+        {"key": "B", "text": "跟对方解释，也跟家人沟通，尽量两边都照顾", "sub": "折中，中等压力", "score": 35},
+        {"key": "C", "text": "家人那边我很难拒绝，对方需要理解我的处境", "sub": "家庭优先，中高风险", "score": 65},
+        {"key": "D", "text": "这是我很难解决的困境，两边都很难", "sub": "高风险，家庭干预大", "score": 85}
+      ]
+    },
+    {
+      "id": "FS5-C-F-78", "order": 78, "module": "FS5", "sub": "FS5_C",
+      "type": "scale", "weight": 1.2, "direction": "reverse",
+      "text": "我的家庭情况，可能会给我的感情带来一些额外的压力或者复杂性。",
+      "scale": {"min": 1, "max": 5, "min_label": "完全不符合", "max_label": "完全符合"},
+      "scoring": {"method": "reverse_times_25", "formula": "(value - 1) * 25"}
+    },
+    {
+      "id": "FS5-C-F-79", "order": 79, "module": "FS5", "sub": "FS5_C",
+      "type": "scenario", "weight": 0.8, "direction": "positive",
+      "text": "你男友提出，结婚后希望你们住得离他父母近一些，方便照顾。你的反应是？",
+      "scene": "关于居住安排的灵活性",
+      "options": [
+        {"key": "A", "text": "可以商量，看具体情况", "sub": "开放，灵活", "score": 75},
+        {"key": "B", "text": "没问题，我觉得这很正常", "sub": "接受度高", "score": 65},
+        {"key": "C", "text": "需要看他父母是什么样的，再决定", "sub": "理性评估", "score": 80},
+        {"key": "D", "text": "这是个问题，我需要想清楚，我不确定能接受", "sub": "有顾虑，但正常", "score": 70}
+      ]
+    },
+    {
+      "id": "FS5-C-F-80", "order": 80, "module": "FS5", "sub": "FS5_C",
+      "type": "slider", "weight": 1.2, "direction": "reverse",
+      "text": "你觉得你的家庭背景，在择偶市场上是加分项还是需要对方接受的部分？",
+      "slider": {
+        "min": 0, "max": 100,
+        "min_label": "坦白说是对方需要接受的负担",
+        "max_label": "是我的加分项，对方会觉得我家庭好",
+        "feedback": [
+          {"range": [0,25],   "text": "你的家庭背景在择偶中可能需要额外解释和接受过程"},
+          {"range": [26,50],  "text": "中性，不加分也不太扣分"},
+          {"range": [51,75],  "text": "算是加分项，家庭情况不差"},
+          {"range": [76,100], "text": "你的家庭背景是明显的加分项"}
+        ]
+      },
+      "scoring": {"method": "reverse", "formula": "100 - value", "note": "反向作为风险参考值"}
+    }
+  ]
+}

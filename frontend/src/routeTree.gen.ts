@@ -14,12 +14,17 @@ import { Route as HistoryRouteImport } from './routes/history'
 import { Route as ChatRouteImport } from './routes/chat'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AnalyzingRouteImport } from './routes/analyzing'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AccessRouteImport } from './routes/access'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as TestsIdRouteImport } from './routes/tests.$id'
 import { Route as ShowcaseQuestionsRouteImport } from './routes/showcase.questions'
 import { Route as ResultAttemptIdRouteImport } from './routes/result.$attemptId'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
+import { Route as AdminUsersRouteImport } from './routes/admin/users'
+import { Route as AdminCodesRouteImport } from './routes/admin/codes'
+import { Route as AdminAnalystsRouteImport } from './routes/admin/analysts'
 import { Route as TestsIdRunRouteImport } from './routes/tests.$id.run'
 import { Route as ResultSelfVariantRouteImport } from './routes/result.self.$variant'
 
@@ -48,6 +53,11 @@ const AnalyzingRoute = AnalyzingRouteImport.update({
   path: '/analyzing',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AccessRoute = AccessRouteImport.update({
   id: '/access',
   path: '/access',
@@ -57,6 +67,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminRoute,
 } as any)
 const TestsIdRoute = TestsIdRouteImport.update({
   id: '/tests/$id',
@@ -78,6 +93,21 @@ const AuthCallbackRoute = AuthCallbackRouteImport.update({
   path: '/callback',
   getParentRoute: () => AuthRoute,
 } as any)
+const AdminUsersRoute = AdminUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminCodesRoute = AdminCodesRouteImport.update({
+  id: '/codes',
+  path: '/codes',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminAnalystsRoute = AdminAnalystsRouteImport.update({
+  id: '/analysts',
+  path: '/analysts',
+  getParentRoute: () => AdminRoute,
+} as any)
 const TestsIdRunRoute = TestsIdRunRouteImport.update({
   id: '/run',
   path: '/run',
@@ -92,15 +122,20 @@ const ResultSelfVariantRoute = ResultSelfVariantRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/access': typeof AccessRoute
+  '/admin': typeof AdminRouteWithChildren
   '/analyzing': typeof AnalyzingRoute
   '/auth': typeof AuthRouteWithChildren
   '/chat': typeof ChatRoute
   '/history': typeof HistoryRoute
   '/run': typeof RunRoute
+  '/admin/analysts': typeof AdminAnalystsRoute
+  '/admin/codes': typeof AdminCodesRoute
+  '/admin/users': typeof AdminUsersRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/result/$attemptId': typeof ResultAttemptIdRoute
   '/showcase/questions': typeof ShowcaseQuestionsRoute
   '/tests/$id': typeof TestsIdRouteWithChildren
+  '/admin/': typeof AdminIndexRoute
   '/result/self/$variant': typeof ResultSelfVariantRoute
   '/tests/$id/run': typeof TestsIdRunRoute
 }
@@ -112,10 +147,14 @@ export interface FileRoutesByTo {
   '/chat': typeof ChatRoute
   '/history': typeof HistoryRoute
   '/run': typeof RunRoute
+  '/admin/analysts': typeof AdminAnalystsRoute
+  '/admin/codes': typeof AdminCodesRoute
+  '/admin/users': typeof AdminUsersRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/result/$attemptId': typeof ResultAttemptIdRoute
   '/showcase/questions': typeof ShowcaseQuestionsRoute
   '/tests/$id': typeof TestsIdRouteWithChildren
+  '/admin': typeof AdminIndexRoute
   '/result/self/$variant': typeof ResultSelfVariantRoute
   '/tests/$id/run': typeof TestsIdRunRoute
 }
@@ -123,15 +162,20 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/access': typeof AccessRoute
+  '/admin': typeof AdminRouteWithChildren
   '/analyzing': typeof AnalyzingRoute
   '/auth': typeof AuthRouteWithChildren
   '/chat': typeof ChatRoute
   '/history': typeof HistoryRoute
   '/run': typeof RunRoute
+  '/admin/analysts': typeof AdminAnalystsRoute
+  '/admin/codes': typeof AdminCodesRoute
+  '/admin/users': typeof AdminUsersRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/result/$attemptId': typeof ResultAttemptIdRoute
   '/showcase/questions': typeof ShowcaseQuestionsRoute
   '/tests/$id': typeof TestsIdRouteWithChildren
+  '/admin/': typeof AdminIndexRoute
   '/result/self/$variant': typeof ResultSelfVariantRoute
   '/tests/$id/run': typeof TestsIdRunRoute
 }
@@ -140,15 +184,20 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/access'
+    | '/admin'
     | '/analyzing'
     | '/auth'
     | '/chat'
     | '/history'
     | '/run'
+    | '/admin/analysts'
+    | '/admin/codes'
+    | '/admin/users'
     | '/auth/callback'
     | '/result/$attemptId'
     | '/showcase/questions'
     | '/tests/$id'
+    | '/admin/'
     | '/result/self/$variant'
     | '/tests/$id/run'
   fileRoutesByTo: FileRoutesByTo
@@ -160,25 +209,34 @@ export interface FileRouteTypes {
     | '/chat'
     | '/history'
     | '/run'
+    | '/admin/analysts'
+    | '/admin/codes'
+    | '/admin/users'
     | '/auth/callback'
     | '/result/$attemptId'
     | '/showcase/questions'
     | '/tests/$id'
+    | '/admin'
     | '/result/self/$variant'
     | '/tests/$id/run'
   id:
     | '__root__'
     | '/'
     | '/access'
+    | '/admin'
     | '/analyzing'
     | '/auth'
     | '/chat'
     | '/history'
     | '/run'
+    | '/admin/analysts'
+    | '/admin/codes'
+    | '/admin/users'
     | '/auth/callback'
     | '/result/$attemptId'
     | '/showcase/questions'
     | '/tests/$id'
+    | '/admin/'
     | '/result/self/$variant'
     | '/tests/$id/run'
   fileRoutesById: FileRoutesById
@@ -186,6 +244,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AccessRoute: typeof AccessRoute
+  AdminRoute: typeof AdminRouteWithChildren
   AnalyzingRoute: typeof AnalyzingRoute
   AuthRoute: typeof AuthRouteWithChildren
   ChatRoute: typeof ChatRoute
@@ -234,6 +293,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AnalyzingRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/access': {
       id: '/access'
       path: '/access'
@@ -247,6 +313,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/admin/': {
+      id: '/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/tests/$id': {
       id: '/tests/$id'
@@ -276,6 +349,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthCallbackRouteImport
       parentRoute: typeof AuthRoute
     }
+    '/admin/users': {
+      id: '/admin/users'
+      path: '/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AdminUsersRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/codes': {
+      id: '/admin/codes'
+      path: '/codes'
+      fullPath: '/admin/codes'
+      preLoaderRoute: typeof AdminCodesRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/analysts': {
+      id: '/admin/analysts'
+      path: '/analysts'
+      fullPath: '/admin/analysts'
+      preLoaderRoute: typeof AdminAnalystsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/tests/$id/run': {
       id: '/tests/$id/run'
       path: '/run'
@@ -292,6 +386,22 @@ declare module '@tanstack/react-router' {
     }
   }
 }
+
+interface AdminRouteChildren {
+  AdminAnalystsRoute: typeof AdminAnalystsRoute
+  AdminCodesRoute: typeof AdminCodesRoute
+  AdminUsersRoute: typeof AdminUsersRoute
+  AdminIndexRoute: typeof AdminIndexRoute
+}
+
+const AdminRouteChildren: AdminRouteChildren = {
+  AdminAnalystsRoute: AdminAnalystsRoute,
+  AdminCodesRoute: AdminCodesRoute,
+  AdminUsersRoute: AdminUsersRoute,
+  AdminIndexRoute: AdminIndexRoute,
+}
+
+const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
 interface AuthRouteChildren {
   AuthCallbackRoute: typeof AuthCallbackRoute
@@ -317,6 +427,7 @@ const TestsIdRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AccessRoute: AccessRoute,
+  AdminRoute: AdminRouteWithChildren,
   AnalyzingRoute: AnalyzingRoute,
   AuthRoute: AuthRouteWithChildren,
   ChatRoute: ChatRoute,

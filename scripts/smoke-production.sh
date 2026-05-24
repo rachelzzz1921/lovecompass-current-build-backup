@@ -25,12 +25,21 @@ db_health="$(curl -fsS "$BACKEND_URL/health?db=1")"
 pass "GET /health?db=1"
 
 config_health="$(curl -fsS "$BACKEND_URL/health?config=1" 2>/dev/null || echo '{}')"
-if [[ "$config_health" == *'"jwtVerifyJwks":true'* ]]; then
+if [[ "$config_health" == *'"authVersion":"jwks-v2"'* ]]; then
+  pass "GET /health?config=1 (JWKS v2 auth)"
+elif [[ "$config_health" == *'"jwtVerifyJwks":true'* ]]; then
   pass "GET /health?config=1 (JWKS JWT verify ready)"
 elif [[ "$config_health" == *'"jwtSecretLegacy":true'* ]] || [[ "$config_health" == *'"jwtSecret":true'* ]]; then
   pass "GET /health?config=1 (legacy jwt secret only — prefer SUPABASE_URL for ES256)"
 else
   printf "  ! GET /health?config=1 — set SUPABASE_URL on backend for login-protected routes\n"
+fi
+
+jwks_health="$(curl -fsS "$BACKEND_URL/health?jwt=1" 2>/dev/null || echo '{}')"
+if [[ "$jwks_health" == *'"jwks":'*'"ok":true'* ]]; then
+  pass "GET /health?jwt=1 (JWKS fetch OK)"
+else
+  printf "  ! GET /health?jwt=1 — JWKS probe failed: %s\n" "$jwks_health"
 fi
 
 echo ""

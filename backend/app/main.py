@@ -2,12 +2,12 @@ from __future__ import annotations
 import os
 import uuid
 from decimal import Decimal
-from typing import Any
-from fastapi import Depends, FastAPI, HTTPException
+from typing import Annotated, Any
+from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from psycopg.types.json import Jsonb
-from app.auth import resolve_user_id
+from app.auth import auth_version, probe_jwks, probe_jwt_token, resolve_user_id
 from app.db import get_conn
 from app.question_adapter import adapt_question
 from app.scoring import summarize_scores
@@ -229,17 +229,32 @@ class ChatIn(BaseModel):
     message: str = Field(min_length=1)
 
 @app.get("/health")
-def health(db: bool = False, config: bool = False):
-    """Liveness probe. ?db=1 checks DATABASE_URL; ?config=1 reports non-secret config flags."""
+def health(
+    db: bool = False,
+    config: bool = False,
+    jwt: bool = False,
+    authorization: Annotated[str | None, Header()] = None,
+):
+    """Liveness probe. ?db=1 checks DATABASE_URL; ?config=1 reports non-secret config flags; ?jwt=1 probes JWKS."""
+    if jwt:
+        payload: dict[str, Any] = {"ok": True, "authVersion": auth_version(), "jwks": probe_jwks()}
+        if authorization and authorization.startswith("Bearer "):
+            token = authorization[7:].strip()
+            if token:
+                payload["token"] = probe_jwt_token(token)
+        return payload
     if config:
         fallback = os.getenv("LOVECOMPASS_ALLOW_DEMO_USER_FALLBACK", "").strip().lower()
+        supabase_url = (os.getenv("SUPABASE_URL") or "").strip()
         return {
             "ok": True,
             "config": {
+                "authVersion": auth_version(),
                 "databaseUrl": bool((os.getenv("DATABASE_URL") or "").strip()),
-                "supabaseUrl": bool((os.getenv("SUPABASE_URL") or "").strip()),
+                "supabaseUrl": bool(supabase_url),
                 "jwtSecretLegacy": bool((os.getenv("SUPABASE_JWT_SECRET") or "").strip()),
-                "jwtVerifyJwks": bool((os.getenv("SUPABASE_URL") or "").strip()),
+                "jwtVerifyJwks": bool(supabase_url),
+                "jwksProbe": probe_jwks(),
                 "corsVercelPreviews": _cors_allow_vercel_previews(),
                 "demoUserFallback": fallback in {"1", "true", "yes"},
             },

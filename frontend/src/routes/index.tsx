@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { HintButton } from "@/components/HintButton";
 import { Lock, ArrowRight, Sparkles, MessageSquare, Brain, Layers, Repeat, Heart, AlertTriangle, MessageCircle, ChevronLeft, ChevronRight, Menu, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { chatRouteSearch } from "@/lib/chatRouteSearch";
 
 function scrollToId(id: string) {
   document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -52,7 +53,7 @@ function Home() {
         {/* Desktop nav */}
         <nav className="hidden md:flex items-center gap-5 text-sm">
           <span className="chip chip-violet">SYSTEM · ONLINE</span>
-          <Link to="/chat" className="text-foreground/80 hover:text-foreground transition inline-flex items-center gap-1.5">
+          <Link to="/chat" search={chatRouteSearch()} className="text-foreground/80 hover:text-foreground transition inline-flex items-center gap-1.5">
             <MessageSquare className="h-3.5 w-3.5" /> AI 咨询
           </Link>
           {user ? (
@@ -85,7 +86,7 @@ function Home() {
             className="md:hidden fixed top-[68px] left-4 right-4 z-30 bg-glass-strong rounded-2xl border border-border/60 p-4 backdrop-blur-xl"
           >
             <div className="flex flex-col gap-1 text-sm">
-              <Link to="/chat" onClick={() => setMenuOpen(false)} className="flex items-center gap-2 px-3 py-2.5 rounded-lg hover:bg-[oklch(0.50_0.20_285/0.1)]">
+              <Link to="/chat" search={chatRouteSearch()} onClick={() => setMenuOpen(false)} className="flex items-center gap-2 px-3 py-2.5 rounded-lg hover:bg-[oklch(0.50_0.20_285/0.1)]">
                 <MessageSquare className="h-4 w-4" /> AI 咨询
               </Link>
               {user ? (
@@ -353,7 +354,7 @@ function Home() {
               </div>
             </div>
             <Button
-              onClick={() => nav({ to: "/chat" })}
+              onClick={() => nav({ to: "/chat", search: chatRouteSearch() })}
               className="rounded-full h-11 px-6 bg-gradient-to-r from-[oklch(0.68_0.18_285)] to-[oklch(0.82_0.14_200)] text-primary-foreground hover:opacity-90"
             >
               开始对话 <MessageSquare className="ml-1.5 h-4 w-4" />

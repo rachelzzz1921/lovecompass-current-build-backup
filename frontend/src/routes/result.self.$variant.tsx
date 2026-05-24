@@ -3,6 +3,7 @@ import { MOCK_SELF_RESULT } from "@/data/mockResult";
 import { SelfResultView } from "@/components/SelfResultView";
 
 export const Route = createFileRoute("/result/self/$variant")({
+  ssr: false,
   head: () => ({
     meta: [
       { title: "你的关系画像 · MIRROR" },

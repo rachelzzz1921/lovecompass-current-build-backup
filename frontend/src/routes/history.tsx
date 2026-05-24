@@ -14,6 +14,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 
 import { lovecompassApi, type PortraitProduct, type UserPortrait } from "@/lib/lovecompassApi";
+import { chatRouteSearch } from "@/lib/chatRouteSearch";
 import {
   SELF_DIMENSIONS,
   normalizeDimensionScore,
@@ -385,11 +386,7 @@ function OverviewHero({
           )}
           <Link
             to="/chat"
-            search={
-              primaryAttemptId
-                ? { attemptId: primaryAttemptId, analystId: "mirror" }
-                : { analystId: "mirror" }
-            }
+            search={chatRouteSearch(primaryAttemptId)}
             className="group flex items-center justify-between gap-2 rounded-xl px-4 py-3 border border-border/60 bg-secondary/30 hover:border-[oklch(0.68_0.18_285_/_0.55)] transition text-sm"
           >
             <span className="flex items-center gap-2">
@@ -523,11 +520,7 @@ function ActivityStrip({
           </Link>
           <Link
             to="/chat"
-            search={
-              primaryAttemptId
-                ? { attemptId: primaryAttemptId, analystId: "mirror" }
-                : { analystId: "mirror" }
-            }
+            search={chatRouteSearch(primaryAttemptId)}
             className="inline-flex items-center gap-1.5 px-5 h-10 rounded-full bg-glass border border-border/60 text-sm"
           >
             <MessageSquare className="h-4 w-4" /> 和分析师聊

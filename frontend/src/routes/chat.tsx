@@ -15,7 +15,7 @@ const searchSchema = z.object({
 });
 
 export const Route = createFileRoute("/chat")({
-  validateSearch: searchSchema,
+  validateSearch: (search) => searchSchema.parse(search),
   ssr: false,
   head: () => ({
     meta: [

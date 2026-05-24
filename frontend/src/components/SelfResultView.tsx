@@ -8,6 +8,7 @@ import { DimensionBars } from "@/components/DimensionBars";
 import { ScoreOrb } from "@/components/ScoreOrb";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { chatRouteSearch } from "@/lib/chatRouteSearch";
 import {
   ArrowLeft, Lock, MessageCircle, Share2, Sparkles, TrendingUp, AlertCircle,
   Heart, Compass, Eye, Flame, Swords, Shield, KeyRound, EyeOff, X,
@@ -50,7 +51,9 @@ export function SelfResultView({
 
   const share = async () => {
     try {
-      await navigator.clipboard.writeText(`我的关系画像：${r.archetype.name} —— ${r.archetype.tagline}\n${typeof window !== "undefined" ? window.location.href : ""}`);
+      await navigator.clipboard.writeText(
+        `我的关系画像：${r.archetype.name} —— ${r.archetype.tagline}\n${typeof window !== "undefined" ? window.location.href : ""}`,
+      );
       toast.success("已复制到剪贴板");
     } catch {
       toast.error("复制失败");
@@ -386,14 +389,13 @@ export function SelfResultView({
         {/* CTA ROW */}
         <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Button
+            asChild
             variant="outline"
-            onClick={() => {
-              if (attemptId) nav({ to: "/chat", search: { attemptId, analystId: "mirror" } });
-              else toast.info("AI 分析师对话即将上线");
-            }}
             className="rounded-xl h-12 bg-glass border-border/60 text-foreground"
           >
-            <MessageCircle className="mr-2 h-4 w-4" /> 找 AI 分析师聊聊
+            <Link to="/chat" search={chatRouteSearch(attemptId)}>
+              <MessageCircle className="mr-2 h-4 w-4" /> 找 AI 分析师聊聊
+            </Link>
           </Button>
           <Button onClick={share}
             className="rounded-xl h-12 bg-gradient-to-r from-[oklch(0.68_0.18_285)] to-[oklch(0.82_0.14_200)] text-primary-foreground hover:opacity-90 font-medium">

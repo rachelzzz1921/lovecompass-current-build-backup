@@ -230,8 +230,22 @@ function buildCharacterReasons(
 }
 
 function attachmentCodeLabel(attachment: string, greyZone: boolean): string {
-  const base = `SELF · ${attachment.toUpperCase().replace(/\s+/g, " ")}`;
+  const en: Record<string, string> = {
+    安全型: "SECURE",
+    焦虑型: "ANXIOUS",
+    回避型: "AVOIDANT",
+    混合型: "FREE SPIRIT",
+    低自我高投入型: "DEVOTED",
+    高边界安全型: "BOUNDED SECURE",
+  };
+  const slug = en[attachment] ?? "RELATIONAL";
+  const base = `SELF · ${slug}`;
   return greyZone ? `${base} · GREY ZONE` : base;
+}
+
+function heroAttachmentTitle(attachment: string, greyZone: boolean): string {
+  if (greyZone) return `${attachment} · 临界状态`;
+  return attachment;
 }
 
 export function mapAttemptToSelfResult(input: AttemptResultInput): SelfResult {
@@ -250,10 +264,10 @@ export function mapAttemptToSelfResult(input: AttemptResultInput): SelfResult {
   return {
     archetype: {
       badge: "你的依恋类型",
-      name,
+      name: heroAttachmentTitle(attachment, greyZone),
       code: attachmentCodeLabel(attachment, greyZone),
       tagline: profile.tagline ?? "这是一面会进化的关系镜子。",
-      description: profile.description ?? "你的画像来自套一 SELF 六维模型与红楼人格原型匹配。",
+      description: profile.description ?? "你的画像来自套一 SELF 六维模型与行为模式分析。",
     },
     overallScore,
     dimensions,

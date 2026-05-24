@@ -22,6 +22,17 @@ export type ChatMessageResponse = {
   conversationId?: string | null;
   bound?: boolean;
   context?: ChatContext | null;
+  crisis?: boolean;
+};
+
+export type TriageResponse = {
+  ok: boolean;
+  counselorId: string;
+  counselorName: string;
+  confidence: "low" | "medium" | "high";
+  reason: string;
+  matchedSignals: string[];
+  alternatives: Array<{ counselorId: string; label: string; score?: number }>;
 };
 
 export type AttemptReport = {
@@ -216,9 +227,16 @@ export const lovecompassApi = {
   submitAttempt: (data: {
     suiteSlug: string;
     redemptionEventId?: string | null;
+    partnerRelationCode?: string | null;
     answers: AnswerDraft[];
   }) =>
-    requestJson<{ attemptId: string; status: "completed" | "in_progress"; next?: string }>(
+    requestJson<{
+      attemptId: string;
+      status: "completed" | "in_progress";
+      next?: string;
+      relationCode?: string;
+      productSet?: string;
+    }>(
       "/attempts",
       {
         method: "POST",
@@ -257,4 +275,48 @@ export const lovecompassApi = {
       undefined,
       true,
     ),
+  triageChat: (message: string) =>
+    requestJson<TriageResponse>(
+      "/chat/triage",
+      {
+        method: "POST",
+        body: JSON.stringify({ message }),
+      },
+      true,
+    ),
+  getRosSingleResult: (attemptId: string) =>
+    requestJson<{
+      ok: boolean;
+      attemptId: string;
+      single: Record<string, unknown>;
+      relationCode?: string;
+      partnerStatus?: string;
+      coupleUnlocked?: boolean;
+      invitePath?: string;
+    }>(`/ros/attempts/${encodeURIComponent(attemptId)}/single`, undefined, true),
+  previewRelationCode: (code: string) =>
+    requestJson<{
+      ok: boolean;
+      code: string;
+      status: string;
+      preview: Record<string, unknown>;
+      invitePath: string;
+      coupleUnlocked: boolean;
+    }>(`/ros/codes/${encodeURIComponent(code.trim().toUpperCase())}`, undefined, true),
+  getRosCoupleReport: (code: string) =>
+    requestJson<{ ok: boolean; code: string; couple: Record<string, unknown> }>(
+      `/ros/couple/${encodeURIComponent(code.trim().toUpperCase())}`,
+      undefined,
+      true,
+    ),
+  analyzeRosStory: (data: {
+    timeline: Array<{ label: string; value: number; note?: string | null }>;
+    milestones: Array<{ when: string; title: string; tone: "spark" | "warm" | "cool" }>;
+    stageName: string;
+  }) =>
+    requestJson<{
+      curveInsight: string;
+      milestoneInsight: string;
+      trend: { label: string };
+    }>("/ros/story/analyze", { method: "POST", body: JSON.stringify(data) }, true),
 };

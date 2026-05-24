@@ -478,16 +478,20 @@ function ProductSuiteCard({ product, index }: { product: PortraitProduct; index:
       <div className="mt-4 pt-3 border-t border-border/40">
         {completed && latest?.attemptId ? (
           <Link
-            to="/result/$attemptId"
-            params={{ attemptId: latest.attemptId }}
+            to={product.id === "ros" ? "/result/ros/$id" : "/result/$attemptId"}
+            params={
+              product.id === "ros"
+                ? { id: latest.attemptId }
+                : { attemptId: latest.attemptId }
+            }
             className="text-xs font-mono tracking-wider flex items-center gap-1.5 text-foreground/80 hover:text-foreground"
           >
             查看报告 <ArrowRight className="h-3 w-3" />
           </Link>
         ) : (
           <Link
-            to="/access"
-            search={{ product: product.id }}
+            to={product.id === "ros" ? "/ros/start" : "/access"}
+            search={product.id === "ros" ? undefined : { product: product.id }}
             className="text-xs font-mono tracking-wider flex items-center gap-1.5 text-foreground/80 hover:text-foreground"
           >
             <Lock className="h-3 w-3" /> 解锁测试

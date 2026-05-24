@@ -55,9 +55,14 @@ function TestEntry() {
       if (!hasAccess) {
         nav({
           to: "/access",
-          search: { product: product.id, redirect: `/tests/${runSuiteSlug}/run` },
+          search: { product: product.id, redirect: product.id === "ros" ? "/ros/start" : `/tests/${runSuiteSlug}/run` },
         });
       }
+      return;
+    }
+
+    if (product.id === "ros") {
+      nav({ to: "/ros/start" });
       return;
     }
 

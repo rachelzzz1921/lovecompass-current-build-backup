@@ -15,3 +15,23 @@ export function markProductAccess(productId: string, suiteSlug: string, redempti
     sessionStorage.setItem(`redemption:${productId}`, redemptionEventId);
   }
 }
+
+const PARTNER_CODE_KEY = "ros:partnerCode";
+
+/** 伴侣通过关系码免费进入 ROS 测评 */
+export function markPartnerRosAccess(partnerCode: string, suiteSlug: string) {
+  sessionStorage.setItem(`access:ros`, "1");
+  sessionStorage.setItem(`access:${suiteSlug}`, "1");
+  sessionStorage.setItem(`suite:ros`, suiteSlug);
+  sessionStorage.setItem(PARTNER_CODE_KEY, partnerCode.trim().toUpperCase());
+}
+
+export function getPartnerRelationCode(): string | null {
+  if (typeof window === "undefined") return null;
+  return sessionStorage.getItem(PARTNER_CODE_KEY);
+}
+
+export function clearPartnerRelationCode() {
+  if (typeof window === "undefined") return;
+  sessionStorage.removeItem(PARTNER_CODE_KEY);
+}

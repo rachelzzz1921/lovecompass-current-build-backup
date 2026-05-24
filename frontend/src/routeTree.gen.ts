@@ -20,13 +20,17 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as TestsIdRouteImport } from './routes/tests.$id'
 import { Route as ShowcaseQuestionsRouteImport } from './routes/showcase.questions'
+import { Route as RosStartRouteImport } from './routes/ros.start'
 import { Route as ResultAttemptIdRouteImport } from './routes/result.$attemptId'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
 import { Route as AdminCodesRouteImport } from './routes/admin/codes'
 import { Route as AdminAnalystsRouteImport } from './routes/admin/analysts'
 import { Route as TestsIdRunRouteImport } from './routes/tests.$id.run'
+import { Route as RosInviteCodeRouteImport } from './routes/ros.invite.$code'
 import { Route as ResultSelfVariantRouteImport } from './routes/result.self.$variant'
+import { Route as ResultRosIdRouteImport } from './routes/result.ros.$id'
+import { Route as ResultRosCoupleCodeRouteImport } from './routes/result.ros.couple.$code'
 
 const RunRoute = RunRouteImport.update({
   id: '/run',
@@ -83,6 +87,11 @@ const ShowcaseQuestionsRoute = ShowcaseQuestionsRouteImport.update({
   path: '/showcase/questions',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RosStartRoute = RosStartRouteImport.update({
+  id: '/ros/start',
+  path: '/ros/start',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ResultAttemptIdRoute = ResultAttemptIdRouteImport.update({
   id: '/result/$attemptId',
   path: '/result/$attemptId',
@@ -113,9 +122,24 @@ const TestsIdRunRoute = TestsIdRunRouteImport.update({
   path: '/run',
   getParentRoute: () => TestsIdRoute,
 } as any)
+const RosInviteCodeRoute = RosInviteCodeRouteImport.update({
+  id: '/ros/invite/$code',
+  path: '/ros/invite/$code',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ResultSelfVariantRoute = ResultSelfVariantRouteImport.update({
   id: '/result/self/$variant',
   path: '/result/self/$variant',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResultRosIdRoute = ResultRosIdRouteImport.update({
+  id: '/result/ros/$id',
+  path: '/result/ros/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResultRosCoupleCodeRoute = ResultRosCoupleCodeRouteImport.update({
+  id: '/result/ros/couple/$code',
+  path: '/result/ros/couple/$code',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -133,11 +157,15 @@ export interface FileRoutesByFullPath {
   '/admin/users': typeof AdminUsersRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/result/$attemptId': typeof ResultAttemptIdRoute
+  '/ros/start': typeof RosStartRoute
   '/showcase/questions': typeof ShowcaseQuestionsRoute
   '/tests/$id': typeof TestsIdRouteWithChildren
   '/admin/': typeof AdminIndexRoute
+  '/result/ros/$id': typeof ResultRosIdRoute
   '/result/self/$variant': typeof ResultSelfVariantRoute
+  '/ros/invite/$code': typeof RosInviteCodeRoute
   '/tests/$id/run': typeof TestsIdRunRoute
+  '/result/ros/couple/$code': typeof ResultRosCoupleCodeRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -152,11 +180,15 @@ export interface FileRoutesByTo {
   '/admin/users': typeof AdminUsersRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/result/$attemptId': typeof ResultAttemptIdRoute
+  '/ros/start': typeof RosStartRoute
   '/showcase/questions': typeof ShowcaseQuestionsRoute
   '/tests/$id': typeof TestsIdRouteWithChildren
   '/admin': typeof AdminIndexRoute
+  '/result/ros/$id': typeof ResultRosIdRoute
   '/result/self/$variant': typeof ResultSelfVariantRoute
+  '/ros/invite/$code': typeof RosInviteCodeRoute
   '/tests/$id/run': typeof TestsIdRunRoute
+  '/result/ros/couple/$code': typeof ResultRosCoupleCodeRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -173,11 +205,15 @@ export interface FileRoutesById {
   '/admin/users': typeof AdminUsersRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/result/$attemptId': typeof ResultAttemptIdRoute
+  '/ros/start': typeof RosStartRoute
   '/showcase/questions': typeof ShowcaseQuestionsRoute
   '/tests/$id': typeof TestsIdRouteWithChildren
   '/admin/': typeof AdminIndexRoute
+  '/result/ros/$id': typeof ResultRosIdRoute
   '/result/self/$variant': typeof ResultSelfVariantRoute
+  '/ros/invite/$code': typeof RosInviteCodeRoute
   '/tests/$id/run': typeof TestsIdRunRoute
+  '/result/ros/couple/$code': typeof ResultRosCoupleCodeRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -195,11 +231,15 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/auth/callback'
     | '/result/$attemptId'
+    | '/ros/start'
     | '/showcase/questions'
     | '/tests/$id'
     | '/admin/'
+    | '/result/ros/$id'
     | '/result/self/$variant'
+    | '/ros/invite/$code'
     | '/tests/$id/run'
+    | '/result/ros/couple/$code'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -214,11 +254,15 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/auth/callback'
     | '/result/$attemptId'
+    | '/ros/start'
     | '/showcase/questions'
     | '/tests/$id'
     | '/admin'
+    | '/result/ros/$id'
     | '/result/self/$variant'
+    | '/ros/invite/$code'
     | '/tests/$id/run'
+    | '/result/ros/couple/$code'
   id:
     | '__root__'
     | '/'
@@ -234,11 +278,15 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/auth/callback'
     | '/result/$attemptId'
+    | '/ros/start'
     | '/showcase/questions'
     | '/tests/$id'
     | '/admin/'
+    | '/result/ros/$id'
     | '/result/self/$variant'
+    | '/ros/invite/$code'
     | '/tests/$id/run'
+    | '/result/ros/couple/$code'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -251,9 +299,13 @@ export interface RootRouteChildren {
   HistoryRoute: typeof HistoryRoute
   RunRoute: typeof RunRoute
   ResultAttemptIdRoute: typeof ResultAttemptIdRoute
+  RosStartRoute: typeof RosStartRoute
   ShowcaseQuestionsRoute: typeof ShowcaseQuestionsRoute
   TestsIdRoute: typeof TestsIdRouteWithChildren
+  ResultRosIdRoute: typeof ResultRosIdRoute
   ResultSelfVariantRoute: typeof ResultSelfVariantRoute
+  RosInviteCodeRoute: typeof RosInviteCodeRoute
+  ResultRosCoupleCodeRoute: typeof ResultRosCoupleCodeRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -335,6 +387,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ShowcaseQuestionsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/ros/start': {
+      id: '/ros/start'
+      path: '/ros/start'
+      fullPath: '/ros/start'
+      preLoaderRoute: typeof RosStartRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/result/$attemptId': {
       id: '/result/$attemptId'
       path: '/result/$attemptId'
@@ -377,11 +436,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TestsIdRunRouteImport
       parentRoute: typeof TestsIdRoute
     }
+    '/ros/invite/$code': {
+      id: '/ros/invite/$code'
+      path: '/ros/invite/$code'
+      fullPath: '/ros/invite/$code'
+      preLoaderRoute: typeof RosInviteCodeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/result/self/$variant': {
       id: '/result/self/$variant'
       path: '/result/self/$variant'
       fullPath: '/result/self/$variant'
       preLoaderRoute: typeof ResultSelfVariantRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/result/ros/$id': {
+      id: '/result/ros/$id'
+      path: '/result/ros/$id'
+      fullPath: '/result/ros/$id'
+      preLoaderRoute: typeof ResultRosIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/result/ros/couple/$code': {
+      id: '/result/ros/couple/$code'
+      path: '/result/ros/couple/$code'
+      fullPath: '/result/ros/couple/$code'
+      preLoaderRoute: typeof ResultRosCoupleCodeRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -434,9 +514,13 @@ const rootRouteChildren: RootRouteChildren = {
   HistoryRoute: HistoryRoute,
   RunRoute: RunRoute,
   ResultAttemptIdRoute: ResultAttemptIdRoute,
+  RosStartRoute: RosStartRoute,
   ShowcaseQuestionsRoute: ShowcaseQuestionsRoute,
   TestsIdRoute: TestsIdRouteWithChildren,
+  ResultRosIdRoute: ResultRosIdRoute,
   ResultSelfVariantRoute: ResultSelfVariantRoute,
+  RosInviteCodeRoute: RosInviteCodeRoute,
+  ResultRosCoupleCodeRoute: ResultRosCoupleCodeRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -10,7 +10,7 @@ import { QuestionRenderer } from "@/components/questions/QuestionRenderer";
 import { ApiErrorPanel } from "@/components/ApiErrorPanel";
 import { formatApiErrorMessage, getApiErrorHint } from "@/lib/apiErrors";
 import { AuthChecking, safeReturnPath, useRequireAuth } from "@/lib/requireAuth";
-import { hasProductAccess } from "@/lib/accessGate";
+import { hasProductAccess, getPartnerRelationCode } from "@/lib/accessGate";
 import { lovecompassApi } from "@/lib/lovecompassApi";
 import { getRequiredAccessToken } from "@/lib/supabaseSession";
 import { resolveProductId, resolveSuiteSlug } from "@/lib/suiteSlugs";
@@ -60,6 +60,11 @@ function TestRun() {
       routeId: routeSuiteSlug,
       sessionSuiteSlug: storedSuiteSlug,
     });
+    const partnerCode = productId === "ros" ? getPartnerRelationCode() : null;
+    if (partnerCode) {
+      setAccessChecked(true);
+      return;
+    }
     if (!hasProductAccess(productId, suiteSlug)) {
       toast.info("请先输入兑换码解锁本题库");
       void nav({
@@ -185,11 +190,28 @@ function TestRun() {
           ? window.sessionStorage.getItem(`redemption:${suiteSlug}`) ||
             window.sessionStorage.getItem(`redemption:${productId}`)
           : null;
+      const partnerRelationCode =
+        productId === "ros" ? getPartnerRelationCode() : null;
       const res = await lovecompassApi.submitAttempt({
         suiteSlug,
-        redemptionEventId,
+        redemptionEventId: partnerRelationCode ? null : redemptionEventId,
+        partnerRelationCode,
         answers: payload,
       });
+      if (res.relationCode && typeof window !== "undefined") {
+        sessionStorage.setItem("ros:myCode", res.relationCode);
+      }
+      if (productId === "ros") {
+        if (partnerRelationCode) {
+          void nav({
+            to: "/result/ros/couple/$code",
+            params: { code: partnerRelationCode },
+          });
+        } else {
+          void nav({ to: "/result/ros/$id", params: { id: res.attemptId } });
+        }
+        return;
+      }
       nav({ to: "/analyzing", search: { attemptId: res.attemptId } });
     } catch (e) {
       setFinishing(false);

@@ -27,9 +27,21 @@ def auth_version() -> str:
 
 
 def _supabase_url() -> str:
-    raw = (os.getenv("SUPABASE_URL") or "").strip().rstrip("/")
+    raw = (os.getenv("SUPABASE_URL") or "").strip().strip('"').strip("'")
+    lowered = raw.lower()
+    for prefix in ("value:", "value："):
+        if lowered.startswith(prefix):
+            raw = raw[len(prefix) :].strip()
+            break
+    if raw.upper().startswith("SUPABASE_URL="):
+        raw = raw.split("=", 1)[1].strip()
+    raw = raw.rstrip("/")
     if raw.endswith("/auth/v1"):
         raw = raw[: -len("/auth/v1")].rstrip("/")
+    if raw and not raw.startswith(("http://", "https://")):
+        # Recover when only the host/path was pasted without a scheme.
+        if "supabase.co" in raw:
+            raw = f"https://{raw.lstrip('/')}"
     return raw
 
 

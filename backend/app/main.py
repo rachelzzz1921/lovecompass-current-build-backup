@@ -7,7 +7,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from psycopg.types.json import Jsonb
-from app.auth import auth_version, probe_jwks, probe_jwt_token, resolve_user_id
+from app.auth import auth_version, probe_jwks, probe_jwt_token, resolve_user_id, _supabase_url
 from app.db import get_conn
 from app.question_adapter import adapt_question
 from app.scoring import summarize_scores
@@ -246,14 +246,22 @@ def health(
     if config:
         fallback = os.getenv("LOVECOMPASS_ALLOW_DEMO_USER_FALLBACK", "").strip().lower()
         supabase_url = (os.getenv("SUPABASE_URL") or "").strip()
+        normalized_supabase_url = _supabase_url()
         return {
             "ok": True,
             "config": {
                 "authVersion": auth_version(),
                 "databaseUrl": bool((os.getenv("DATABASE_URL") or "").strip()),
                 "supabaseUrl": bool(supabase_url),
+                "supabaseUrlNormalized": bool(normalized_supabase_url),
+                "supabaseUrlLooksMalformed": bool(supabase_url)
+                and (
+                    "value" in supabase_url.lower()
+                    or "：" in supabase_url
+                    or not normalized_supabase_url.startswith("https://")
+                ),
                 "jwtSecretLegacy": bool((os.getenv("SUPABASE_JWT_SECRET") or "").strip()),
-                "jwtVerifyJwks": bool(supabase_url),
+                "jwtVerifyJwks": bool(normalized_supabase_url),
                 "jwksProbe": probe_jwks(),
                 "corsVercelPreviews": _cors_allow_vercel_previews(),
                 "demoUserFallback": fallback in {"1", "true", "yes"},

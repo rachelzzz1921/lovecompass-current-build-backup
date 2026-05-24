@@ -14,6 +14,11 @@ import {
 import { useEffect, useMemo, useState } from "react";
 
 import { lovecompassApi, type PortraitProduct, type UserPortrait } from "@/lib/lovecompassApi";
+import {
+  SELF_DIMENSIONS,
+  normalizeDimensionScore,
+  scoreDisplaySummary,
+} from "@/data/selfSuiteSpec";
 import { formatApiErrorMessage, getApiErrorHint } from "@/lib/apiErrors";
 import { AuthChecking, useRequireAuth } from "@/lib/requireAuth";
 

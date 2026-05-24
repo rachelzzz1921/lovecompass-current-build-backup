@@ -8,20 +8,35 @@ export type PendingAttemptContext = {
 const SUBMIT_STASH_KEY = "analyzing:submitResult";
 
 let pending: PendingAttemptContext | null = null;
+let handlerAttached = false;
 
 /** Register in-flight submit; analyzing page consumes it once. */
 export function beginPendingAttemptSubmit(ctx: PendingAttemptContext): void {
   pending = ctx;
+  handlerAttached = false;
+  if (typeof window !== "undefined") {
+    window.sessionStorage.removeItem(SUBMIT_STASH_KEY);
+  }
   void ctx.promise.then((res) => {
     if (typeof window === "undefined") return;
     window.sessionStorage.setItem(SUBMIT_STASH_KEY, JSON.stringify(res));
   });
 }
 
-export function takePendingAttemptSubmit(): PendingAttemptContext | null {
-  const ctx = pending;
+/** Peek in-flight submit (do not clear — Strict Mode may mount twice). */
+export function peekPendingAttemptSubmit(): PendingAttemptContext | null {
+  return pending;
+}
+
+export function clearPendingAttemptSubmit(): void {
   pending = null;
-  return ctx;
+  handlerAttached = false;
+}
+
+export function markPendingHandlerAttached(): boolean {
+  if (handlerAttached) return false;
+  handlerAttached = true;
+  return true;
 }
 
 export function hasPendingAttemptSubmit(): boolean {

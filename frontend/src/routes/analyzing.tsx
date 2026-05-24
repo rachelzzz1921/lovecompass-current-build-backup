@@ -9,7 +9,12 @@ import {
   type ProductSet,
 } from "@/lib/resultRoutes";
 import { resolveAnalyzingProfile, type AnalyzingProfile } from "@/lib/analyzingProfiles";
-import { takePendingAttemptSubmit, takeStashedSubmitResult } from "@/lib/pendingAttemptSubmit";
+import {
+  clearPendingAttemptSubmit,
+  markPendingHandlerAttached,
+  peekPendingAttemptSubmit,
+  takeStashedSubmitResult,
+} from "@/lib/pendingAttemptSubmit";
 import { formatApiErrorMessage } from "@/lib/apiErrors";
 import { ApiErrorPanel } from "@/components/ApiErrorPanel";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -79,7 +84,7 @@ function AnalyzingPage() {
     workStartedRef.current = true;
 
     if (searchPending) {
-      const ctx = takePendingAttemptSubmit();
+      const ctx = peekPendingAttemptSubmit();
       const stashed = ctx ? null : takeStashedSubmitResult();
       if (!ctx && stashed) {
         if (stashed.relationCode && typeof window !== "undefined") {
@@ -91,11 +96,15 @@ function AnalyzingPage() {
         }
         setSubmitNext(stashed.next ?? null);
         setWorkState("ready");
+        clearPendingAttemptSubmit();
         return;
       }
       if (!ctx) {
         setWorkState("error");
         setErrorMessage("分析会话已过期，请返回测试页重新提交。");
+        return;
+      }
+      if (!markPendingHandlerAttached()) {
         return;
       }
       if (ctx.productSet) setResolvedProductSet(ctx.productSet);
@@ -116,6 +125,9 @@ function AnalyzingPage() {
         .catch((e: unknown) => {
           setWorkState("error");
           setErrorMessage(formatApiErrorMessage(e));
+        })
+        .finally(() => {
+          clearPendingAttemptSubmit();
         });
       return;
     }
@@ -123,7 +135,6 @@ function AnalyzingPage() {
     if (initialAttemptId) {
       setResolvedAttemptId(initialAttemptId);
       setWorkState("ready");
-      setStage(profile.stages.length);
       return;
     }
 

@@ -253,19 +253,12 @@ function TestRun() {
         return;
       }
 
-      setFinishing(true);
       const submitPromise = lovecompassApi.submitAttempt({
         suiteSlug,
         redemptionEventId,
         partnerRelationCode: null,
         answers: payload,
       });
-
-      if (productSet === "ROS") {
-        const res = await submitPromise;
-        void nav(routeAfterAttemptSubmit(res, { productSet: "ROS" }));
-        return;
-      }
 
       beginPendingAttemptSubmit({ promise: submitPromise, productSet });
       void nav({ to: "/analyzing", search: { productSet, pending: true } });

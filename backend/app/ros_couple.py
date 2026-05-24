@@ -149,6 +149,21 @@ def _next_signal(stage_id: int, gap_code: str) -> str:
     return f"如果接下来一个月你们能就「{ROS_LAYER_LABELS.get(gap_code.upper(), '互动质量')}」聊清楚一次，关系会自然进入「{next_stage}」阶段。"
 
 
+def _normalize_layer_scores(raw: Any) -> dict[str, float]:
+    if not isinstance(raw, dict):
+        return {}
+    out: dict[str, float] = {}
+    for code in ROS_LAYER_CODES:
+        val = raw.get(code)
+        if val is None:
+            continue
+        try:
+            out[code] = float(val)
+        except (TypeError, ValueError):
+            continue
+    return out
+
+
 def build_couple_payload(
     *,
     code: str,
@@ -159,12 +174,8 @@ def build_couple_payload(
 ) -> dict[str, Any]:
     you_payload = initiator.get("result_payload") or {}
     ta_payload = partner.get("result_payload") or {}
-    you_layers = initiator.get("dimension_scores") or {}
-    ta_layers = partner.get("dimension_scores") or {}
-    if not isinstance(you_layers, dict):
-        you_layers = {}
-    if not isinstance(ta_layers, dict):
-        ta_layers = {}
+    you_layers = _normalize_layer_scores(initiator.get("dimension_scores"))
+    ta_layers = _normalize_layer_scores(partner.get("dimension_scores"))
 
     rel_type = (you_payload.get("relationshipType") or {}).get("key") or "warm"
     stage_id = int((you_payload.get("relationshipStage") or {}).get("id") or 4)

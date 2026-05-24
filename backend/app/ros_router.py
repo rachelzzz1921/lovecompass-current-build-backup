@@ -203,8 +203,8 @@ def link_partner_to_session(
         """,
         (code, code, partner_attempt_id),
     )
-    couple_payload = merge_and_store_couple_report(conn, session["id"])
-    return {"session": session, "couplePayload": couple_payload}
+    updated = _fetch_session_by_code(conn, code) or session
+    return {"session": updated}
 
 
 def create_relation_session(

@@ -12,12 +12,23 @@
 
 ## 你需要在控制台完成的（代码无法代做）
 
-### 1. 后端 Vercel — `SUPABASE_JWT_SECRET`（**必做，否则提交答题 401/500**）
+### 1. 后端 Vercel — `SUPABASE_URL`（**必做，JWKS 校验登录令牌**）
 
-1. Supabase Dashboard → **Project Settings → API → JWT Secret**（Legacy）
-2. 复制到 Vercel 后端项目 Environment Variables：`SUPABASE_JWT_SECRET`
-3. Redeploy 后端
-4. 验证：`curl "https://lovecompass-api-backend.vercel.app/health?config=1"` 应含 `"jwtSecret":true`
+Supabase 用户 access token 现为 **ES256** 签名。后端通过  
+`{SUPABASE_URL}/auth/v1/.well-known/jwks.json` 验签，**必须**配置：
+
+```text
+SUPABASE_URL=https://wjfpglsygkbpubanylug.supabase.co
+```
+
+可选（仅 legacy HS256 令牌）：`SUPABASE_JWT_SECRET` — Project Settings → API → JWT Secret
+
+Redeploy 后端后验证：
+
+```bash
+curl "https://lovecompass-api-backend.vercel.app/health?config=1"
+# 应含 "jwtVerifyJwks": true
+```
 
 ### 2. Supabase — Redirect URLs（Google / 邮箱登录）
 

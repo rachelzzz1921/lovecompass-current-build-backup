@@ -237,7 +237,9 @@ def health(db: bool = False, config: bool = False):
             "ok": True,
             "config": {
                 "databaseUrl": bool((os.getenv("DATABASE_URL") or "").strip()),
-                "jwtSecret": bool((os.getenv("SUPABASE_JWT_SECRET") or "").strip()),
+                "supabaseUrl": bool((os.getenv("SUPABASE_URL") or "").strip()),
+                "jwtSecretLegacy": bool((os.getenv("SUPABASE_JWT_SECRET") or "").strip()),
+                "jwtVerifyJwks": bool((os.getenv("SUPABASE_URL") or "").strip()),
                 "corsVercelPreviews": _cors_allow_vercel_previews(),
                 "demoUserFallback": fallback in {"1", "true", "yes"},
             },

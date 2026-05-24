@@ -109,6 +109,13 @@ def summarize_attempt(row: dict[str, Any]) -> dict[str, Any]:
             }
         )
 
+    if product_set == "MATE" and isinstance(result_payload, dict):
+        pos = result_payload.get("positionType") or result_payload.get("matePosition") or result_payload.get("marketPosition")
+        if isinstance(pos, dict):
+            summary["matePosition"] = pos.get("name") or pos.get("label") or pos.get("title")
+        elif pos:
+            summary["matePosition"] = str(pos)
+
     return summary
 
 

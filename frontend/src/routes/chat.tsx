@@ -47,6 +47,8 @@ function ChatPage() {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [thinking, setThinking] = useState(false);
+  const [triageHint, setTriageHint] = useState<string | null>(null);
+  const [triageLoading, setTriageLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -127,12 +129,29 @@ function ChatPage() {
 
   const switchCounselor = (c: Counselor) => {
     setActive(c);
+    setTriageHint(null);
     setMessages([{ role: "ai", text: buildCounselorGreeting(c, Boolean(chatContext), chatContext), ts: Date.now() }]);
     nav({
       to: "/chat",
       search: { analystId: c.id, attemptId: boundAttemptId },
       replace: true,
     });
+  };
+
+  const runTriage = async () => {
+    const text = input.trim() || "我不知道该找哪位顾问，你能帮我选吗？";
+    setTriageLoading(true);
+    setTriageHint(null);
+    try {
+      const res = await lovecompassApi.triageChat(text);
+      const picked = getCounselor(res.counselorId);
+      switchCounselor(picked);
+      setTriageHint(`推荐 ${res.counselorName}：${res.reason}`);
+    } catch (error) {
+      setTriageHint(formatApiErrorMessage(error));
+    } finally {
+      setTriageLoading(false);
+    }
   };
 
   if (authPending) return <AuthChecking />;
@@ -183,6 +202,19 @@ function ChatPage() {
                 </button>
               );
             })}
+
+            <button
+              type="button"
+              onClick={() => void runTriage()}
+              disabled={triageLoading || thinking}
+              className="w-full text-left px-4 py-3 rounded-2xl border border-dashed border-border/70 bg-secondary/20 hover:border-[oklch(0.68_0.18_285_/_0.5)] transition text-[12px] text-foreground/80"
+            >
+              <span className="font-mono text-[10px] tracking-[0.25em] text-muted-foreground">// TRIAGE</span>
+              <p className="mt-1">{triageLoading ? "正在匹配顾问…" : "不确定找谁？根据输入框内容推荐"}</p>
+            </button>
+            {triageHint ? (
+              <p className="text-[11px] text-foreground/70 leading-relaxed px-1">{triageHint}</p>
+            ) : null}
 
             <div className="bg-glass rounded-2xl p-4 mt-4">
               <div className="text-[10px] font-mono tracking-[0.3em] text-muted-foreground mb-2">// CONTEXT</div>

@@ -1,41 +1,48 @@
 # MIRROR 顾问人格 Skills
 
-四个去品牌化顾问人格（气质来自公开讨论的关系顾问原型，**不引用、不扮演任何真实公众人物**），供开发与 prompt 迭代使用。
+去品牌化顾问人格 + 共用 prompt 层，供开发与运行时加载。
+
+## 顾问人格（用户可选）
 
 | 中文名 | 英文名 | 目录 | 气质关键词 |
 |--------|--------|------|------------|
-| 祖师爷 | Oracle | `.cursor/skills/oracle/` | 笃定、真诚、江湖清醒、反自我欺骗 |
-| 进化论 | Darwin | `.cursor/skills/darwin/` | 犀利解构、认知升维、反恋爱脑 |
-| 是妻子也是母亲 | Haven | `.cursor/skills/haven/` | 妻子懂你、母亲托住、在场陪伴 |
-| 学者 | Sage | `.cursor/skills/sage/` | 读书人、一句定锚、本质压缩 |
+| 祖师爷 | Oracle | `oracle/` | 笃定、真诚、江湖清醒 |
+| 进化论 | Darwin | `darwin/` | 犀利解构、认知升维 |
+| 是妻子也是母亲 | Haven | `haven/` | 妻子懂你、母亲托住 |
+| 学者 | Sage | `sage/` | 一句定锚、本质压缩 |
 
-## 路径
+## 共用层（所有对话自动注入）
+
+| 层 | 目录 | 运行时模块 | 作用 |
+|----|------|------------|------|
+| mirror-tone | `mirror-tone/` | `chat_prompt_layers.build_mirror_tone_layer()` | 词库语气、分数转述、禁止输出 |
+| crisis-guard | `crisis-guard/` | `assess_crisis()` + 高危短路回复 | 自伤/自杀安全护栏 |
+| portrait-reader | `portrait-reader/` | `build_portrait_reader_layer()` | SELF/ROS/MATE 跨套画像 |
+| triage | `triage/` | `triage_counselor()` + `POST /chat/triage` | 推荐顾问 |
+
+**词库数据源：** `backend/data/analysis_phrase_library_v1.json`
+
+## Prompt 注入顺序
 
 ```
-.cursor/skills/oracle/SKILL.md
-.cursor/skills/darwin/SKILL.md
-.cursor/skills/haven/SKILL.md
-.cursor/skills/sage/SKILL.md
+system (MIRROR_CHAT_BASE)
+→ mirror-tone
+→ crisis-guard（若触发）
+→ portrait-reader（已登录用户）
+→ Agent Skill（oracle/darwin/haven/sage）
+→ 当前 attempt 详情
+→ 历史 + 用户消息
 ```
 
-## 触发词
+## 部署副本
 
-- Oracle：`祖师爷` `Oracle` `直球分析` `说真话`
-- Darwin：`进化论` `Darwin` `关系策略` `值不值得继续`
-- Haven：`Haven` `港湾` `陪陪我` `走不出来`
-- Sage：`学者` `Sage` `关系结构` `为什么总是这样`
+- 顾问：`backend/app/counselor_skills/{slug}/SKILL.md`
+- 共用层：`backend/app/shared_skills/{slug}/SKILL.md`
 
-| LoveCompass 角色 | Skill 目录 | DB slug |
-|------------------|------------|---------|
-| 祖师爷 / Oracle | `.cursor/skills/oracle/` | `oracle` |
-| 进化论 / Darwin | `.cursor/skills/darwin/` | `darwin` |
-| 是妻子也是母亲 / Haven | `.cursor/skills/haven/` | `haven` |
-| 学者 / Sage | `.cursor/skills/sage/` | `sage` |
+## API
 
-前端配置：`frontend/src/lib/counselors.ts`（与 DB slug 一致）
+- `POST /chat/message` — `analystId`: `oracle` | `darwin` | `haven` | `sage`
+- `POST /chat/triage` — `{ "message": "..." }` 返回推荐顾问
+- 默认顾问：`sage`；旧 `mirror` → `sage`
 
-## 与产品集成
-
-- 聊天 API：`POST /chat/message` 传 `analystId`: `oracle` | `darwin` | `haven` | `sage`
-- 默认顾问：`sage`（旧 `mirror` 自动映射到 `sage`）
-- 迁移：`backend/migrations/202605240001_lovecompass_counselor_personas.sql`
+前端：`frontend/src/lib/counselors.ts` · 分诊按钮：`/chat` 侧边栏

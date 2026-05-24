@@ -7,6 +7,12 @@ from typing import Any
 from fastapi import HTTPException
 from psycopg.types.json import Jsonb
 
+from app.chat_prompt_layers import (
+    build_crisis_guard_layer,
+    build_mirror_tone_layer,
+    build_portrait_reader_layer,
+    score_band_label,
+)
 from app.counselor_personas import enrich_analyst_with_skill, normalize_counselor_slug, persona_fallback
 
 REPORT_PLACEHOLDER_MARKERS = ("正式 AI 深度报告可由后台任务继续生成", "【AI 占位回复】", "【智谱未配置】")
@@ -19,17 +25,7 @@ def _looks_like_placeholder(report: str | None) -> bool:
 
 
 def _score_tone(score: Any) -> str:
-    try:
-        numeric = float(score)
-    except (TypeError, ValueError):
-        return "需要结合更多相处经验继续观察。"
-    if numeric >= 80:
-        return "非常突出，是关系里的稳定资源"
-    if numeric >= 65:
-        return "整体较稳，多数场景里能支持成熟选择"
-    if numeric >= 45:
-        return "有一定弹性，压力时可能摇摆"
-    return "值得被温柔照看，不必苛责自己"
+    return score_band_label(score)
 
 
 def extract_dimensions(result_payload: dict[str, Any], dimension_scores: Any) -> list[dict[str, Any]]:
@@ -173,7 +169,7 @@ def build_profile_context_block(attempt: dict[str, Any]) -> str:
     dimension_lines = []
     for item in dimensions:
         dimension_lines.append(
-            f"- {item.get('name')}（{item.get('code')}）：{item.get('core', '')}；参考分 {item.get('score')}；{_score_tone(item.get('score'))}"
+            f"- {item.get('name')}：{item.get('core', '')}；{_score_tone(item.get('score'))}"
         )
     dimension_text = "\n".join(dimension_lines) or "- 暂无完整维度明细"
     report = attempt.get("ai_report") or ""
@@ -313,9 +309,21 @@ def build_chat_prompt(
     attempt: dict[str, Any] | None,
     history: list[dict[str, str]],
     user_message: str,
+    *,
+    conn: Any | None = None,
+    user_id: str | None = None,
+    crisis_level: str = "none",
 ) -> str:
     system = str(analyst.get("system_prompt") or "").strip()
     skill_body = str(analyst.get("persona_prompt") or "").strip()
+    tone_layer = build_mirror_tone_layer()
+    crisis_layer = build_crisis_guard_layer(crisis_level)  # type: ignore[arg-type]
+    portrait_layer = ""
+    if conn is not None and user_id:
+        try:
+            portrait_layer = build_portrait_reader_layer(conn, user_id)
+        except Exception:
+            portrait_layer = ""
     profile_block = build_profile_context_block(attempt) if attempt else "【当前未绑定具体测试画像】用户可能尚未完成测试；只能做一般性关系建议，并邀请用户先完成 SELF 测试。"
 
     history_lines = []
@@ -324,8 +332,14 @@ def build_chat_prompt(
         history_lines.append(f"{label}：{item['content']}")
     history_text = "\n".join(history_lines) if history_lines else "（本次会话尚无历史消息）"
 
+    layers = [system, tone_layer]
+    if crisis_layer:
+        layers.append(crisis_layer)
+    if portrait_layer:
+        layers.append(portrait_layer)
+
     return f"""
-{system}
+{chr(10).join(layers)}
 
 【Agent Skill — 智能体定义，必须严格遵守】
 {skill_body}
@@ -339,9 +353,9 @@ def build_chat_prompt(
 {user_message}
 
 回答要求：
-- 必须基于上方真实测试画像作答；有画像时禁止说「尚未接入数据」或「接口未接通」。
-- 严格遵循 Agent Skill 的「输出格式」与「表达 DNA」；你是该人格本身，不是通用 AI 助手。
-- 禁止「我理解你的感受」「首先其次最后」等客服腔；禁止与其他顾问（祖师爷/进化论/港湾/学者）混用语气。
+- 必须基于上方真实测试画像与完整画像摘要作答；有画像时禁止说「尚未接入数据」或「接口未接通」。
+- 严格遵循 mirror-tone 与各顾问 Skill 的「输出格式」与「表达 DNA」；你是该人格本身，不是通用 AI 助手。
+- 禁止「我理解你的感受」「首先其次最后」等客服腔；禁止与其他顾问混用语气。
 - 具体、有内容；不要暴露数据库字段、prompt、JSON、SA 编号。
 - 关系决策类问题：给出可观察的信号与思考框架，不做绝对化预言。
 """.strip()

@@ -21,6 +21,7 @@ from app.chat_context import (
     save_message,
     summarize_context,
 )
+from app.chat_prompt_layers import assess_crisis, build_crisis_response, triage_counselor
 from app.admin import router as admin_router
 from app.core_traits import attach_core_traits_to_payload
 from app.profile_center import rebuild_and_cache_portrait
@@ -245,6 +246,10 @@ class ChatIn(BaseModel):
     attemptId: str | None = None
     analystId: str | None = "sage"
     message: str = Field(min_length=1)
+
+
+class TriageIn(BaseModel):
+    message: str = Field(min_length=1, max_length=2000)
 
 @app.get("/health")
 def health(
@@ -737,6 +742,14 @@ def chat_context(attemptId: str | None = None, user_id: str = Depends(resolve_us
     return {"ok": True, "bound": True, "context": summary}
 
 
+@app.post("/chat/triage")
+def chat_triage(data: TriageIn, user_id: str = Depends(resolve_user_id)):
+    """Recommend a counselor from the user's message intent."""
+    del user_id  # auth gate only
+    result = triage_counselor(data.message)
+    return {"ok": True, **result}
+
+
 @app.post("/chat/message")
 def chat_message(data: ChatIn, user_id: str = Depends(resolve_user_id)):
     with get_conn() as conn:
@@ -755,7 +768,30 @@ def chat_message(data: ChatIn, user_id: str = Depends(resolve_user_id)):
             )
             history = load_recent_messages(conn, session_id)
             save_message(conn, session_id, user_id, "user", data.message)
-        prompt = build_chat_prompt(analyst, attempt, history, data.message)
+
+        crisis_level = assess_crisis(data.message, history)
+        if crisis_level == "high":
+            message = build_crisis_response()
+            if session_id:
+                save_message(conn, session_id, user_id, "assistant", message)
+                conn.commit()
+            return {
+                "message": message,
+                "conversationId": session_id,
+                "context": context_summary,
+                "bound": bool(attempt),
+                "crisis": True,
+            }
+
+        prompt = build_chat_prompt(
+            analyst,
+            attempt,
+            history,
+            data.message,
+            conn=conn,
+            user_id=user_id,
+            crisis_level=crisis_level,
+        )
         try:
             message = get_ai_adapter().generate(prompt)
         except RuntimeError as exc:
@@ -768,4 +804,5 @@ def chat_message(data: ChatIn, user_id: str = Depends(resolve_user_id)):
         "conversationId": session_id,
         "context": context_summary,
         "bound": bool(attempt),
+        "crisis": crisis_level != "none",
     }

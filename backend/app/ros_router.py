@@ -119,30 +119,32 @@ def merge_and_store_couple_report(conn: Any, session_id: uuid.UUID) -> dict[str,
         raise HTTPException(status_code=404, detail="配对数据不完整")
 
     scoring_model = _fetch_scoring_model(conn, initiator["suite_id"])
-    formula = (scoring_model or {}).get("scoring_formula") or {}
-    type_rules = (scoring_model or {}).get("type_rules") or {}
+    formula = coerce_dict((scoring_model or {}).get("scoring_formula"))
+    type_rules = coerce_dict((scoring_model or {}).get("type_rules"))
 
     you_attachment = _fetch_latest_self_attachment(conn, str(initiator["user_id"]))
     ta_attachment = _fetch_latest_self_attachment(conn, str(partner["user_id"]))
-    if you_attachment and isinstance(initiator.get("result_payload"), dict):
+    if you_attachment:
         initiator = dict(initiator)
         initiator["result_payload"] = {
-            **initiator["result_payload"],
+            **coerce_dict(initiator.get("result_payload")),
             "attachment_type": you_attachment,
         }
-    if ta_attachment and isinstance(partner.get("result_payload"), dict):
+    if ta_attachment:
         partner = dict(partner)
         partner["result_payload"] = {
-            **partner["result_payload"],
+            **coerce_dict(partner.get("result_payload")),
             "attachment_type": ta_attachment,
         }
 
-    couple_payload = build_couple_payload(
-        code=session["code"],
-        initiator=initiator,
-        partner=partner,
-        scoring_formula=formula if isinstance(formula, dict) else {},
-        type_rules=type_rules if isinstance(type_rules, dict) else {},
+    couple_payload = jsonable(
+        build_couple_payload(
+            code=session["code"],
+            initiator=initiator,
+            partner=partner,
+            scoring_formula=formula,
+            type_rules=type_rules,
+        )
     )
 
     conn.execute(

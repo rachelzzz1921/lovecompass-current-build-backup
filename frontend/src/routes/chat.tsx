@@ -1,7 +1,8 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
-import { lovecompassApi } from "@/lib/lovecompassApi";
+import { lovecompassApi, type ChatContext } from "@/lib/lovecompassApi";
+import { formatApiErrorMessage } from "@/lib/apiErrors";
 import { AuthChecking, useRequireAuth } from "@/lib/requireAuth";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -79,21 +80,67 @@ const COUNSELORS: Counselor[] = [
 
 type Msg = { role: "user" | "ai"; text: string; ts: number };
 
+function buildGreeting(counselor: Counselor, ctx: ChatContext | null, bound: boolean): string {
+  if (ctx && bound) {
+    const tagline = ctx.tagline ? `\n「${ctx.tagline}」` : "";
+    return `你好。我是 ${counselor.name}，你的关系镜像分析师 ${counselor.emoji}\n\n我已读取你在 **${ctx.suiteName ?? "SELF"}** 的完整画像：**${ctx.archetype}**（${ctx.attachmentType ?? "关系模式"}）。${tagline}\n\n你可以直接问我：这段画像意味着什么、你在关系里最容易卡住的地方、或者下一步该怎么走。`;
+  }
+  if (bound) {
+    return `你好。我是 ${counselor.name}，你的关系镜像分析师 ${counselor.emoji}\n\n我已读取你的最新测试画像，可以围绕真实结果继续聊。`;
+  }
+  return `你好。我是 ${counselor.name}，你的关系镜像分析师 ${counselor.emoji}\n\n你还没有可绑定的测试画像。建议先完成 SELF 测试；完成后我会自动读取六维分数、红楼人格原型与 AI 报告来回答你。`;
+}
+
 function ChatPage() {
+  const nav = useNavigate();
   const { pending: authPending } = useRequireAuth();
-  const { attemptId, analystId } = Route.useSearch();
+  const { attemptId: attemptIdFromUrl, analystId } = Route.useSearch();
   const initialCounselor = COUNSELORS.find((c) => c.id === analystId && c.available) ?? COUNSELORS[0];
   const [active, setActive] = useState<Counselor>(initialCounselor);
-  const [messages, setMessages] = useState<Msg[]>([
-    {
-      role: "ai",
-      text: `你好。我是 ${initialCounselor.name}，你的关系镜像分析师 ${initialCounselor.emoji}\n\n${attemptId ? "我已经读取本次测试画像，可以围绕这份结果继续聊。" : "我会读取你的最新画像与历史摘要。"}可以从下面的问题开始，也可以直接告诉我此刻你最在意的事。`,
-      ts: Date.now(),
-    },
-  ]);
+  const [boundAttemptId, setBoundAttemptId] = useState<string | undefined>(attemptIdFromUrl);
+  const [chatContext, setChatContext] = useState<ChatContext | null>(null);
+  const [contextLoading, setContextLoading] = useState(true);
+  const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [thinking, setThinking] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let ignore = false;
+    const counselor = COUNSELORS.find((c) => c.id === analystId && c.available) ?? COUNSELORS[0];
+    setContextLoading(true);
+    lovecompassApi
+      .getChatContext(attemptIdFromUrl)
+      .then((res) => {
+        if (ignore) return;
+        if (res.context?.attemptId) setBoundAttemptId(res.context.attemptId);
+        setChatContext(res.bound ? res.context : null);
+        setMessages([
+          {
+            role: "ai",
+            text: buildGreeting(counselor, res.context, res.bound),
+            ts: Date.now(),
+          },
+        ]);
+      })
+      .catch(() => {
+        if (ignore) return;
+        setChatContext(null);
+        setMessages([
+          {
+            role: "ai",
+            text: buildGreeting(counselor, null, false),
+            ts: Date.now(),
+          },
+        ]);
+      })
+      .finally(() => {
+        if (!ignore) setContextLoading(false);
+      });
+    return () => {
+      ignore = true;
+    };
+  }, [attemptIdFromUrl, analystId]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -106,16 +153,22 @@ function ChatPage() {
     setMessages((m) => [...m, { role: "user", text: trimmed, ts: Date.now() }]);
     setThinking(true);
     try {
-      const res = await lovecompassApi.sendChatMessage({ attemptId, analystId: active.id, message: trimmed });
+      const res = await lovecompassApi.sendChatMessage({
+        attemptId: boundAttemptId,
+        analystId: active.id,
+        message: trimmed,
+      });
+      if (res.context) {
+        setChatContext(res.context);
+        if (res.context.attemptId) setBoundAttemptId(res.context.attemptId);
+      }
       setMessages((m) => [...m, { role: "ai", text: res.message, ts: Date.now() }]);
-    } catch {
+    } catch (error) {
       setMessages((m) => [
         ...m,
         {
           role: "ai",
-          text: attemptId
-            ? "我已经带着这次画像上下文进入对话；正式 AI 接口接通后，会基于这份结果给出个人化回应。"
-            : "AI 分析师接口即将接通。完成测试后，我会基于你的画像与历史摘要给出真正个人化的回应。",
+          text: formatApiErrorMessage(error),
           ts: Date.now(),
         },
       ]);
@@ -127,12 +180,12 @@ function ChatPage() {
   const switchCounselor = (c: Counselor) => {
     if (!c.available) return;
     setActive(c);
-    setMessages([
-      { role: "ai", text: `你好。我是 ${c.name}，${c.title} ${c.emoji}\n\n${c.description}`, ts: Date.now() },
-    ]);
+    setMessages([{ role: "ai", text: buildGreeting(c, chatContext, Boolean(chatContext)), ts: Date.now() }]);
   };
 
   if (authPending) return <AuthChecking />;
+
+  const profileBound = Boolean(chatContext);
 
   return (
     <main className="relative min-h-screen">
@@ -187,9 +240,50 @@ function ChatPage() {
 
             <div className="bg-glass rounded-2xl p-4 mt-4">
               <div className="text-[10px] font-mono tracking-[0.3em] text-muted-foreground mb-2">// CONTEXT</div>
-              <p className="text-[12px] text-foreground/70 leading-relaxed">
-                {attemptId ? "已绑定本次测试画像，顾问会围绕这份结果继续追问与解释。" : "顾问会自动读取你的最新画像 + 测试结果摘要。完成更多测试，回答会越来越准。"}
-              </p>
+              {contextLoading ? (
+                <p className="text-[12px] text-muted-foreground">正在读取你的测试画像…</p>
+              ) : profileBound && chatContext ? (
+                <div className="space-y-2 text-[12px] text-foreground/75 leading-relaxed">
+                  <p>
+                    <span className="text-muted-foreground">画像 · </span>
+                    <span className="text-foreground">{chatContext.archetype}</span>
+                    {chatContext.attachmentType ? ` · ${chatContext.attachmentType}` : ""}
+                  </p>
+                  {chatContext.tagline ? <p className="italic">「{chatContext.tagline}」</p> : null}
+                  {chatContext.suiteName ? (
+                    <p>
+                      <span className="text-muted-foreground">来源 · </span>
+                      {chatContext.suiteName}
+                    </p>
+                  ) : null}
+                  {chatContext.dimensions?.length ? (
+                    <p className="text-[11px] text-muted-foreground font-mono">
+                      {chatContext.dimensions.length} 维 SELF 数据已注入
+                      {chatContext.hasAiReport ? " · 含 AI 报告" : ""}
+                    </p>
+                  ) : null}
+                  {boundAttemptId ? (
+                    <button
+                      type="button"
+                      onClick={() => nav({ to: "/result/$attemptId", params: { attemptId: boundAttemptId } })}
+                      className="text-[11px] text-[oklch(0.82_0.14_200)] hover:underline"
+                    >
+                      查看完整结果页 →
+                    </button>
+                  ) : null}
+                </div>
+              ) : (
+                <div className="space-y-2 text-[12px] text-foreground/70 leading-relaxed">
+                  <p>尚未绑定测试画像。请先完成 SELF 测试，顾问才能基于你的六维分数与红楼人格原型作答。</p>
+                  <button
+                    type="button"
+                    onClick={() => nav({ to: "/tests/self" })}
+                    className="text-[11px] text-[oklch(0.82_0.14_200)] hover:underline"
+                  >
+                    去做 SELF 测试 →
+                  </button>
+                </div>
+              )}
             </div>
           </aside>
 
@@ -205,7 +299,9 @@ function ChatPage() {
                 <div className="font-display text-lg text-gradient-violet leading-tight">{active.name}</div>
                 <div className="text-[11px] text-muted-foreground">{active.title} · ONLINE</div>
               </div>
-              <span className="hidden md:inline-flex chip chip-cyan font-mono">{attemptId ? "PROFILE · BOUND" : "PROFILE · DRAFT"}</span>
+              <span className="hidden md:inline-flex chip chip-cyan font-mono">
+                {profileBound ? "PROFILE · BOUND" : "PROFILE · NONE"}
+              </span>
             </div>
 
             {/* Messages */}

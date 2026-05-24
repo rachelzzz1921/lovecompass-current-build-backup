@@ -12,6 +12,15 @@ from app.db import get_conn
 from app.question_adapter import adapt_question
 from app.scoring import summarize_scores
 from app.ai_adapter import get_ai_adapter
+from app.chat_context import (
+    build_chat_prompt,
+    get_or_create_session,
+    load_recent_messages,
+    resolve_analyst_row,
+    resolve_attempt,
+    save_message,
+    summarize_context,
+)
 
 
 def _cors_origins() -> list[str]:
@@ -615,18 +624,46 @@ def generate_attempt_report(attempt_id: str, refresh: bool = False, user_id: str
         }
     }
 
+@app.get("/chat/context")
+def chat_context(attemptId: str | None = None, user_id: str = Depends(resolve_user_id)):
+    """Return bound test result summary for the chat sidebar."""
+    with get_conn() as conn:
+        attempt = resolve_attempt(conn, user_id, attemptId)
+    if not attempt:
+        return {"ok": True, "bound": False, "context": None}
+    summary = summarize_context(attempt)
+    return {"ok": True, "bound": True, "context": summary}
+
+
 @app.post("/chat/message")
 def chat_message(data: ChatIn, user_id: str = Depends(resolve_user_id)):
-    context = "已绑定画像" if data.attemptId else "未绑定具体画像"
-    prompt = f"""
-你正在为 LoveCompass 用户进行婚恋画像解读。
-当前上下文：{context}
-attemptId：{data.attemptId or "未提供"}
-userId：{user_id}
-分析师：{data.analystId or "mirror"}
-用户问题：{data.message}
-
-请用温柔、具体、克制的中文回答。若缺少画像详情，请明确说明当前只能做一般建议，不要编造测试结果。
-""".strip()
-    message = get_ai_adapter().generate(prompt)
-    return {"message": message, "conversationId": None}
+    with get_conn() as conn:
+        attempt = resolve_attempt(conn, user_id, data.attemptId)
+        analyst = resolve_analyst_row(conn, data.analystId)
+        context_summary = summarize_context(attempt) if attempt else None
+        session_id: str | None = None
+        history: list[dict[str, str]] = []
+        if analyst.get("id"):
+            session_id = get_or_create_session(
+                conn,
+                user_id,
+                str(attempt["id"]) if attempt else None,
+                str(analyst["id"]),
+                context_summary or {},
+            )
+            history = load_recent_messages(conn, session_id)
+            save_message(conn, session_id, user_id, "user", data.message)
+        prompt = build_chat_prompt(analyst, attempt, history, data.message)
+        try:
+            message = get_ai_adapter().generate(prompt)
+        except RuntimeError as exc:
+            raise HTTPException(status_code=502, detail=str(exc)[:300]) from exc
+        if session_id:
+            save_message(conn, session_id, user_id, "assistant", message)
+            conn.commit()
+    return {
+        "message": message,
+        "conversationId": session_id,
+        "context": context_summary,
+        "bound": bool(attempt),
+    }

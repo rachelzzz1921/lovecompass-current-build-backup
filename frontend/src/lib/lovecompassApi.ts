@@ -2,6 +2,28 @@ import type { AnswerDraft, TestQuestionsResponse } from "@/lib/questionTypes";
 import { formatApiErrorMessage } from "@/lib/apiErrors";
 import { getRequiredAccessToken } from "@/lib/supabaseSession";
 
+export type ChatContext = {
+  attemptId: string;
+  suiteSlug?: string | null;
+  suiteName?: string | null;
+  archetype: string;
+  attachmentType?: string | null;
+  tagline?: string | null;
+  description?: string | null;
+  matchingLogic?: string | null;
+  rosIndex?: number | null;
+  completedAt?: string | null;
+  dimensions?: Array<{ code?: string; name?: string; score?: number }>;
+  hasAiReport?: boolean;
+};
+
+export type ChatMessageResponse = {
+  message: string;
+  conversationId?: string | null;
+  bound?: boolean;
+  context?: ChatContext | null;
+};
+
 export type AttemptReport = {
   attemptId: string;
   status: string;
@@ -129,12 +151,18 @@ export const lovecompassApi = {
       true,
     ),
   sendChatMessage: (data: { attemptId?: string; analystId?: string; message: string }) =>
-    requestJson<{ message: string; conversationId?: string }>(
+    requestJson<ChatMessageResponse>(
       "/chat/message",
       {
         method: "POST",
         body: JSON.stringify(data),
       },
+      true,
+    ),
+  getChatContext: (attemptId?: string) =>
+    requestJson<{ ok: boolean; bound: boolean; context: ChatContext | null }>(
+      `/chat/context${attemptId ? `?attemptId=${encodeURIComponent(attemptId)}` : ""}`,
+      undefined,
       true,
     ),
 };

@@ -16,6 +16,7 @@ const searchSchema = z.object({
 
 export const Route = createFileRoute("/chat")({
   validateSearch: searchSchema,
+  ssr: false,
   head: () => ({
     meta: [
       { title: "AI 关系分析师 · MIRROR" },

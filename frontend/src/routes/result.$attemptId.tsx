@@ -8,6 +8,7 @@ import { AuthChecking, useRequireAuth } from "@/lib/requireAuth";
 import { mapAttemptToSelfResult, type AttemptResultInput } from "@/lib/mapAttemptToSelfResult";
 
 export const Route = createFileRoute("/result/$attemptId")({
+  ssr: false,
   head: () => ({
     meta: [
       { title: "你的关系画像 · MIRROR" },

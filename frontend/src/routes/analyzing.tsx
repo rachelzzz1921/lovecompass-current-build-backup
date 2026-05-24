@@ -21,6 +21,7 @@ const searchSchema = z.object({
 
 export const Route = createFileRoute("/analyzing")({
   validateSearch: searchSchema,
+  ssr: false,
   head: () => ({
     meta: [
       { title: "AI 正在分析… · MIRROR" },

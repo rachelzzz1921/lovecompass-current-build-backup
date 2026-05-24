@@ -17,6 +17,7 @@ import { resolveProductId, resolveSuiteSlug } from "@/lib/suiteSlugs";
 import type { AnswerDraft, AnswerPayload, ApiQuestion } from "@/lib/questionTypes";
 
 export const Route = createFileRoute("/tests/$id/run")({
+  ssr: false,
   component: TestRun,
 });
 

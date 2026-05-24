@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Validate LoveCompass backend env before local run or Vercel deploy."""
+"""Validate LoveCompass backend env before local run (not Vercel build).
+
+Usage: cd backend && python scripts/check_env.py
+
+Vercel deploy does not run this script — runtime env is checked via GET /health?config=1.
+"""
 from __future__ import annotations
 
 import os

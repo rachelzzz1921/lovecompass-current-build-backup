@@ -120,39 +120,62 @@ function CouplePage() {
   };
 
   return (
-    <main className="relative min-h-screen">
+    <main className="relative min-h-screen" style={{ background: "#0c0e11" }}>
       {/* NAV */}
-      <header className="relative z-10 flex items-center justify-between px-6 md:px-12 pt-6">
-        <Link to="/" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition">
+      <header
+        className="sticky top-0 z-20 flex items-center justify-between px-5 pt-5 pb-3"
+        style={{ background: "linear-gradient(180deg,#0c0e11 70%, transparent)" }}
+      >
+        <Link to="/" className="flex items-center gap-2 text-sm text-white/55 hover:text-white transition">
           <ArrowLeft className="h-4 w-4" /> 返回
         </Link>
         <div className="flex items-center gap-3">
-          <span className="chip chip-cyan font-mono">SET · 02 / COUPLE</span>
-          <span className="chip font-mono hidden md:inline-flex">{code}</span>
+          <span
+            className="chip font-mono text-[10px] tracking-[0.25em]"
+            style={{ background: "rgba(99,102,241,0.12)", color: "#a5a8ff", border: "1px solid rgba(99,102,241,0.3)" }}
+          >
+            SET · 02 / COUPLE
+          </span>
+          <span className="chip font-mono hidden md:inline-flex text-white/55">{code}</span>
         </div>
       </header>
 
-      <section className="relative z-10 max-w-3xl mx-auto px-5 md:px-12 py-8">
-        {/* HERO · 共鸣指数（始终顶部固定锚） */}
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7 }}
-          className="text-center pb-6">
-          <span className="chip chip-violet font-mono inline-flex">
+      <section className="relative z-10 max-w-[480px] mx-auto px-5 pb-24 py-4">
+        {/* HERO · 共鸣指数 */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7 }}
+          className="text-center pb-6"
+        >
+          <span
+            className="inline-flex items-center gap-1.5 text-[10px] font-mono px-2 py-1 rounded-full"
+            style={{ background: "rgba(99,102,241,0.12)", color: "#a5a8ff", border: "1px solid rgba(99,102,241,0.3)" }}
+          >
             <Sparkles className="h-3 w-3" /> DUAL REPORT · UNLOCKED
           </span>
           <div className="mt-5 inline-flex flex-col items-center">
-            <div className="text-[10px] tracking-[0.3em] text-muted-foreground font-mono">RESONANCE INDEX</div>
+            <div className="text-[10px] tracking-[0.3em] text-white/40 font-mono">RESONANCE INDEX</div>
             <div className="relative flex items-end gap-1 mt-1.5">
-              <CountUp to={r.resonance.score} duration={1.6}
-                className="font-display text-[72px] md:text-[88px] leading-none tracking-tight text-gradient-violet tabular-nums" />
-              <span className="text-muted-foreground text-2xl mb-2.5">/100</span>
+              <CountUp
+                to={r.resonance.score}
+                duration={1.6}
+                className="font-display text-[72px] md:text-[80px] leading-none tracking-tight tabular-nums text-white"
+              />
+              <span className="text-white/40 text-2xl mb-2.5">/100</span>
             </div>
-            <div className="mt-1 font-display text-xl md:text-2xl text-gradient-cyan">{r.resonance.tier}</div>
-            <p className="text-xs md:text-sm text-foreground/75 mt-2 max-w-md">{r.resonance.desc}</p>
+            <div className="mt-1 font-display text-xl md:text-2xl" style={{ color: "#a5a8ff" }}>
+              {r.resonance.tier}
+            </div>
+            <p className="text-xs md:text-sm text-white/65 mt-2 max-w-md">{r.resonance.desc}</p>
           </div>
         </motion.div>
 
         {/* TAB BAR */}
-        <div className="sticky top-0 z-20 -mx-5 md:mx-0 px-5 md:px-0 backdrop-blur-xl bg-background/70 border-b border-border/40">
+        <div
+          className="sticky top-0 z-20 -mx-5 px-5 backdrop-blur-xl border-b border-white/8"
+          style={{ background: "linear-gradient(180deg,#0c0e11 85%, transparent)" }}
+        >
           <div className="flex gap-1 overflow-x-auto [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: "none" }}>
             {TABS.map((t) => {
               const active = tab === t.id;
@@ -161,7 +184,7 @@ function CouplePage() {
                   key={t.id}
                   onClick={() => setTab(t.id)}
                   className={`relative shrink-0 px-4 py-3 text-[13px] font-medium transition whitespace-nowrap ${
-                    active ? "text-foreground" : "text-muted-foreground hover:text-foreground/80"
+                    active ? "text-white" : "text-white/45 hover:text-white/75"
                   }`}
                 >
                   {t.label}
@@ -169,7 +192,7 @@ function CouplePage() {
                     <motion.div
                       layoutId="rosTabUnderline"
                       className="absolute left-2 right-2 -bottom-px h-[2px] rounded-full"
-                      style={{ background: "linear-gradient(90deg, oklch(0.68 0.18 285), oklch(0.82 0.14 200))" }}
+                      style={{ background: "linear-gradient(90deg, #6366f1, #a5a8ff)" }}
                     />
                   )}
                 </button>
@@ -197,15 +220,21 @@ function CouplePage() {
           </AnimatePresence>
         </div>
 
-        {/* BOTTOM CTA — 固定底部双按钮 */}
-        <div className="grid grid-cols-2 gap-2.5 pt-4 border-t border-border/40">
+        {/* BOTTOM CTA */}
+        <div className="grid grid-cols-2 gap-2.5 pt-4 border-t border-white/8">
           <Link to="/chat" className="w-full">
-            <Button variant="outline" className="w-full h-11 border-border/60 bg-glass">
+            <Button
+              variant="outline"
+              className="w-full h-11 border-white/15 bg-white/5 text-white/85 hover:bg-white/10 hover:text-white"
+            >
               <MessageSquare className="h-4 w-4 mr-2" /> 找 AI 聊聊
             </Button>
           </Link>
-          <Button onClick={share}
-            className="w-full h-11 bg-gradient-to-r from-[oklch(0.55_0.20_285)] to-[oklch(0.50_0.18_200)] text-white hover:opacity-90">
+          <Button
+            onClick={share}
+            className="w-full h-11 text-white hover:opacity-90"
+            style={{ background: "linear-gradient(135deg,#6366f1,#8b5cf6)", boxShadow: "0 8px 24px -8px rgba(99,102,241,0.6)" }}
+          >
             <Share2 className="h-4 w-4 mr-2" /> 生成分享卡
           </Button>
         </div>
@@ -338,7 +367,7 @@ function PanelOverview({ r }: { r: RosCoupleResult }) {
           </div>
           <div className="min-w-0">
             <div className="text-[9px] tracking-[0.3em] text-muted-foreground font-mono">关系类型</div>
-            <div className="font-display text-base text-gradient-violet truncate">{r.type.name}</div>
+            <div className="font-display text-base truncate" style={{ color: "#a5a8ff" }}>{r.type.name}</div>
             <div className="text-[10px] text-muted-foreground mt-0.5 truncate">{r.type.one_liner}</div>
           </div>
         </div>
@@ -777,7 +806,7 @@ function PanelAttach({ r }: { r: RosCoupleResult }) {
             {r.collision.combo}
           </span>
         </div>
-        <h4 className="font-display text-2xl text-gradient-violet">{r.collision.name}</h4>
+        <h4 className="font-display text-2xl" style={{ color: "#a5a8ff" }}>{r.collision.name}</h4>
 
         <div className="mt-4">
           <AttachmentOrbs

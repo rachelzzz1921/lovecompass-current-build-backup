@@ -1,4 +1,4 @@
-import { createFileRoute, useParams } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useParams } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { lovecompassApi, type AttemptReport } from "@/lib/lovecompassApi";
 import { ApiErrorPanel } from "@/components/ApiErrorPanel";
@@ -10,6 +10,7 @@ import {
   sanitizeResultReportMarkdown,
   type AttemptResultInput,
 } from "@/lib/mapAttemptToSelfResult";
+import { dedicatedResultRouteFromAttempt } from "@/lib/resultRoutes";
 
 export const Route = createFileRoute("/result/$attemptId")({
   ssr: false,
@@ -26,6 +27,7 @@ const REPORT_PLACEHOLDER_MARKERS = ["正式 AI 深度报告可由后台任务继
 
 function ResultPage() {
   const { attemptId } = useParams({ from: "/result/$attemptId" });
+  const nav = useNavigate();
   const { pending: authPending } = useRequireAuth();
   const [data, setData] = useState<AttemptResultInput | null>(null);
   const [report, setReport] = useState<AttemptReport | null>(null);
@@ -44,7 +46,12 @@ function ResultPage() {
       .getAttemptResult(attemptId)
       .then((r) => {
         if (ignore) return;
-        const attempt = r.attempt as AttemptResultInput;
+        const attempt = r.attempt as AttemptResultInput & Record<string, unknown>;
+        const dedicated = dedicatedResultRouteFromAttempt(attemptId, attempt);
+        if (dedicated) {
+          void nav({ ...dedicated, replace: true });
+          return;
+        }
         setData(attempt);
 
         if (!isPlaceholderReport(attempt.ai_report)) {
@@ -80,7 +87,7 @@ function ResultPage() {
     return () => {
       ignore = true;
     };
-  }, [attemptId]);
+  }, [attemptId, nav]);
 
   const mapped = useMemo(() => (data ? mapAttemptToSelfResult(data) : null), [data]);
   const rawReportMarkdown =

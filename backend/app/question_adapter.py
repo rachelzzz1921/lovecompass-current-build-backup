@@ -54,6 +54,10 @@ def adapt_question(row: dict[str, Any]) -> dict[str, Any]:
             "minLabel": slider.get("min_label") or slider.get("minLabel"),
             "maxLabel": slider.get("max_label") or slider.get("maxLabel"),
             "feedback": slider.get("feedback") or [],
+            "reference": slider.get("reference") or [],
+            "tierLabels": slider.get("tierLabels") or slider.get("tier_labels") or [],
+            "displayMode": slider.get("displayMode") or slider.get("display_mode"),
+            "footnote": slider.get("footnote"),
         }
     elif qtype == "binary":
         kind = "binary"
@@ -83,7 +87,9 @@ def adapt_question(row: dict[str, Any]) -> dict[str, Any]:
         "type": qtype,
         "kind": kind,
         "text": row["question_text"],
+        "subtitle": payload.get("subtitle"),
+        "note": payload.get("note"),
         "required": True,
-        "ui": {k: v for k, v in ui.items() if v is not None},
+        "ui": {k: v for k, v in ui.items() if v is not None and v != []},
         "options": _public_options(options),
     }

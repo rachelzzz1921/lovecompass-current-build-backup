@@ -31,15 +31,34 @@
     "femaleAttractiveness": {
       "type": "slider",
       "scale": "1-10",
+      "title": "你觉得自己的外形资产大概在哪个位置？",
+      "subtitle": "参考的是现实社交中的综合感受，不只是五官",
       "referenceAnchors": [
-        { "score": 5, "desc": "普通大众，走在街上不会被特别注意到" },
-        { "score": 6, "desc": "有辨识度，朋友会说你挺好看的" },
-        { "score": 7, "desc": "明显好看，陌生场合经常有人注意你" },
-        { "score": 8, "desc": "同龄人里前10%，有人专门为你的外形回头" },
-        { "score": 9, "desc": "同龄人里前3%，经常被建议去拍照拍视频" },
-        { "score": 10, "desc": "极少数，几乎没有人说你不好看" }
+        { "score": 1, "perception": "极少因为外形被注意", "behavior": "外形基本不构成优势" },
+        { "score": 5, "perception": "中位值", "behavior": "朋友会说「挺顺眼」" },
+        { "score": 7, "perception": "明显好看", "behavior": "陌生场景会有人主动注意" },
+        { "score": 8, "perception": "同龄前10%左右", "behavior": "经常被夸气质/颜值" },
+        { "score": 10, "perception": "极少数", "behavior": "外形成为明显优势资产" }
       ],
-      "displayRule": "不显示原始数字，转化为：高辨识度 / 中等辨识度 / 自然型 / 待提升"
+      "sliderTierLabels": ["自然型", "普通辨识度", "有记忆点", "高辨识度", "极高辨识度"],
+      "displayRule": "不显示原始数字，转化为：高辨识度 / 中等辨识度 / 自然型 / 待提升 / 核心吸引资产",
+      "calibration": "外形管理 + 社交反馈 + 存在感修正，用户不可见"
+    },
+    "maleAttractiveness": {
+      "type": "slider",
+      "scale": "1-10",
+      "title": "你觉得自己的外形资产大概在哪个位置？",
+      "subtitle": "包含长相、身材、穿搭、整体气质",
+      "referenceAnchors": [
+        { "score": 1, "perception": "外形存在明显短板", "behavior": "整体形象管理较少" },
+        { "score": 5, "perception": "中位值", "behavior": "干净舒服，不减分" },
+        { "score": 7, "perception": "明显加分", "behavior": "异性会主动注意" },
+        { "score": 8, "perception": "同龄前10%左右", "behavior": "常被夸有魅力" },
+        { "score": 10, "perception": "极少数", "behavior": "长相或整体气质非常突出" }
+      ],
+      "sliderTierLabels": ["自然型", "普通辨识度", "有记忆点", "高辨识度", "极高辨识度"],
+      "displayRule": "不显示原始数字，与女版同一映射规则",
+      "calibration": "外形管理 + 社交反馈 + 存在感修正，用户不可见"
     },
     "maleWealth": {
       "type": "slider_six_tiers",

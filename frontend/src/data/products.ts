@@ -50,15 +50,16 @@ export const PRODUCTS: Product[] = [
   {
     id: "mate",
     code: "SET · 03 / MATE",
-    title: "择偶标准定位",
-    subtitle: "你在找什么，你的市场位置在哪",
+    title: "择偶坐标定位",
+    subtitle: "你在市场上是什么牌面",
     description:
-      "外貌、收入、学历、地域、婚育、生活方式的底线和上限。做完之后，三套数据合并，AI 画像达到最完整状态——解锁终极人格档案。",
-    duration: "约 10 分钟",
-    questionCount: "60 题",
+      "吸引力 × 情感价值 × 现实支撑——80 道情境题，输出四象限坐标与红娘档案。完成后与 SELF、ROS 合并，AI 画像达到最完整状态。",
+    duration: "约 18 分钟",
+    questionCount: "80 题",
     status: "locked",
     badge: "PAID · 兑换码解锁",
     accent: "rose",
-    dimensions: ["颜值偏好", "经济门槛", "学历地域", "婚育态度", "生活节奏", "三观契合"],
+    dimensions: ["吸引力资产", "情感价值", "现实自主", "关系成熟度", "风险净值"],
+    resultPath: "/tests/mate",
   },
 ];

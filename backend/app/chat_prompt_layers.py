@@ -326,6 +326,10 @@ def _format_suite_summary(label: str, summary: dict[str, Any] | None) -> str:
     parts = [f"- {label}："]
     if summary.get("attachmentType"):
         parts.append(f"依恋 {summary['attachmentType']}")
+    if summary.get("primaryMetric") and summary.get("primaryMetricLabel"):
+        parts.append(f"{summary['primaryMetricLabel']} {summary['primaryMetric']}")
+    elif summary.get("primaryMetric"):
+        parts.append(str(summary["primaryMetric"]))
     if summary.get("archetypeCode"):
         parts.append(f"原型 {summary['archetypeCode']}")
     if summary.get("relationshipType"):

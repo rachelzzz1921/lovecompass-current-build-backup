@@ -28,6 +28,14 @@ from app.profile_center import rebuild_and_cache_portrait
 from app.ros_router import create_relation_session, link_partner_to_session
 from app.ros_router import router as ros_router
 from app.ros_scoring import is_ros_suite, summarize_ros_scores
+from app.universal_redemption import (
+    ensure_shadow_redemption_code,
+    is_universal_code,
+    resolve_suite_slug as resolve_universal_suite_slug,
+)
+from app.mate_router import router as mate_router
+from app.mate_scoring import is_mate_suite, summarize_mate_scores
+from app.suite_context import build_suite_report_prompt, fallback_suite_report
 
 
 def _cors_origins() -> list[str]:
@@ -46,6 +54,7 @@ def _cors_allow_vercel_previews() -> bool:
 app = FastAPI(title="LoveCompass API", version="0.1.0")
 app.include_router(admin_router)
 app.include_router(ros_router)
+app.include_router(mate_router)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins(),
@@ -241,6 +250,8 @@ class AttemptIn(BaseModel):
 class RedemptionIn(BaseModel):
     code: str = Field(min_length=1)
     product: str = Field(min_length=1)
+    suiteSlug: str | None = None
+    gender: str | None = None
 
 class ChatIn(BaseModel):
     attemptId: str | None = None
@@ -338,20 +349,31 @@ def get_questions(suite_slug: str):
 @app.post("/redemption/verify")
 def verify_redemption(data: RedemptionIn, user_id: str = Depends(resolve_user_id)):
     code = data.code.strip()
+    universal = is_universal_code(code)
     with get_conn() as conn:
-        row = conn.execute(
-            """
-            SELECT rc.id AS code_id, rc.suite_id, ts.slug
-            FROM public.redemption_codes rc
-            JOIN public.test_suites ts ON ts.id = rc.suite_id
-            WHERE rc.code = %s AND rc.is_active = true AND rc.status = 'active'
-              AND (rc.expires_at IS NULL OR rc.expires_at > now())
-              AND (rc.max_uses IS NULL OR rc.used_count < rc.max_uses)
-            """,
-            (code,),
-        ).fetchone()
-        if not row:
-            raise HTTPException(status_code=400, detail="兑换码无效或已过期")
+        if universal:
+            suite_slug = resolve_universal_suite_slug(
+                product=data.product,
+                suite_slug=data.suiteSlug,
+                gender=data.gender,
+            )
+            row = ensure_shadow_redemption_code(conn, suite_slug)
+            event_metadata = Jsonb({"source": "universal_code"})
+        else:
+            row = conn.execute(
+                """
+                SELECT rc.id AS code_id, rc.suite_id, ts.slug
+                FROM public.redemption_codes rc
+                JOIN public.test_suites ts ON ts.id = rc.suite_id
+                WHERE rc.code = %s AND rc.is_active = true AND rc.status = 'active'
+                  AND (rc.expires_at IS NULL OR rc.expires_at > now())
+                  AND (rc.max_uses IS NULL OR rc.used_count < rc.max_uses)
+                """,
+                (code,),
+            ).fetchone()
+            if not row:
+                raise HTTPException(status_code=400, detail="兑换码无效或已过期")
+            event_metadata = Jsonb({"source": "api_v1"})
         event = conn.execute(
             """
             INSERT INTO public.redemption_events(user_id, suite_id, redemption_code_id, metadata)
@@ -360,9 +382,13 @@ def verify_redemption(data: RedemptionIn, user_id: str = Depends(resolve_user_id
             DO UPDATE SET metadata = public.redemption_events.metadata || EXCLUDED.metadata
             RETURNING id
             """,
-            (user_id, row["suite_id"], row["code_id"], Jsonb({"source": "api_v1"})),
+            (user_id, row["suite_id"], row["code_id"], event_metadata),
         ).fetchone()
-        conn.execute("UPDATE public.redemption_codes SET used_count = used_count + 1 WHERE id = %s", (row["code_id"],))
+        if not universal:
+            conn.execute(
+                "UPDATE public.redemption_codes SET used_count = used_count + 1 WHERE id = %s",
+                (row["code_id"],),
+            )
         conn.commit()
     return {"ok": True, "suiteSlug": row["slug"], "redemptionEventId": str(event["id"]), "redirect": f"/tests/{row['slug']}/run"}
 
@@ -449,6 +475,7 @@ def submit_attempt(data: AttemptIn, user_id: str = Depends(resolve_user_id)):
             (suite["id"],),
         ).fetchone()
         ros_suite = is_ros_suite(suite["slug"])
+        mate_suite = is_mate_suite(suite["slug"])
         partner_code = (data.partnerRelationCode or "").strip().upper() or None
 
         if ros_suite:
@@ -461,7 +488,19 @@ def submit_attempt(data: AttemptIn, user_id: str = Depends(resolve_user_id)):
                 gender=suite["gender"],
             )
             archetype = None
+        elif mate_suite:
+            if not data.redemptionEventId:
+                raise HTTPException(status_code=400, detail="MATE 测评需要兑换码")
+            scores = summarize_mate_scores(
+                questions,
+                answer_by_external,
+                scoring_model,
+                gender=suite["gender"],
+            )
+            archetype = None
         else:
+            if not data.redemptionEventId:
+                raise HTTPException(status_code=400, detail="SELF 测评需要兑换码")
             scores = summarize_scores(questions, answer_by_external, scoring_model, suite["gender"])
             archetype = conn.execute(
                 """
@@ -532,7 +571,7 @@ def submit_attempt(data: AttemptIn, user_id: str = Depends(resolve_user_id)):
                         }
                     ),
                 )
-        elif not ros_suite:
+        elif not ros_suite and not mate_suite:
             result_payload = attach_core_traits_to_payload(
                 conn,
                 attempt_id,
@@ -559,21 +598,26 @@ def submit_attempt(data: AttemptIn, user_id: str = Depends(resolve_user_id)):
             rebuild_and_cache_portrait(conn, user_id)
             conn.commit()
 
-    next_path = f"/analyzing?attemptId={attempt_id}"
+    next_path = f"/analyzing?attemptId={attempt_id}&productSet=SELF"
+    product_set = "SELF"
     if ros_suite:
         next_path = (
             f"/result/ros/couple/{partner_code}"
             if partner_code
             else f"/result/ros/{attempt_id}"
         )
+        product_set = "ROS"
+    elif mate_suite:
+        next_path = f"/analyzing?attemptId={attempt_id}&productSet=MATE"
+        product_set = "MATE"
     response: dict[str, Any] = {
         "attemptId": str(attempt_id),
         "status": "completed",
         "next": next_path,
+        "productSet": product_set,
     }
     if ros_suite:
         response["relationCode"] = scores.get("relation_code") or result_payload.get("relationCode")
-        response["productSet"] = "ROS"
     return response
 
 @app.get("/attempts/{attempt_id}/result")
@@ -629,6 +673,7 @@ def generate_attempt_report(attempt_id: str, refresh: bool = False, user_id: str
               ta.result_payload,
               ta.completed_at,
               ts.slug AS suite_slug,
+              ts.gender::text AS suite_gender,
               ts.name AS suite_name
             FROM public.test_attempts ta
             LEFT JOIN public.test_suites ts ON ts.id = ta.suite_id
@@ -665,7 +710,7 @@ def generate_attempt_report(attempt_id: str, refresh: bool = False, user_id: str
                 }
             }
 
-        prompt, prompt_payload = _build_report_prompt(dict(attempt))
+        prompt, prompt_payload, prompt_version = build_suite_report_prompt(dict(attempt))
         provider = os.getenv("AI_PROVIDER", "mock").strip().lower() or "mock"
         model_name = os.getenv("ZHIPU_MODEL", "mock") if provider == "zhipu" else "mock"
         generation_mode = "ai_adapter"
@@ -673,25 +718,36 @@ def generate_attempt_report(attempt_id: str, refresh: bool = False, user_id: str
         try:
             content = get_ai_adapter().generate(prompt).strip()
             if _looks_like_placeholder(content):
-                content, summary, fallback_payload = _fallback_report_from_attempt(dict(attempt))
+                content, summary, fallback_payload = fallback_suite_report(dict(attempt))
                 generation_mode = "deterministic_fallback"
             else:
                 result_payload = attempt.get("result_payload") or {}
-                profile = result_payload.get("archetype_profile") if isinstance(result_payload, dict) else {}
-                archetype = result_payload.get("archetype_code") if isinstance(result_payload, dict) else attempt.get("archetype_code")
-                attachment = result_payload.get("attachment_type") if isinstance(result_payload, dict) else None
-                tagline = profile.get("tagline") if isinstance(profile, dict) else None
-                summary = f"{archetype or attempt.get('archetype_code')} · {attachment or '关系画像'}：{tagline or 'AI 深度报告已生成'}"
+                product_set = (result_payload.get("productSet") if isinstance(result_payload, dict) else None) or "SELF"
+                if product_set == "ROS":
+                    rel = (result_payload.get("relationshipType") or {}) if isinstance(result_payload, dict) else {}
+                    rel_name = rel.get("name") if isinstance(rel, dict) else attempt.get("archetype_code")
+                    tier = ((result_payload.get("resonance") or {}).get("tier") if isinstance(result_payload, dict) else None) or "关系画像"
+                    summary = f"{rel_name or '关系画像'} · {tier}：AI 深度报告已生成"
+                elif product_set == "MATE":
+                    pos = (result_payload.get("positionType") or {}) if isinstance(result_payload, dict) else {}
+                    pos_name = pos.get("name") if isinstance(pos, dict) else attempt.get("archetype_code")
+                    summary = f"{pos_name or '择偶定位'} · 市场坐标：AI 深度报告已生成"
+                else:
+                    profile = result_payload.get("archetype_profile") if isinstance(result_payload, dict) else {}
+                    archetype = result_payload.get("archetype_code") if isinstance(result_payload, dict) else attempt.get("archetype_code")
+                    attachment = result_payload.get("attachment_type") if isinstance(result_payload, dict) else None
+                    tagline = profile.get("tagline") if isinstance(profile, dict) else None
+                    summary = f"{archetype or attempt.get('archetype_code')} · {attachment or '关系画像'}：{tagline or 'AI 深度报告已生成'}"
                 fallback_payload = {"generationMode": generation_mode}
         except Exception as exc:
-            content, summary, fallback_payload = _fallback_report_from_attempt(dict(attempt))
+            content, summary, fallback_payload = fallback_suite_report(dict(attempt))
             generation_mode = "deterministic_fallback"
             error_message = str(exc)[:500]
 
         report_payload = {
             **fallback_payload,
             "content": content,
-            "promptVersion": REPORT_PROMPT_VERSION,
+            "promptVersion": prompt_version,
             "generationMode": generation_mode,
         }
         row = conn.execute(
@@ -720,7 +776,7 @@ def generate_attempt_report(attempt_id: str, refresh: bool = False, user_id: str
                 attempt["suite_id"],
                 provider,
                 model_name,
-                REPORT_PROMPT_VERSION,
+                prompt_version,
                 summary,
                 Jsonb(report_payload),
                 Jsonb(prompt_payload),

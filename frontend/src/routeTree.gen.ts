@@ -30,6 +30,7 @@ import { Route as TestsIdRunRouteImport } from './routes/tests.$id.run'
 import { Route as RosInviteCodeRouteImport } from './routes/ros.invite.$code'
 import { Route as ResultSelfVariantRouteImport } from './routes/result.self.$variant'
 import { Route as ResultRosIdRouteImport } from './routes/result.ros.$id'
+import { Route as ResultMateIdRouteImport } from './routes/result.mate.$id'
 import { Route as ResultRosCoupleCodeRouteImport } from './routes/result.ros.couple.$code'
 
 const RunRoute = RunRouteImport.update({
@@ -137,6 +138,11 @@ const ResultRosIdRoute = ResultRosIdRouteImport.update({
   path: '/result/ros/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ResultMateIdRoute = ResultMateIdRouteImport.update({
+  id: '/result/mate/$id',
+  path: '/result/mate/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ResultRosCoupleCodeRoute = ResultRosCoupleCodeRouteImport.update({
   id: '/result/ros/couple/$code',
   path: '/result/ros/couple/$code',
@@ -161,6 +167,7 @@ export interface FileRoutesByFullPath {
   '/showcase/questions': typeof ShowcaseQuestionsRoute
   '/tests/$id': typeof TestsIdRouteWithChildren
   '/admin/': typeof AdminIndexRoute
+  '/result/mate/$id': typeof ResultMateIdRoute
   '/result/ros/$id': typeof ResultRosIdRoute
   '/result/self/$variant': typeof ResultSelfVariantRoute
   '/ros/invite/$code': typeof RosInviteCodeRoute
@@ -184,6 +191,7 @@ export interface FileRoutesByTo {
   '/showcase/questions': typeof ShowcaseQuestionsRoute
   '/tests/$id': typeof TestsIdRouteWithChildren
   '/admin': typeof AdminIndexRoute
+  '/result/mate/$id': typeof ResultMateIdRoute
   '/result/ros/$id': typeof ResultRosIdRoute
   '/result/self/$variant': typeof ResultSelfVariantRoute
   '/ros/invite/$code': typeof RosInviteCodeRoute
@@ -209,6 +217,7 @@ export interface FileRoutesById {
   '/showcase/questions': typeof ShowcaseQuestionsRoute
   '/tests/$id': typeof TestsIdRouteWithChildren
   '/admin/': typeof AdminIndexRoute
+  '/result/mate/$id': typeof ResultMateIdRoute
   '/result/ros/$id': typeof ResultRosIdRoute
   '/result/self/$variant': typeof ResultSelfVariantRoute
   '/ros/invite/$code': typeof RosInviteCodeRoute
@@ -235,6 +244,7 @@ export interface FileRouteTypes {
     | '/showcase/questions'
     | '/tests/$id'
     | '/admin/'
+    | '/result/mate/$id'
     | '/result/ros/$id'
     | '/result/self/$variant'
     | '/ros/invite/$code'
@@ -258,6 +268,7 @@ export interface FileRouteTypes {
     | '/showcase/questions'
     | '/tests/$id'
     | '/admin'
+    | '/result/mate/$id'
     | '/result/ros/$id'
     | '/result/self/$variant'
     | '/ros/invite/$code'
@@ -282,6 +293,7 @@ export interface FileRouteTypes {
     | '/showcase/questions'
     | '/tests/$id'
     | '/admin/'
+    | '/result/mate/$id'
     | '/result/ros/$id'
     | '/result/self/$variant'
     | '/ros/invite/$code'
@@ -302,6 +314,7 @@ export interface RootRouteChildren {
   RosStartRoute: typeof RosStartRoute
   ShowcaseQuestionsRoute: typeof ShowcaseQuestionsRoute
   TestsIdRoute: typeof TestsIdRouteWithChildren
+  ResultMateIdRoute: typeof ResultMateIdRoute
   ResultRosIdRoute: typeof ResultRosIdRoute
   ResultSelfVariantRoute: typeof ResultSelfVariantRoute
   RosInviteCodeRoute: typeof RosInviteCodeRoute
@@ -457,6 +470,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResultRosIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/result/mate/$id': {
+      id: '/result/mate/$id'
+      path: '/result/mate/$id'
+      fullPath: '/result/mate/$id'
+      preLoaderRoute: typeof ResultMateIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/result/ros/couple/$code': {
       id: '/result/ros/couple/$code'
       path: '/result/ros/couple/$code'
@@ -517,6 +537,7 @@ const rootRouteChildren: RootRouteChildren = {
   RosStartRoute: RosStartRoute,
   ShowcaseQuestionsRoute: ShowcaseQuestionsRoute,
   TestsIdRoute: TestsIdRouteWithChildren,
+  ResultMateIdRoute: ResultMateIdRoute,
   ResultRosIdRoute: ResultRosIdRoute,
   ResultSelfVariantRoute: ResultSelfVariantRoute,
   RosInviteCodeRoute: RosInviteCodeRoute,

@@ -9,11 +9,18 @@ export const ROS_SUITE_SLUGS = {
   male: "s02_ros_male",
 } as const;
 
+export const MATE_SUITE_SLUGS = {
+  female: "s03_mate_female",
+  male: "s03_mate_male",
+} as const;
+
 export type SelfGender = keyof typeof SELF_SUITE_SLUGS;
 export type RosGender = keyof typeof ROS_SUITE_SLUGS;
+export type MateGender = keyof typeof MATE_SUITE_SLUGS;
 
 const SELF_GENDER_STORAGE_KEY = "lovecompass:self_gender";
 const ROS_GENDER_STORAGE_KEY = "lovecompass:ros_gender";
+const MATE_GENDER_STORAGE_KEY = "lovecompass:mate_gender";
 
 export function getStoredSelfGender(): SelfGender | null {
   if (typeof window === "undefined") return null;
@@ -37,6 +44,18 @@ export function setStoredRosGender(gender: RosGender) {
   if (typeof window === "undefined") return;
   sessionStorage.setItem(ROS_GENDER_STORAGE_KEY, gender);
   sessionStorage.setItem("suite:ros", ROS_SUITE_SLUGS[gender]);
+}
+
+export function getStoredMateGender(): MateGender | null {
+  if (typeof window === "undefined") return null;
+  const value = sessionStorage.getItem(MATE_GENDER_STORAGE_KEY);
+  return value === "male" || value === "female" ? value : null;
+}
+
+export function setStoredMateGender(gender: MateGender) {
+  if (typeof window === "undefined") return;
+  sessionStorage.setItem(MATE_GENDER_STORAGE_KEY, gender);
+  sessionStorage.setItem("suite:mate", MATE_SUITE_SLUGS[gender]);
 }
 
 /** Map backend suite slug or route id to frontend product id. */
@@ -65,6 +84,11 @@ export function resolveSuiteSlug(options: {
     const gender = getStoredRosGender();
     if (gender) return ROS_SUITE_SLUGS[gender];
     return ROS_SUITE_SLUGS.female;
+  }
+  if (productId === "mate") {
+    const gender = getStoredMateGender();
+    if (gender) return MATE_SUITE_SLUGS[gender];
+    return MATE_SUITE_SLUGS.female;
   }
   return sessionSuiteSlug || routeId;
 }

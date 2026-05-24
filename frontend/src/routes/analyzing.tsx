@@ -1,23 +1,31 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { AuthChecking, useRequireAuth } from "@/lib/requireAuth";
-import { useEffect, useState } from "react";
+import { lovecompassApi } from "@/lib/lovecompassApi";
+import {
+  detectProductSetFromAttempt,
+  parseBackendNextPath,
+  resultRouteForProductSet,
+  safeResultRouteFromAttempt,
+  type ProductSet,
+} from "@/lib/resultRoutes";
+import { resolveAnalyzingProfile, type AnalyzingProfile } from "@/lib/analyzingProfiles";
+import { takePendingAttemptSubmit } from "@/lib/pendingAttemptSubmit";
+import { formatApiErrorMessage } from "@/lib/apiErrors";
+import { ApiErrorPanel } from "@/components/ApiErrorPanel";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { z } from "zod";
-import {
-  ScanLine,
-  Brain,
-  Network,
-  Sparkles,
-  Heart,
-  Layers,
-  Check,
-} from "lucide-react";
+import { Check, Sparkles } from "lucide-react";
 
 const searchSchema = z.object({
   attemptId: z.string().optional(),
   variant: z.string().optional(),
   to: z.string().optional(),
+  productSet: z.enum(["SELF", "ROS", "MATE"]).optional(),
+  pending: z.coerce.boolean().optional(),
 });
+
+type WorkState = "submitting" | "ready" | "error" | "demo";
 
 export const Route = createFileRoute("/analyzing")({
   validateSearch: (search) => searchSchema.parse(search),
@@ -31,121 +39,242 @@ export const Route = createFileRoute("/analyzing")({
   component: AnalyzingPage,
 });
 
-/* —— 五个阶段，每个阶段都是一句"被理解"的低语 —— */
-const STAGES = [
-  {
-    icon: ScanLine,
-    title: "正在读取你的回答",
-    whisper: "把每一道题，重新听一遍。",
-    detail: "PARSING · 190 SIGNALS",
-    hue: 200,
-    dur: 1700,
-  },
-  {
-    icon: Network,
-    title: "正在识别你的情绪节奏",
-    whisper: "你在哪一题停顿过，我都记得。",
-    detail: "DETECTING · EMOTIONAL RHYTHM",
-    hue: 285,
-    dur: 1900,
-  },
-  {
-    icon: Brain,
-    title: "正在匹配 34 个人格原型",
-    whisper: "在所有可能的你之中，找最像的那一个。",
-    detail: "MATCHING · 34 ARCHETYPES",
-    hue: 320,
-    dur: 2200,
-  },
-  {
-    icon: Heart,
-    title: "正在描绘你在关系里的样子",
-    whisper: "你怎么靠近、怎么撤退、怎么爱。",
-    detail: "COMPOSING · RELATIONAL PROFILE",
-    hue: 360,
-    dur: 2000,
-  },
-  {
-    icon: Layers,
-    title: "正在合成你的画像草稿",
-    whisper: "这不是一份报告，是一面会进化的镜子。",
-    detail: "RENDERING · LIVE PORTRAIT",
-    hue: 255,
-    dur: 1800,
-  },
-] as const;
-
-/* —— 后台滚动的"被读取到的关键词"，让用户感到 AI 真的在读 —— */
-const KEYWORDS = [
-  "倾向独处后再沟通",
-  "对沉默敏感",
-  "在意被理解的瞬间",
-  "回避型反应 · 中低",
-  "情感深度 · 偏高",
-  "冲突时倾向先冷却",
-  "对承诺有耐心",
-  "更看重「合适」",
-  "心动触发：契合感",
-  "对边界感的需求 · 明确",
-  "自我表达 · 选择性开放",
-  "亲密节奏 · 缓慢但稳定",
-  "对失望的处理：内化",
-  "对赞美 · 半信半疑",
-  "理想关系：可独处的共处",
-];
-
 function AnalyzingPage() {
   const nav = useNavigate();
-  const { attemptId, variant = "demo", to } = Route.useSearch();
+  const {
+    attemptId: initialAttemptId,
+    variant = "demo",
+    to,
+    productSet: searchProductSet,
+    pending: searchPending,
+  } = Route.useSearch();
   const { pending: authPending } = useRequireAuth();
 
+  const [resolvedProductSet, setResolvedProductSet] = useState<ProductSet | null>(
+    searchProductSet ?? null,
+  );
+  const [resolvedAttemptId, setResolvedAttemptId] = useState<string | null>(
+    initialAttemptId ?? null,
+  );
+  const [workState, setWorkState] = useState<WorkState>(
+    searchPending ? "submitting" : initialAttemptId ? "ready" : "demo",
+  );
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [stage, setStage] = useState(0);
-  const [overall, setOverall] = useState(0); // 0–100
+  const [overall, setOverall] = useState(0);
+  const workStartedRef = useRef(false);
 
-  const total = STAGES.reduce((a, s) => a + s.dur, 0);
+  const profile = useMemo(
+    () => resolveAnalyzingProfile(resolvedProductSet ?? searchProductSet),
+    [resolvedProductSet, searchProductSet],
+  );
 
-  /* 阶段推进 */
+  const lastStageIdx = profile.stages.length - 1;
+  const done = stage >= profile.stages.length;
+
+  /* —— 绑定真实提交：pending 时在此页等待 API —— */
   useEffect(() => {
-    if (stage >= STAGES.length) return;
-    const t = setTimeout(() => setStage((s) => s + 1), STAGES[stage].dur);
-    return () => clearTimeout(t);
-  }, [stage]);
+    if (workStartedRef.current) return;
+    workStartedRef.current = true;
 
-  /* 总进度（平滑） */
+    if (searchPending) {
+      const ctx = takePendingAttemptSubmit();
+      if (!ctx) {
+        setWorkState("error");
+        setErrorMessage("分析会话已过期，请返回测试页重新提交。");
+        return;
+      }
+      if (ctx.productSet) setResolvedProductSet(ctx.productSet);
+      setWorkState("submitting");
+
+      void ctx.promise
+        .then((res) => {
+          if (res.relationCode && typeof window !== "undefined") {
+            sessionStorage.setItem("ros:myCode", res.relationCode);
+          }
+          setResolvedAttemptId(res.attemptId);
+          if (res.productSet === "ROS" || res.productSet === "MATE" || res.productSet === "SELF") {
+            setResolvedProductSet(res.productSet);
+          }
+          setWorkState("ready");
+        })
+        .catch((e: unknown) => {
+          setWorkState("error");
+          setErrorMessage(formatApiErrorMessage(e));
+        });
+      return;
+    }
+
+    if (initialAttemptId) {
+      setResolvedAttemptId(initialAttemptId);
+      setWorkState("ready");
+      setStage(profile.stages.length);
+      return;
+    }
+
+    setWorkState("demo");
+  }, [searchPending, initialAttemptId, profile.stages.length]);
+
+  /* —— 已有 attemptId 时补全 productSet —— */
+  useEffect(() => {
+    if (searchProductSet || !resolvedAttemptId || workState !== "ready") return;
+    let cancelled = false;
+    lovecompassApi
+      .getAttemptResult(resolvedAttemptId)
+      .then((res) => {
+        if (cancelled) return;
+        const attempt = (res.attempt ?? {}) as Record<string, unknown>;
+        setResolvedProductSet(detectProductSetFromAttempt(attempt));
+      })
+      .catch(() => {
+        if (!cancelled && !searchProductSet) setResolvedProductSet("SELF");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [resolvedAttemptId, searchProductSet, workState]);
+
+  /* —— 阶段推进：最后一阶段卡住，直到 API 真正完成 —— */
+  useEffect(() => {
+    if (workState === "error") return;
+    if (done) return;
+    if (stage >= lastStageIdx && workState !== "ready" && workState !== "demo") return;
+
+    const t = setTimeout(() => setStage((s) => s + 1), profile.stages[stage].dur);
+    return () => clearTimeout(t);
+  }, [stage, workState, done, lastStageIdx, profile]);
+
+  /* —— API 完成后：若还在前面阶段，快进到最后一阶段再收尾 —— */
+  useEffect(() => {
+    if (workState !== "ready" || done) return;
+    if (stage < lastStageIdx) {
+      setStage(lastStageIdx);
+      return;
+    }
+    const t = setTimeout(() => setStage((s) => s + 1), 420);
+    return () => clearTimeout(t);
+  }, [workState, stage, done, lastStageIdx]);
+
+  /* —— 完成后跳转 —— */
   useEffect(() => {
     let raf = 0;
-    const start = performance.now();
-    const tick = (now: number) => {
-      const elapsed = now - start;
-      const target = Math.min(100, (elapsed / total) * 100);
-      setOverall(target);
-      if (target < 100) raf = requestAnimationFrame(tick);
+    const tick = () => {
+      setOverall((prev) => {
+        const stageCap = ((Math.min(stage, lastStageIdx) + 1) / profile.stages.length) * 92;
+        const target =
+          workState === "ready" || done
+            ? 100
+            : workState === "error"
+              ? Math.min(prev, 30)
+              : Math.min(92, stageCap);
+        const next = prev + (target - prev) * 0.08;
+        return Math.abs(next - target) < 0.3 ? target : next;
+      });
+      raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [total]);
+  }, [stage, workState, done, lastStageIdx, profile.stages.length]);
 
-  /* 完成 → 跳转 */
+  /* —— 完成后跳转 —— */
   useEffect(() => {
-    if (stage < STAGES.length) return;
-    const t = setTimeout(() => {
-      if (attemptId) nav({ to: "/result/$attemptId", params: { attemptId } });
-      else if (to) nav({ to: to as "/result/self/$variant", params: { variant } });
-      else nav({ to: "/result/self/$variant", params: { variant } });
-    }, 650);
-    return () => clearTimeout(t);
-  }, [attemptId, stage, nav, to, variant]);
+    if (!done || workState === "submitting" || workState === "error") return;
+    let cancelled = false;
 
-  const cur = STAGES[Math.min(stage, STAGES.length - 1)];
-  const done = stage >= STAGES.length;
+    const finish = async () => {
+      await new Promise((resolve) => setTimeout(resolve, workState === "demo" ? 650 : 380));
+      if (cancelled) return;
+
+      const explicit = parseBackendNextPath(to ?? undefined);
+      if (explicit && !resolvedAttemptId) {
+        void nav(explicit);
+        return;
+      }
+
+      if (resolvedAttemptId) {
+        try {
+          const res = await lovecompassApi.getAttemptResult(resolvedAttemptId);
+          const attempt = (res.attempt ?? {}) as Record<string, unknown>;
+          void nav(safeResultRouteFromAttempt(resolvedAttemptId, attempt));
+          return;
+        } catch {
+          const ps = resolvedProductSet ?? searchProductSet;
+          if (ps && ps !== "SELF") {
+            void nav(resultRouteForProductSet(ps, resolvedAttemptId));
+            return;
+          }
+          void nav({ to: "/result/$attemptId", params: { attemptId: resolvedAttemptId } });
+          return;
+        }
+      }
+
+      void nav({ to: "/result/self/$variant", params: { variant } });
+    };
+
+    void finish();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    done,
+    workState,
+    nav,
+    to,
+    variant,
+    resolvedAttemptId,
+    resolvedProductSet,
+    searchProductSet,
+  ]);
+
+  const cur = profile.stages[Math.min(stage, lastStageIdx)];
 
   if (authPending) return <AuthChecking />;
 
+  if (workState === "error") {
+    return (
+      <main className="min-h-screen flex items-center justify-center px-5 py-10">
+        <div className="w-full max-w-md">
+          <ApiErrorPanel
+            title="分析未能完成"
+            message={errorMessage ?? "提交失败，请稍后再试"}
+            backTo={{ to: "/tests/$id", params: { id: profile.productSet.toLowerCase() }, label: "返回测试" }}
+          />
+        </div>
+      </main>
+    );
+  }
+
+  return (
+    <AnalyzingView
+      profile={profile}
+      stage={stage}
+      overall={overall}
+      done={done}
+      cur={cur}
+      waiting={workState === "submitting" && stage >= lastStageIdx}
+    />
+  );
+}
+
+function AnalyzingView({
+  profile,
+  stage,
+  overall,
+  done,
+  cur,
+  waiting,
+}: {
+  profile: AnalyzingProfile;
+  stage: number;
+  overall: number;
+  done: boolean;
+  cur: AnalyzingProfile["stages"][number];
+  waiting?: boolean;
+}) {
   return (
     <main className="relative min-h-screen flex items-center justify-center px-5 py-10 overflow-hidden">
-      {/* 背景：呼吸光晕跟随阶段 hue */}
       <motion.div
-        key={`bg-${stage}`}
+        key={`bg-${profile.productSet}-${stage}`}
         initial={{ opacity: 0 }}
         animate={{ opacity: 0.55 }}
         transition={{ duration: 1.4 }}
@@ -155,7 +284,6 @@ function AnalyzingPage() {
         }}
       />
 
-      {/* 扫描线 */}
       <motion.div
         className="absolute inset-x-0 h-[2px] pointer-events-none"
         style={{
@@ -166,8 +294,7 @@ function AnalyzingPage() {
         transition={{ duration: 4.2, repeat: Infinity, ease: "easeInOut" }}
       />
 
-      {/* 漂浮关键词背景 */}
-      <FloatingKeywords hue={cur.hue} />
+      <FloatingKeywords hue={cur.hue} keywords={profile.keywords} />
 
       <div className="relative z-10 w-full max-w-xl">
         <motion.div
@@ -178,31 +305,36 @@ function AnalyzingPage() {
         >
           <div className="absolute inset-0 ring-grid opacity-25 pointer-events-none" />
 
-          {/* 顶部状态 */}
           <div className="relative flex items-center justify-between mb-6">
-            <span className="chip chip-violet font-mono">
-              <Sparkles className="h-3 w-3" /> MIRROR · ANALYZING
+            <span
+              className={`${profile.theme.chipClass} font-mono inline-flex items-center gap-1.5`}
+              style={
+                profile.productSet === "MATE"
+                  ? {
+                      background: "rgba(244,114,182,0.12)",
+                      color: "#f9a8d4",
+                      border: "1px solid rgba(244,114,182,0.35)",
+                      borderRadius: "9999px",
+                      padding: "0.25rem 0.75rem",
+                      fontSize: "0.75rem",
+                    }
+                  : undefined
+              }
+            >
+              <Sparkles className="h-3 w-3" /> MIRROR · {profile.chip}
             </span>
             <span className="font-mono text-[10px] tracking-[0.3em] text-muted-foreground">
-              v0.1 · LIVE
+              {waiting ? "WAIT · API" : "LIVE"}
             </span>
           </div>
 
-          {/* 中央脉冲圆 */}
           <div className="relative h-44 flex items-center justify-center mb-2">
-            {/* 三层涟漪 */}
             {[0, 1, 2].map((i) => (
               <motion.span
                 key={i}
                 className="absolute rounded-full border"
-                style={{
-                  borderColor: `oklch(0.75 0.18 ${cur.hue} / 0.5)`,
-                }}
-                animate={{
-                  width: [60, 180],
-                  height: [60, 180],
-                  opacity: [0.65, 0],
-                }}
+                style={{ borderColor: `oklch(0.75 0.18 ${cur.hue} / 0.5)` }}
+                animate={{ width: [60, 180], height: [60, 180], opacity: [0.65, 0] }}
                 transition={{
                   duration: 2.8,
                   repeat: Infinity,
@@ -211,16 +343,15 @@ function AnalyzingPage() {
                 }}
               />
             ))}
-            {/* 核心 */}
             <motion.div
-              key={`core-${stage}`}
+              key={`core-${profile.productSet}-${stage}`}
               initial={{ scale: 0.6, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
               className="relative w-20 h-20 rounded-full grid place-items-center"
               style={{
                 background: `radial-gradient(circle at 30% 30%, oklch(0.85 0.16 ${cur.hue}) 0%, oklch(0.45 0.20 ${cur.hue}) 70%)`,
-                boxShadow: `0 0 60px oklch(0.65 0.20 ${cur.hue} / 0.6)`,
+                boxShadow: profile.theme.coreShadow,
               }}
             >
               <AnimatePresence mode="wait">
@@ -241,32 +372,34 @@ function AnalyzingPage() {
             </motion.div>
           </div>
 
-          {/* 当前阶段文案 */}
           <div className="relative text-center min-h-[88px]">
             <AnimatePresence mode="wait">
               <motion.div
-                key={stage}
+                key={`${profile.productSet}-${stage}-${done ? "done" : "run"}`}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.45 }}
               >
                 <div className="font-mono text-[10px] tracking-[0.3em] text-muted-foreground">
-                  {done ? "DONE · 画像草稿就绪" : cur.detail}
+                  {done ? profile.doneDetail : waiting ? "WAITING · BACKEND" : cur.detail}
                 </div>
-                <h2 className="font-display text-2xl mt-2 text-gradient-violet leading-tight">
-                  {done ? "我看见你了。" : cur.title}
+                <h2 className={`font-display text-2xl mt-2 leading-tight ${profile.theme.titleClass}`}>
+                  {done ? profile.doneTitle : waiting ? profile.stages[profile.stages.length - 1].title : cur.title}
                 </h2>
                 <p className="text-[13px] text-foreground/70 mt-2 italic">
-                  {done ? "正在把这份理解，递给你。" : `「${cur.whisper}」`}
+                  {done
+                    ? profile.doneWhisper
+                    : waiting
+                      ? "「服务器还在算，这一步不会先走。」"
+                      : `「${cur.whisper}」`}
                 </p>
               </motion.div>
             </AnimatePresence>
           </div>
 
-          {/* 阶段点 */}
           <div className="mt-6 flex items-center justify-between gap-2">
-            {STAGES.map((s, i) => {
+            {profile.stages.map((s, i) => {
               const isDone = i < stage || done;
               const isCur = i === stage && !done;
               return (
@@ -278,8 +411,8 @@ function AnalyzingPage() {
                       backgroundColor: isDone
                         ? `oklch(0.82 0.14 ${s.hue})`
                         : isCur
-                        ? `oklch(0.75 0.18 ${s.hue})`
-                        : "oklch(0.30 0.02 270)",
+                          ? `oklch(0.75 0.18 ${s.hue})`
+                          : "oklch(0.30 0.02 270)",
                     }}
                     transition={
                       isCur
@@ -299,53 +432,42 @@ function AnalyzingPage() {
             })}
           </div>
 
-          {/* 总进度条 */}
           <div className="mt-6">
             <div className="flex justify-between text-[10px] font-mono text-muted-foreground mb-1.5">
-              <span>合成进度</span>
-              <span className="tabular-nums text-foreground/80">
-                {Math.round(overall)}%
-              </span>
+              <span>{profile.progressLabel}</span>
+              <span className="tabular-nums text-foreground/80">{Math.round(overall)}%</span>
             </div>
             <div className="h-[3px] rounded-full bg-secondary/50 overflow-hidden">
               <motion.div
-                className="h-full rounded-full"
-                animate={{ width: `${overall}%` }}
+                className={`h-full rounded-full bg-gradient-to-r ${profile.theme.progressClass}`}
+                style={{ width: `${overall}%` }}
                 transition={{ ease: "linear", duration: 0.1 }}
-                style={{
-                  background: `linear-gradient(90deg, oklch(0.68 0.18 285), oklch(0.82 0.14 200), oklch(0.75 0.18 ${cur.hue}))`,
-                }}
               />
             </div>
           </div>
 
-          {/* 终端式实时输出 */}
-          <TerminalLog stage={stage} />
+          <TerminalLog stage={stage} lines={profile.terminalLines} waiting={waiting} />
         </motion.div>
 
         <p className="mt-5 text-center text-[11px] font-mono tracking-[0.2em] text-muted-foreground/70">
-          请稍候 · AI 正在认真理解你 · DO NOT LEAVE
+          {profile.footer}
         </p>
       </div>
     </main>
   );
 }
 
-/* —— 漂浮关键词 —— */
-function FloatingKeywords({ hue }: { hue: number }) {
+function FloatingKeywords({ hue, keywords }: { hue: number; keywords: string[] }) {
   return (
     <div className="absolute inset-0 pointer-events-none overflow-hidden">
-      {KEYWORDS.slice(0, 9).map((k, i) => {
+      {keywords.slice(0, 9).map((k, i) => {
         const left = (i * 37) % 90 + 5;
         const delay = (i % 5) * 0.7;
         return (
           <motion.span
             key={k}
             initial={{ opacity: 0, y: 40 }}
-            animate={{
-              opacity: [0, 0.55, 0.55, 0],
-              y: [40, -340],
-            }}
+            animate={{ opacity: [0, 0.55, 0.55, 0], y: [40, -340] }}
             transition={{
               duration: 9 + (i % 3),
               repeat: Infinity,
@@ -367,33 +489,32 @@ function FloatingKeywords({ hue }: { hue: number }) {
   );
 }
 
-/* —— 终端式输出：一行一行"被理解" —— */
-function TerminalLog({ stage }: { stage: number }) {
-  const lines = [
-    "› 已读取 190 条信号",
-    "› 检测到稳定的情感节奏",
-    "› 匹配中：34 / 34 原型",
-    "› 关系画像 · 草稿生成",
-    "› 渲染完成 · 准备呈现",
-  ];
+function TerminalLog({
+  stage,
+  lines,
+  waiting,
+}: {
+  stage: number;
+  lines: string[];
+  waiting?: boolean;
+}) {
   const visible = Math.min(stage + 1, lines.length);
+  const activeLine = waiting && visible === lines.length ? lines.length - 1 : visible - 1;
 
   return (
     <div className="mt-6 rounded-xl bg-[oklch(0.10_0.018_270_/_0.6)] border border-border/40 p-3 font-mono text-[11px] leading-[1.7] min-h-[110px]">
       {lines.slice(0, visible).map((l, i) => (
         <motion.div
-          key={i}
+          key={l}
           initial={{ opacity: 0, x: -6 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.35 }}
           className={
-            i === visible - 1
-              ? "text-[oklch(0.82_0.14_200)]"
-              : "text-foreground/55"
+            i === activeLine ? "text-[oklch(0.82_0.14_200)]" : "text-foreground/55"
           }
         >
-          {l}
-          {i === visible - 1 && (
+          {waiting && i === lines.length - 1 ? `${l} · 等待服务器` : l}
+          {i === activeLine && (
             <motion.span
               animate={{ opacity: [1, 0, 1] }}
               transition={{ duration: 1, repeat: Infinity }}

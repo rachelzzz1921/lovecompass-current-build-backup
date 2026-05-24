@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import uuid
-from decimal import Decimal
 from typing import Any
 
 from fastapi import HTTPException
@@ -11,9 +10,14 @@ from app.chat_prompt_layers import (
     build_crisis_guard_layer,
     build_mirror_tone_layer,
     build_portrait_reader_layer,
-    score_band_label,
 )
 from app.counselor_personas import enrich_analyst_with_skill, normalize_counselor_slug, persona_fallback
+from app.suite_context import (
+    build_suite_profile_context_block,
+    build_unbound_context_message,
+    extract_suite_dimensions,
+    summarize_suite_context,
+)
 
 REPORT_PLACEHOLDER_MARKERS = ("正式 AI 深度报告可由后台任务继续生成", "【AI 占位回复】", "【智谱未配置】")
 
@@ -24,29 +28,13 @@ def _looks_like_placeholder(report: str | None) -> bool:
     return any(marker in report for marker in REPORT_PLACEHOLDER_MARKERS)
 
 
-def _score_tone(score: Any) -> str:
-    return score_band_label(score)
-
-
 def extract_dimensions(result_payload: dict[str, Any], dimension_scores: Any) -> list[dict[str, Any]]:
-    dimensions = result_payload.get("dimensions") if isinstance(result_payload, dict) else None
-    if isinstance(dimensions, list) and dimensions:
-        return [d for d in dimensions if isinstance(d, dict)]
-    if isinstance(dimension_scores, dict):
-        names = {
-            "SA1": ("自我吸引感知", "我相信自己值得被爱吗？"),
-            "SA2": ("依恋焦虑", "我在关系里容易不安全感吗？"),
-            "SA3": ("依恋回避", "我在关系里容易逃避亲密吗？"),
-            "SA4": ("自我边界", "我能守住自己吗？"),
-            "SA5": ("情绪调节", "我能好好处理关系里的情绪吗？"),
-            "SA6": ("关系投入模式", "我是怎么爱人的？"),
-        }
-        extracted = []
-        for code, score in dimension_scores.items():
-            name, core = names.get(str(code), (str(code), ""))
-            extracted.append({"code": str(code), "name": name, "core": core, "score": score})
-        return extracted
-    return []
+    """Backward-compatible wrapper; prefer extract_suite_dimensions on full attempt rows."""
+    attempt = {
+        "result_payload": result_payload if isinstance(result_payload, dict) else {},
+        "dimension_scores": dimension_scores,
+    }
+    return extract_suite_dimensions(attempt)
 
 
 def fetch_attempt_row(conn: Any, attempt_id: str, user_id: str) -> dict[str, Any] | None:
@@ -65,6 +53,7 @@ def fetch_attempt_row(conn: Any, attempt_id: str, user_id: str) -> dict[str, Any
           ta.ai_report,
           ta.completed_at,
           ts.slug AS suite_slug,
+          ts.gender::text AS suite_gender,
           ts.name AS suite_name
         FROM public.test_attempts ta
         LEFT JOIN public.test_suites ts ON ts.id = ta.suite_id
@@ -91,6 +80,7 @@ def fetch_latest_attempt_row(conn: Any, user_id: str) -> dict[str, Any] | None:
           ta.ai_report,
           ta.completed_at,
           ts.slug AS suite_slug,
+          ts.gender::text AS suite_gender,
           ts.name AS suite_name
         FROM public.test_attempts ta
         LEFT JOIN public.test_suites ts ON ts.id = ta.suite_id
@@ -117,84 +107,13 @@ def resolve_attempt(conn: Any, user_id: str, attempt_id: str | None) -> dict[str
 
 
 def summarize_context(attempt: dict[str, Any]) -> dict[str, Any]:
-    result_payload = attempt.get("result_payload") or {}
-    if not isinstance(result_payload, dict):
-        result_payload = {}
-    profile = result_payload.get("archetype_profile") or {}
-    if not isinstance(profile, dict):
-        profile = {}
-    archetype = str(result_payload.get("archetype_code") or attempt.get("archetype_code") or "你的关系画像")
-    attachment_type = str(
-        result_payload.get("attachment_type") or profile.get("attachment_type") or "待判断"
-    )
-    dimensions = extract_dimensions(result_payload, attempt.get("dimension_scores"))
-    return {
-        "attemptId": str(attempt["id"]),
-        "suiteSlug": attempt.get("suite_slug") or attempt.get("test_id"),
-        "suiteName": attempt.get("suite_name") or attempt.get("test_id"),
-        "archetype": archetype,
-        "attachmentType": attachment_type,
-        "tagline": profile.get("tagline"),
-        "description": profile.get("description"),
-        "matchingLogic": profile.get("matching_logic"),
-        "rosIndex": float(attempt["ros_index"]) if attempt.get("ros_index") is not None else None,
-        "completedAt": str(attempt["completed_at"]) if attempt.get("completed_at") else None,
-        "dimensions": [
-            {
-                "code": item.get("code"),
-                "name": item.get("name"),
-                "score": float(item["score"]) if isinstance(item.get("score"), (int, float, Decimal)) else item.get("score"),
-            }
-            for item in dimensions
-        ],
-        "hasAiReport": not _looks_like_placeholder(attempt.get("ai_report")),
-    }
+    summary = summarize_suite_context(attempt)
+    summary["hasAiReport"] = not _looks_like_placeholder(attempt.get("ai_report"))
+    return summary
 
 
 def build_profile_context_block(attempt: dict[str, Any]) -> str:
-    result_payload = attempt.get("result_payload") or {}
-    if not isinstance(result_payload, dict):
-        result_payload = {}
-    profile = result_payload.get("archetype_profile") or {}
-    if not isinstance(profile, dict):
-        profile = {}
-    dimensions = extract_dimensions(result_payload, attempt.get("dimension_scores"))
-    archetype = str(result_payload.get("archetype_code") or attempt.get("archetype_code") or "未知画像")
-    attachment_type = str(
-        result_payload.get("attachment_type") or profile.get("attachment_type") or "待判断"
-    )
-    tagline = str(profile.get("tagline") or "")
-    description = str(profile.get("description") or "")
-    matching_logic = str(profile.get("matching_logic") or "")
-    dimension_lines = []
-    for item in dimensions:
-        dimension_lines.append(
-            f"- {item.get('name')}：{item.get('core', '')}；{_score_tone(item.get('score'))}"
-        )
-    dimension_text = "\n".join(dimension_lines) or "- 暂无完整维度明细"
-    report = attempt.get("ai_report") or ""
-    report_block = ""
-    if not _looks_like_placeholder(report):
-        excerpt = str(report).strip()
-        if len(excerpt) > 2200:
-            excerpt = excerpt[:2200] + "\n…（报告已截断）"
-        report_block = f"\n\n已有 AI 深度报告摘要（可引用但不要逐字复读）：\n{excerpt}"
-
-    return f"""
-【用户已完成的真实测试画像 — 必须作为回答依据】
-测试套件：{attempt.get('suite_name') or attempt.get('test_id') or 'SELF'}
-完成时间：{attempt.get('completed_at') or '未知'}
-画像名称（红楼人格原型）：{archetype}
-依恋类型：{attachment_type}
-一句话主题：{tagline or '（无）'}
-画像描述：{description or '（无）'}
-人格/匹配关键词：{matching_logic or '（无）'}
-综合指数（内部参考，勿直接报具体数字）：{attempt.get('ros_index')}
-
-六维 SELF 关系线索（内部参考，回答时用自然语言，不要暴露 SA 编号或具体分数）：
-{dimension_text}
-{report_block}
-""".strip()
+    return build_suite_profile_context_block(attempt)
 
 
 def resolve_analyst_row(conn: Any, analyst_slug: str | None) -> dict[str, Any]:
@@ -273,7 +192,7 @@ def get_or_create_session(
             user_id,
             attempt_id,
             analyst_id,
-            context_payload.get("archetype") or "关系咨询",
+            context_payload.get("primaryMetric") or context_payload.get("archetype") or "关系咨询",
             Jsonb(context_payload),
         ),
     ).fetchone()
@@ -324,7 +243,7 @@ def build_chat_prompt(
             portrait_layer = build_portrait_reader_layer(conn, user_id)
         except Exception:
             portrait_layer = ""
-    profile_block = build_profile_context_block(attempt) if attempt else "【当前未绑定具体测试画像】用户可能尚未完成测试；只能做一般性关系建议，并邀请用户先完成 SELF 测试。"
+    profile_block = build_profile_context_block(attempt) if attempt else build_unbound_context_message()
 
     history_lines = []
     for item in history:

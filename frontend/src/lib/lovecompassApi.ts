@@ -89,6 +89,11 @@ export type PortraitAttemptSummary = {
   dimensions?: Array<{ code?: string; name?: string; score?: number }>;
   completedAt?: string;
   hasAiReport?: boolean;
+  relationshipType?: string | null;
+  relationshipStage?: string | null;
+  resonanceTier?: string | null;
+  matePosition?: string | null;
+  quadrant?: string | null;
 };
 
 export type PortraitProduct = {
@@ -215,7 +220,12 @@ async function requestJson<T>(path: string, init?: RequestInit, authRequired = f
 export const lovecompassApi = {
   getQuestions: (suiteSlug: string) =>
     requestJson<TestQuestionsResponse>(`/tests/${encodeURIComponent(suiteSlug)}/questions`),
-  verifyRedemption: (data: { code: string; product: string }) =>
+  verifyRedemption: (data: {
+    code: string;
+    product: string;
+    suiteSlug?: string;
+    gender?: "female" | "male";
+  }) =>
     requestJson<{ ok: boolean; suiteSlug: string; redemptionEventId?: string; redirect?: string }>(
       "/redemption/verify",
       {
@@ -294,6 +304,13 @@ export const lovecompassApi = {
       coupleUnlocked?: boolean;
       invitePath?: string;
     }>(`/ros/attempts/${encodeURIComponent(attemptId)}/single`, undefined, true),
+  getMateSingleResult: (attemptId: string) =>
+    requestJson<{
+      ok: boolean;
+      attemptId: string;
+      single: Record<string, unknown>;
+      gender?: string;
+    }>(`/mate/attempts/${encodeURIComponent(attemptId)}/single`, undefined, true),
   previewRelationCode: (code: string) =>
     requestJson<{
       ok: boolean;

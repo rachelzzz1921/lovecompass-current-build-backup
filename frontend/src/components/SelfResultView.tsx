@@ -28,6 +28,11 @@ const TRAIT_ICON = {
   eye: { Icon: EyeOff, tint: "oklch(0.82 0.14 75)" },
 } as const;
 
+const LOCKED_TEASER_ROUTES: Record<string, { to: string; search?: { product: "ros" | "mate" } }> = {
+  ros: { to: "/access", search: { product: "ros" } },
+  mate: { to: "/access", search: { product: "mate" } },
+};
+
 export type SelfResultViewProps = {
   result: SelfResult;
   attemptId?: string;
@@ -364,7 +369,9 @@ export function SelfResultView({
             <div className="flex-1 divider-line" />
           </div>
 
-          {r.lockedTeasers.map((t) => (
+          {r.lockedTeasers.map((t) => {
+            const route = LOCKED_TEASER_ROUTES[t.id];
+            return (
             <div key={t.id}
               className="relative bg-glass-strong rounded-2xl p-5 md:p-6 overflow-hidden group">
               <div className="absolute inset-0 ring-grid opacity-20" />
@@ -378,12 +385,19 @@ export function SelfResultView({
                   <div className="font-display text-lg mt-1.5 text-foreground">{t.title}</div>
                   <div className="text-[13px] text-foreground/65 mt-1 leading-relaxed">{t.hint}</div>
                 </div>
-                <Button variant="outline" disabled className="rounded-full border-border/60 bg-secondary/30 text-muted-foreground shrink-0">
-                  即将开放
-                </Button>
+                {route ? (
+                  <Button asChild variant="outline" className="rounded-full border-border/60 bg-secondary/30 shrink-0">
+                    <Link to={route.to} search={route.search}>去解锁</Link>
+                  </Button>
+                ) : (
+                  <Button variant="outline" disabled className="rounded-full border-border/60 bg-secondary/30 text-muted-foreground shrink-0">
+                    即将开放
+                  </Button>
+                )}
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* CTA ROW */}

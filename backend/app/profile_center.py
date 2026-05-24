@@ -90,7 +90,13 @@ def summarize_attempt(row: dict[str, Any]) -> dict[str, Any]:
         "dimensions": profile_bits["dimensions"],
         "completedAt": str(row.get("completed_at") or row.get("created_at") or ""),
         "hasAiReport": bool(row.get("ai_report")),
+        "primaryMetric": None,
+        "primaryMetricLabel": None,
     }
+
+    if product_set == "SELF":
+        summary["primaryMetric"] = summary.get("attachmentType")
+        summary["primaryMetricLabel"] = "依恋类型"
 
     if product_set == "ROS" and isinstance(result_payload, dict):
         rel_type = result_payload.get("relationshipType") or {}
@@ -98,14 +104,17 @@ def summarize_attempt(row: dict[str, Any]) -> dict[str, Any]:
         resonance = result_payload.get("resonance") or {}
         summary.update(
             {
-                "relationshipType": rel_type.get("name"),
-                "relationshipTypeKey": rel_type.get("key"),
-                "relationshipStage": stage.get("name"),
-                "relationshipStageId": stage.get("id"),
+                "primaryMetric": rel_type.get("name") if isinstance(rel_type, dict) else None,
+                "primaryMetricLabel": "关系类型",
+                "relationshipType": rel_type.get("name") if isinstance(rel_type, dict) else None,
+                "relationshipTypeKey": rel_type.get("key") if isinstance(rel_type, dict) else None,
+                "relationshipStage": stage.get("name") if isinstance(stage, dict) else None,
+                "relationshipStageId": stage.get("id") if isinstance(stage, dict) else None,
                 "relationCode": result_payload.get("relationCode") or row.get("relation_code"),
-                "resonanceTier": resonance.get("tier"),
-                "tagline": rel_type.get("one_liner") or summary.get("tagline"),
-                "description": rel_type.get("description") or summary.get("description"),
+                "resonanceTier": resonance.get("tier") if isinstance(resonance, dict) else None,
+                "tagline": (rel_type.get("one_liner") if isinstance(rel_type, dict) else None) or summary.get("tagline"),
+                "description": (rel_type.get("description") if isinstance(rel_type, dict) else None) or summary.get("description"),
+                "archetypeCode": None,
             }
         )
 
@@ -113,8 +122,16 @@ def summarize_attempt(row: dict[str, Any]) -> dict[str, Any]:
         pos = result_payload.get("positionType") or result_payload.get("matePosition") or result_payload.get("marketPosition")
         if isinstance(pos, dict):
             summary["matePosition"] = pos.get("name") or pos.get("label") or pos.get("title")
+            summary["primaryMetric"] = summary["matePosition"]
+            summary["primaryMetricLabel"] = "市场定位"
+            summary["tagline"] = pos.get("tagline") or pos.get("subtitle") or summary.get("tagline")
+            summary["description"] = pos.get("marketRead") or pos.get("market_read") or summary.get("description")
         elif pos:
             summary["matePosition"] = str(pos)
+            summary["primaryMetric"] = str(pos)
+            summary["primaryMetricLabel"] = "市场定位"
+        summary["quadrant"] = result_payload.get("quadrant")
+        summary["archetypeCode"] = None
 
     return summary
 

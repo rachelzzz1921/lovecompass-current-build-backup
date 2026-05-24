@@ -1,11 +1,19 @@
 import { createFileRoute, Link, Outlet, useNavigate, useParams, useRouterState } from "@tanstack/react-router";
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { PRODUCTS } from "@/data/products";
-import { HintButton } from "@/components/HintButton";
 import { useAuth } from "@/hooks/useAuth";
 import { hasProductAccess } from "@/lib/accessGate";
-import { getStoredSelfGender, setStoredSelfGender, SELF_SUITE_SLUGS, type SelfGender } from "@/lib/suiteSlugs";
+import { findProductByRouteId, inferGenderFromSuiteSlug, testEntryRouteId } from "@/lib/resultRoutes";
+import {
+  getStoredMateGender,
+  getStoredSelfGender,
+  MATE_SUITE_SLUGS,
+  setStoredMateGender,
+  setStoredSelfGender,
+  SELF_SUITE_SLUGS,
+  type MateGender,
+  type SelfGender,
+} from "@/lib/suiteSlugs";
 import { ArrowLeft, ArrowRight, Clock, Layers, Sparkles, Lock, ShieldCheck } from "lucide-react";
 
 export const Route = createFileRoute("/tests/$id")({
@@ -15,7 +23,11 @@ export const Route = createFileRoute("/tests/$id")({
 const ACCENT = {
   violet: { text: "text-gradient-violet", ring: "from-[oklch(0.68_0.18_285)] to-[oklch(0.50_0.20_285)]", chip: "chip-violet" },
   cyan: { text: "text-gradient-cyan", ring: "from-[oklch(0.82_0.14_200)] to-[oklch(0.55_0.16_200)]", chip: "chip-cyan" },
-  rose: { text: "text-gradient-violet", ring: "from-[oklch(0.72_0.18_360)] to-[oklch(0.55_0.20_355)]", chip: "chip-violet" },
+  rose: {
+    text: "text-transparent bg-clip-text bg-gradient-to-r from-[#f9a8d4] to-[#fb7185]",
+    ring: "from-[#f472b6] to-[#fb7185]",
+    chip: "font-mono text-[10px] tracking-[0.25em]",
+  },
 } as const;
 
 function TestEntry() {
@@ -24,23 +36,32 @@ function TestEntry() {
   const { user, loading: authLoading } = useAuth();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   if (pathname.endsWith("/run")) return <Outlet />;
-  const product = PRODUCTS.find((p) => p.id === id) ?? PRODUCTS[0];
   const routeSuiteSlug = id;
+  const product = findProductByRouteId(routeSuiteSlug);
+  const productId = testEntryRouteId(routeSuiteSlug);
   const a = ACCENT[product.accent];
 
-  const isSelfProduct = product.id === "self";
-  const [selfGender, setSelfGender] = useState<SelfGender | null>(() => getStoredSelfGender());
+  const isSelfProduct = productId === "self";
+  const isMateProduct = productId === "mate";
+  const slugGender = inferGenderFromSuiteSlug(routeSuiteSlug);
+  const [selfGender, setSelfGender] = useState<SelfGender | null>(() => slugGender ?? getStoredSelfGender());
+  const [mateGender, setMateGender] = useState<MateGender | null>(() => slugGender ?? getStoredMateGender());
 
   const runSuiteSlug =
-    isSelfProduct && selfGender ? SELF_SUITE_SLUGS[selfGender] : routeSuiteSlug;
+    isSelfProduct && selfGender
+      ? SELF_SUITE_SLUGS[selfGender]
+      : isMateProduct && mateGender
+        ? MATE_SUITE_SLUGS[mateGender]
+        : routeSuiteSlug;
   const hasAccess = hasProductAccess(product.id, runSuiteSlug);
 
-  const returnPath = `/tests/${id}`;
+  const returnPath = `/tests/${productId}`;
 
   const startBlockedReason = (): string | null => {
     if (authLoading) return "正在确认登录状态，请稍候";
     if (!user) return "请先登录后再开始测试";
     if (isSelfProduct && !selfGender) return "请先选择「女性版」或「男性版」题库";
+    if (isMateProduct && !mateGender) return "请先选择「女性版」或「男性版」题库";
     if (!hasAccess) return "请先输入兑换码解锁本题库";
     return null;
   };
@@ -55,19 +76,30 @@ function TestEntry() {
       if (!hasAccess) {
         nav({
           to: "/access",
-          search: { product: product.id, redirect: product.id === "ros" ? "/ros/start" : `/tests/${runSuiteSlug}/run` },
+          search: {
+            product: productId,
+            redirect:
+              productId === "ros"
+                ? "/ros/start"
+                : runSuiteSlug && runSuiteSlug.includes("_")
+                  ? `/tests/${runSuiteSlug}/run`
+                  : `/tests/${productId}`,
+          },
         });
       }
       return;
     }
 
-    if (product.id === "ros") {
+    if (productId === "ros") {
       nav({ to: "/ros/start" });
       return;
     }
 
     if (isSelfProduct && selfGender) {
       setStoredSelfGender(selfGender);
+    }
+    if (isMateProduct && mateGender) {
+      setStoredMateGender(mateGender);
     }
     nav({ to: "/tests/$id/run", params: { id: runSuiteSlug } });
   };
@@ -80,7 +112,7 @@ function TestEntry() {
         <Link to="/" className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition">
           <ArrowLeft className="h-3.5 w-3.5" /> 返回首页
         </Link>
-        <span className={`chip ${a.chip} font-mono`}>{product.code}</span>
+        <span className={`chip ${a.chip} font-mono`} style={productId === "mate" ? { background: "rgba(244,114,182,0.12)", color: "#f9a8d4", border: "1px solid rgba(244,114,182,0.35)" } : undefined}>{product.code}</span>
       </header>
 
       <section className="relative z-10 max-w-3xl mx-auto px-6 md:px-12 pt-14 pb-20">
@@ -177,35 +209,39 @@ function TestEntry() {
           </div>
 
           {/* 版本选择 — 全宽独立区块 */}
-          {isSelfProduct && (
+          {(isSelfProduct || isMateProduct) && (
             <div className="rounded-2xl border border-border/50 bg-secondary/20 p-4 md:p-5 space-y-3">
               <div className="flex items-center justify-between gap-3">
                 <div className="text-[10px] font-mono tracking-[0.3em] text-muted-foreground">
                   选择题库版本
                 </div>
-                {selfGender && (
+                {(isSelfProduct ? selfGender : mateGender) && (
                   <span className="text-[10px] font-mono text-foreground/70">
-                    已选 · {selfGender === "female" ? "女性版" : "男性版"}
+                    已选 · {(isSelfProduct ? selfGender : mateGender) === "female" ? "女性版" : "男性版"}
                   </span>
                 )}
               </div>
               <div className="grid grid-cols-2 gap-2.5">
-                {(["female", "male"] as const).map((gender) => (
+                {(["female", "male"] as const).map((gender) => {
+                  const selected = isSelfProduct ? selfGender === gender : mateGender === gender;
+                  const count = isMateProduct ? "80 题" : "50 题";
+                  return (
                   <button
                     key={gender}
                     type="button"
-                    onClick={() => setSelfGender(gender)}
+                    onClick={() => (isSelfProduct ? setSelfGender(gender) : setMateGender(gender))}
                     className={`h-11 rounded-xl border text-sm font-medium transition ${
-                      selfGender === gender
+                      selected
                         ? "border-[oklch(0.68_0.18_285_/_0.7)] bg-[oklch(0.50_0.20_285_/_0.12)] text-foreground shadow-[0_0_0_1px_oklch(0.68_0.18_285_/_0.25)]"
                         : "border-border/60 bg-glass text-muted-foreground hover:text-foreground hover:border-border"
                     }`}
                   >
-                    {gender === "female" ? "女性版 · 50 题" : "男性版 · 50 题"}
+                    {gender === "female" ? `女性版 · ${count}` : `男性版 · ${count}`}
                   </button>
-                ))}
+                  );
+                })}
               </div>
-              {!selfGender && (
+              {!(isSelfProduct ? selfGender : mateGender) && (
                 <p className="text-[11px] text-muted-foreground text-center">
                   请先选择版本，再输入兑换码或开始测试
                 </p>
@@ -218,7 +254,15 @@ function TestEntry() {
             {!hasAccess && (
               <Link
                 to="/access"
-                search={{ product: product.id, redirect: `/tests/${runSuiteSlug || product.id}/run` }}
+                search={{
+                  product: productId,
+                  redirect:
+                    productId === "ros"
+                      ? "/ros/start"
+                      : runSuiteSlug && runSuiteSlug.includes("_")
+                        ? `/tests/${runSuiteSlug}/run`
+                        : `/tests/${productId}`,
+                }}
                 className="inline-flex items-center justify-center gap-1.5 h-11 rounded-full border border-border/60 bg-glass text-sm hover:bg-secondary/40 transition"
               >
                 <Lock className="h-4 w-4" /> 输入兑换码

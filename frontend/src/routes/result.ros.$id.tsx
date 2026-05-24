@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate, useParams } from "@tanstack/react-router";
+import { createFileRoute, Link, useParams } from "@tanstack/react-router";
 import { motion, AnimatePresence } from "framer-motion";
 import { useEffect, useState } from "react";
 import {
@@ -12,6 +12,7 @@ import { formatApiErrorMessage } from "@/lib/apiErrors";
 import { mapApiSingleToRosResult } from "@/lib/mapRosResult";
 import { lovecompassApi } from "@/lib/lovecompassApi";
 import { AuthChecking, useRequireAuth } from "@/lib/requireAuth";
+import { chatRouteSearch } from "@/lib/chatRouteSearch";
 
 export const Route = createFileRoute("/result/ros/$id")({
   ssr: false,
@@ -36,7 +37,6 @@ function healthColor(v: number) {
 const WIcons = { sun: Sun, "cloud-sun": CloudSun, cloud: Cloud, "cloud-rain": CloudRain, "cloud-lightning": CloudLightning };
 
 function RosResultPage() {
-  const nav = useNavigate();
   const { id } = useParams({ from: "/result/ros/$id" });
   const { pending: authPending } = useRequireAuth();
   const [loading, setLoading] = useState(true);
@@ -80,6 +80,11 @@ function RosResultPage() {
   const inviteUrl = typeof window !== "undefined" ? `${window.location.origin}/ros/invite/${r.code}` : `/ros/invite/${r.code}`;
 
   const copy = (text: string, msg: string) => navigator.clipboard.writeText(text).then(() => toast.success(msg)).catch(() => toast.error("复制失败"));
+
+  const shareReport = () => {
+    const url = typeof window !== "undefined" ? window.location.href : `/result/ros/${id}`;
+    copy(url, "报告链接已复制");
+  };
 
   return (
     <main className="relative min-h-screen" style={{ background: "#0c0e11" }}>
@@ -207,19 +212,25 @@ function RosResultPage() {
 
         {/* 底部 CTA */}
         <section className="grid grid-cols-2 gap-3">
-          <button onClick={() => nav({ to: "/chat" })}
+          <Link
+            to="/chat"
+            search={chatRouteSearch(id)}
             className="rounded-2xl p-4 text-left hover:bg-white/[0.04] transition"
-            style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.08)" }}>
+            style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.08)" }}
+          >
             <Bot className="h-5 w-5 mb-2" style={{ color: "#a5a8ff" }} />
             <div className="text-sm text-white font-medium">找 AI 分析师</div>
             <div className="text-[11px] text-white/50 mt-0.5">深聊这份报告</div>
-          </button>
-          <button onClick={() => toast.info("分享卡片生成中…")}
+          </Link>
+          <button
+            type="button"
+            onClick={shareReport}
             className="rounded-2xl p-4 text-left hover:bg-white/[0.04] transition"
-            style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.08)" }}>
+            style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.08)" }}
+          >
             <Share2 className="h-5 w-5 mb-2" style={{ color: "#a5a8ff" }} />
-            <div className="text-sm text-white font-medium">生成分享卡片</div>
-            <div className="text-[11px] text-white/50 mt-0.5">一张图带走</div>
+            <div className="text-sm text-white font-medium">复制报告链接</div>
+            <div className="text-[11px] text-white/50 mt-0.5">分享给 TA</div>
           </button>
         </section>
       </div>

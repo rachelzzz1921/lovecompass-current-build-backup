@@ -397,6 +397,17 @@ def _build_ros_result_payload(
     ]
     stage_name = STAGE_NAMES[stage_id - 1] if 1 <= stage_id <= 9 else STAGE_NAMES[3]
     layer_details = _build_layer_details(layer_scores)
+    layers = [
+        {
+            "code": code,
+            "name": ROS_LAYER_LABELS[code],
+            "score": layer_scores.get(code, 0),
+            "displayScore": round(layer_scores.get(code, 0)),
+            "displaySummary": score_band_label(layer_scores.get(code, 0)),
+        }
+        for code in ROS_LAYER_CODES
+    ]
+    display_summaries = {str(item["code"]): str(item["displaySummary"]) for item in layers}
     return {
         "model": "ROS_V3",
         "productSet": "ROS",
@@ -415,16 +426,8 @@ def _build_ros_result_payload(
             "rawScore": raw_index,
         },
         "dims": dims,
-        "layers": [
-            {
-                "code": code,
-                "name": ROS_LAYER_LABELS[code],
-                "score": layer_scores.get(code, 0),
-                "displayScore": round(layer_scores.get(code, 0)),
-                "displaySummary": score_band_label(layer_scores.get(code, 0)),
-            }
-            for code in ROS_LAYER_CODES
-        ],
+        "layers": layers,
+        "display_summaries": display_summaries,
         "layerDetails": layer_details,
         "insights": insights,
         "prescription": {

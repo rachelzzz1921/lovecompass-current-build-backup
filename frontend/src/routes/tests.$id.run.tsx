@@ -3,9 +3,8 @@ import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { HintButton } from "@/components/HintButton";
-import { PRODUCTS } from "@/data/products";
-import { ArrowLeft, ArrowRight, Clock, Sparkles, Eye } from "lucide-react";
 import { toast } from "sonner";
+import { ArrowLeft, ArrowRight, Clock, Sparkles, Eye } from "lucide-react";
 import { QuestionRenderer } from "@/components/questions/QuestionRenderer";
 import { ApiErrorPanel } from "@/components/ApiErrorPanel";
 import { formatApiErrorMessage, getApiErrorHint } from "@/lib/apiErrors";
@@ -13,15 +12,23 @@ import { AuthChecking, safeReturnPath, useRequireAuth } from "@/lib/requireAuth"
 import { hasProductAccess, getPartnerRelationCode } from "@/lib/accessGate";
 import { lovecompassApi } from "@/lib/lovecompassApi";
 import { getRequiredAccessToken } from "@/lib/supabaseSession";
-import { resolveProductId, resolveSuiteSlug } from "@/lib/suiteSlugs";
+import { findProductByRouteId, inferGenderFromSuiteSlug, routeAfterAttemptSubmit, testEntryRouteId, type ProductSet } from "@/lib/resultRoutes";
+import { analyzingProfileForProductId } from "@/lib/analyzingProfiles";
+import { beginPendingAttemptSubmit } from "@/lib/pendingAttemptSubmit";
+import { TEST_RUN_SECTIONS, testRunThemeForProduct } from "@/lib/testRunProfiles";
+import {
+  resolveProductId,
+  resolveSuiteSlug,
+  setStoredMateGender,
+  setStoredRosGender,
+  setStoredSelfGender,
+} from "@/lib/suiteSlugs";
 import type { AnswerDraft, AnswerPayload, ApiQuestion } from "@/lib/questionTypes";
 
 export const Route = createFileRoute("/tests/$id/run")({
   ssr: false,
   component: TestRun,
 });
-
-const SECTIONS = ["序章 · 直觉", "底色 · 依恋", "节奏 · 边界", "回声 · 情绪", "尾声 · 取向"];
 
 function isAnswered(q: ApiQuestion | undefined, payload: AnswerPayload | undefined) {
   if (!q || !payload) return false;
@@ -34,8 +41,15 @@ function isAnswered(q: ApiQuestion | undefined, payload: AnswerPayload | undefin
 function TestRun() {
   const { id } = useParams({ from: "/tests/$id/run" });
   const { pending: authPending } = useRequireAuth();
-  const product = PRODUCTS.find((p) => p.id === id) ?? PRODUCTS[0];
   const routeSuiteSlug = id;
+  const product = findProductByRouteId(routeSuiteSlug);
+  const productId = resolveProductId(routeSuiteSlug);
+  const productSet: ProductSet =
+    productId === "ros" ? "ROS" : productId === "mate" ? "MATE" : "SELF";
+  const analyzingProfile = analyzingProfileForProductId(productId);
+  const runTheme = testRunThemeForProduct(productId);
+  const sections = TEST_RUN_SECTIONS[productId];
+  const testEntryId = testEntryRouteId(routeSuiteSlug);
   const nav = useNavigate();
 
   const [idx, setIdx] = useState(0);
@@ -53,6 +67,23 @@ function TestRun() {
   useEffect(() => {
     if (authPending) return;
     const productId = resolveProductId(routeSuiteSlug);
+
+    if (productId === "ros" && !routeSuiteSlug.includes("_")) {
+      void nav({ to: "/ros/start" });
+      return;
+    }
+    if ((productId === "mate" || productId === "self") && !routeSuiteSlug.includes("_")) {
+      void nav({ to: "/tests/$id", params: { id: productId } });
+      return;
+    }
+
+    const slugGender = inferGenderFromSuiteSlug(routeSuiteSlug);
+    if (slugGender) {
+      if (productId === "ros") setStoredRosGender(slugGender);
+      if (productId === "mate") setStoredMateGender(slugGender);
+      if (productId === "self") setStoredSelfGender(slugGender);
+    }
+
     const storedSuiteSlug =
       typeof window !== "undefined" ? window.sessionStorage.getItem(`suite:${productId}`) : null;
     const suiteSlug = resolveSuiteSlug({
@@ -65,13 +96,18 @@ function TestRun() {
       setAccessChecked(true);
       return;
     }
+    if (productId === "ros" && !hasProductAccess(productId, suiteSlug)) {
+      toast.info("请先完成 ROS 入门流程（兑换码 · 版本 · 阶段）");
+      void nav({ to: "/ros/start" });
+      return;
+    }
     if (!hasProductAccess(productId, suiteSlug)) {
       toast.info("请先输入兑换码解锁本题库");
       void nav({
         to: "/access",
         search: {
           product: productId,
-          redirect: `/tests/${routeSuiteSlug}/run`,
+          redirect: `/tests/${productId}`,
         },
       });
       return;
@@ -129,7 +165,7 @@ function TestRun() {
     [answers, questions],
   );
   const sectionIdx =
-    total > 0 ? Math.min(SECTIONS.length - 1, Math.floor((idx / total) * SECTIONS.length)) : 0;
+    total > 0 ? Math.min(sections.length - 1, Math.floor((idx / total) * sections.length)) : 0;
   const pct = total > 0 ? Math.round((answeredCount / total) * 100) : 0;
   const mm = String(Math.floor(seconds / 60)).padStart(2, "0");
   const ss = String(seconds % 60).padStart(2, "0");
@@ -167,7 +203,6 @@ function TestRun() {
       return;
     }
     markDuration(q.id);
-    setFinishing(true);
     try {
       await getRequiredAccessToken();
       const payload: AnswerDraft[] = questions.map((item) => ({
@@ -192,27 +227,40 @@ function TestRun() {
           : null;
       const partnerRelationCode =
         productId === "ros" ? getPartnerRelationCode() : null;
-      const res = await lovecompassApi.submitAttempt({
-        suiteSlug,
-        redemptionEventId: partnerRelationCode ? null : redemptionEventId,
-        partnerRelationCode,
-        answers: payload,
-      });
-      if (res.relationCode && typeof window !== "undefined") {
-        sessionStorage.setItem("ros:myCode", res.relationCode);
-      }
-      if (productId === "ros") {
-        if (partnerRelationCode) {
-          void nav({
-            to: "/result/ros/couple/$code",
-            params: { code: partnerRelationCode },
-          });
+      if (!partnerRelationCode && !redemptionEventId) {
+        toast.error("请先输入兑换码解锁本题库");
+        if (productId === "ros") {
+          void nav({ to: "/ros/start" });
         } else {
-          void nav({ to: "/result/ros/$id", params: { id: res.attemptId } });
+          void nav({
+            to: "/access",
+            search: { product: productId, redirect: `/tests/${productId}` },
+          });
         }
         return;
       }
-      nav({ to: "/analyzing", search: { attemptId: res.attemptId } });
+
+      if (partnerRelationCode) {
+        setFinishing(true);
+        const res = await lovecompassApi.submitAttempt({
+          suiteSlug,
+          redemptionEventId: null,
+          partnerRelationCode,
+          answers: payload,
+        });
+        void nav(routeAfterAttemptSubmit(res, { partnerRelationCode, productSet }));
+        return;
+      }
+
+      const submitPromise = lovecompassApi.submitAttempt({
+        suiteSlug,
+        redemptionEventId,
+        partnerRelationCode: null,
+        answers: payload,
+      });
+
+      beginPendingAttemptSubmit({ promise: submitPromise, productSet });
+      void nav({ to: "/analyzing", search: { productSet, pending: true } });
     } catch (e) {
       setFinishing(false);
       const msg = (e as Error).message || "提交失败，请稍后再试";
@@ -242,7 +290,7 @@ function TestRun() {
         title={error ? "题目加载失败" : "未找到可作答的题目"}
         message={error ?? "请返回测试详情页重新选择性别或兑换码。"}
         onRetry={error ? () => setReloadKey((k) => k + 1) : undefined}
-        backTo={{ to: "/tests/$id", params: { id: product.id }, label: "返回测试详情" }}
+        backTo={{ to: "/tests/$id", params: { id: testEntryId }, label: "返回测试详情" }}
       />
     );
   }
@@ -253,12 +301,14 @@ function TestRun() {
         <div className="flex items-center justify-between mb-5">
           <Link
             to="/tests/$id"
-            params={{ id: routeSuiteSlug }}
+            params={{ id: testEntryId }}
             className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition"
           >
             <ArrowLeft className="h-3.5 w-3.5" /> 退出
           </Link>
-          <span className="chip chip-violet font-mono">{product.code}</span>
+          <span className={`chip ${runTheme.chipClass} font-mono`} style={runTheme.chipStyle}>
+            {product.code}
+          </span>
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-mono tabular-nums">
             <Clock className="h-3.5 w-3.5" /> {mm}:{ss}
           </div>
@@ -274,7 +324,7 @@ function TestRun() {
         </div>
         <div className="h-[3px] rounded-full bg-secondary/50 overflow-hidden mb-5">
           <motion.div
-            className="h-full rounded-full bg-gradient-to-r from-[oklch(0.68_0.18_285)] to-[oklch(0.82_0.14_200)]"
+            className={`h-full rounded-full bg-gradient-to-r ${runTheme.progressClass}`}
             initial={false}
             animate={{ width: `${pct}%` }}
             transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
@@ -282,10 +332,10 @@ function TestRun() {
         </div>
 
         <div className="flex gap-1.5 flex-wrap mb-5">
-          {SECTIONS.map((s, i) => (
+          {sections.map((s, i) => (
             <span
               key={s}
-              className={`text-[10px] font-mono tracking-[0.18em] px-2.5 py-1 rounded-full border transition-all ${i < sectionIdx ? "border-[oklch(0.68_0.18_285_/_0.5)] bg-[oklch(0.50_0.20_285_/_0.12)] text-[oklch(0.85_0.10_285)]" : i === sectionIdx ? "border-[oklch(0.82_0.14_200_/_0.6)] bg-[oklch(0.55_0.16_200_/_0.16)] text-[oklch(0.88_0.10_200)] glow-cyan" : "border-border/60 text-muted-foreground/70"}`}
+              className={`text-[10px] font-mono tracking-[0.18em] px-2.5 py-1 rounded-full border transition-all ${i < sectionIdx ? runTheme.sectionActive : i === sectionIdx ? runTheme.sectionCurrent : runTheme.sectionIdle}`}
             >
               {String(i + 1).padStart(2, "0")} · {s}
             </span>
@@ -296,7 +346,7 @@ function TestRun() {
           {Array.from({ length: total }).map((_, i) => (
             <span
               key={i}
-              className={`h-[5px] rounded-full transition-all duration-300 ${i < idx ? "w-1.5 bg-[oklch(0.68_0.18_285_/_0.7)]" : i === idx ? "w-5 bg-gradient-to-r from-[oklch(0.68_0.18_285)] to-[oklch(0.82_0.14_200)]" : "w-1.5 bg-border/70"}`}
+              className={`h-[5px] rounded-full transition-all duration-300 ${i < idx ? runTheme.dotPast : i === idx ? runTheme.dotCurrent : "w-1.5 bg-border/70"}`}
             />
           ))}
         </div>
@@ -307,14 +357,14 @@ function TestRun() {
             animate={{ opacity: 1, y: 0 }}
             className="text-center py-16 bg-glass-strong rounded-3xl px-6"
           >
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-[oklch(0.68_0.18_285)] to-[oklch(0.82_0.14_200)]">
+            <div className={`inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br ${runTheme.submittingOrbClass}`}>
               <Sparkles className="h-7 w-7 text-[oklch(0.10_0.018_270)] animate-pulse-ring" />
             </div>
-            <p className="mt-6 font-display text-2xl text-gradient-violet">
-              MIRROR 正在生成你的画像…
+            <p className={`mt-6 font-display text-2xl ${runTheme.submittingTitleClass}`}>
+              {analyzingProfile.submittingTitle}
             </p>
             <p className="mt-2 text-xs text-muted-foreground font-mono tracking-[0.2em]">
-              SUBMITTING · SCORING · COMPOSING
+              {analyzingProfile.submittingDetail}
             </p>
           </motion.div>
         ) : (
@@ -338,6 +388,12 @@ function TestRun() {
                 <h2 className="font-display text-[22px] md:text-[26px] leading-snug text-foreground/95">
                   {q.text}
                 </h2>
+                {q.subtitle && (
+                  <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{q.subtitle}</p>
+                )}
+                {q.note && (
+                  <p className="mt-2 text-xs text-muted-foreground/90 leading-relaxed italic">{q.note}</p>
+                )}
                 <QuestionRenderer question={q} value={currentAnswer} onChange={pick} />
               </div>
 
@@ -370,7 +426,7 @@ function TestRun() {
                           ? `还有第 ${firstMissingIdx + 1} 题未完成，请补全后再提交`
                           : undefined
                     }
-                    className="rounded-xl bg-gradient-to-r from-[oklch(0.68_0.18_285)] to-[oklch(0.82_0.14_200)] text-primary-foreground flex-1 md:flex-none inline-flex items-center justify-center px-4 py-2 text-sm font-medium"
+                    className={`${runTheme.buttonClass} flex-1 md:flex-none inline-flex items-center justify-center px-4 py-2 text-sm font-medium`}
                   >
                     生成画像 <Sparkles className="ml-1 h-4 w-4" />
                   </HintButton>
@@ -380,7 +436,7 @@ function TestRun() {
                     blocked={!isAnswered(q, currentAnswer)}
                     blockedHint="请先回答本题后再继续"
                     onClick={() => goTo(Math.min(total - 1, idx + 1))}
-                    className="rounded-xl bg-gradient-to-r from-[oklch(0.68_0.18_285)] to-[oklch(0.82_0.14_200)] text-primary-foreground opacity-100 flex-1 md:flex-none inline-flex items-center justify-center px-4 py-2 text-sm font-medium"
+                    className={`${runTheme.buttonClass} opacity-100 flex-1 md:flex-none inline-flex items-center justify-center px-4 py-2 text-sm font-medium`}
                   >
                     下一题 <ArrowRight className="ml-1 h-4 w-4" />
                   </HintButton>

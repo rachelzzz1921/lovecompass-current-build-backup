@@ -17,6 +17,10 @@ export type QuestionUi = {
   minLabel?: string;
   maxLabel?: string;
   feedback?: Array<{ range: [number, number]; text: string }>;
+  reference?: Array<{ score: number; perception?: string; behavior?: string; desc?: string }>;
+  tierLabels?: Array<{ range: [number, number]; label: string }>;
+  displayMode?: "appearance" | string;
+  footnote?: string;
   items?: Array<{ id: string; text: string }>;
   showOptionKey?: boolean;
 };
@@ -28,6 +32,8 @@ export type ApiQuestion = {
   type: string;
   kind: QuestionKind;
   text: string;
+  subtitle?: string | null;
+  note?: string | null;
   required?: boolean;
   ui: QuestionUi;
   options: QuestionOption[];

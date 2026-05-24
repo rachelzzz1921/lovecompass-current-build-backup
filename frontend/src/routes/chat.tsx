@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { lovecompassApi, type ChatContext } from "@/lib/lovecompassApi";
+import { resultRouteFromSuiteSlug } from "@/lib/resultRoutes";
 import { formatApiErrorMessage } from "@/lib/apiErrors";
 import { AuthChecking, useRequireAuth } from "@/lib/requireAuth";
 import {
@@ -243,7 +244,9 @@ function ChatPage() {
                   {boundAttemptId ? (
                     <button
                       type="button"
-                      onClick={() => nav({ to: "/result/$attemptId", params: { attemptId: boundAttemptId } })}
+                      onClick={() =>
+                        nav(resultRouteFromSuiteSlug(chatContext?.suiteSlug, boundAttemptId))
+                      }
                       className="text-[11px] text-[oklch(0.82_0.14_200)] hover:underline"
                     >
                       查看完整结果页 →

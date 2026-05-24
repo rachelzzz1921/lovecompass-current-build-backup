@@ -1,12 +1,12 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { motion } from "framer-motion";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ArrowLeft, ArrowRight, Heart, KeyRound, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { STAGE_OPTIONS } from "@/data/rosTypes";
-import { markPartnerRosAccess, markProductAccess } from "@/lib/accessGate";
+import { getPartnerRelationCode, hasProductAccess, markPartnerRosAccess, markProductAccess } from "@/lib/accessGate";
 import { formatApiErrorMessage } from "@/lib/apiErrors";
 import { lovecompassApi } from "@/lib/lovecompassApi";
 import { AuthChecking, useRequireAuth } from "@/lib/requireAuth";
@@ -37,6 +37,15 @@ function RosStartPage() {
   const [stage, setStage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (getPartnerRelationCode()) return;
+    if (hasProductAccess("ros")) {
+      setHasCode("no");
+      setStep("gender");
+    }
+  }, []);
+
   const beginTest = async () => {
     if (!gender || !stage) return;
     setSubmitting(true);
@@ -49,8 +58,18 @@ function RosStartPage() {
         const partnerCode = code.trim().toUpperCase();
         await lovecompassApi.previewRelationCode(partnerCode);
         markPartnerRosAccess(partnerCode, suiteSlug);
+      } else if (hasProductAccess("ros")) {
+        const redemptionEventId =
+          sessionStorage.getItem("redemption:ros") ||
+          sessionStorage.getItem(`redemption:${suiteSlug}`);
+        markProductAccess("ros", suiteSlug, redemptionEventId ?? undefined);
       } else {
-        const res = await lovecompassApi.verifyRedemption({ code: code.trim(), product: "ros" });
+        const res = await lovecompassApi.verifyRedemption({
+          code: code.trim(),
+          product: "ros",
+          suiteSlug,
+          gender,
+        });
         markProductAccess("ros", res.suiteSlug || suiteSlug, res.redemptionEventId);
       }
 

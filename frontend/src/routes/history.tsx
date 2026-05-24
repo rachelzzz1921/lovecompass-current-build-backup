@@ -15,12 +15,14 @@ import { useEffect, useMemo, useState } from "react";
 
 import { lovecompassApi, type PortraitProduct, type UserPortrait } from "@/lib/lovecompassApi";
 import { chatRouteSearch } from "@/lib/chatRouteSearch";
+import { resultRouteForProductSet } from "@/lib/resultRoutes";
 import {
   SELF_DIMENSIONS,
   normalizeDimensionScore,
   scoreDisplaySummary,
 } from "@/data/selfSuiteSpec";
 import { formatApiErrorMessage, getApiErrorHint } from "@/lib/apiErrors";
+import { portraitHeadline, portraitIndexLabel, portraitMetaLine } from "@/lib/portraitDisplay";
 import { AuthChecking, useRequireAuth } from "@/lib/requireAuth";
 
 export const Route = createFileRoute("/history")({
@@ -48,10 +50,10 @@ const ACCENT = {
     bar: "from-[oklch(0.82_0.14_200)] to-[oklch(0.55_0.16_200)]",
   },
   mate: {
-    chip: "chip-violet",
-    ring: "from-[oklch(0.72_0.18_360)] to-[oklch(0.55_0.20_355)]",
-    text: "text-gradient-violet",
-    bar: "from-[oklch(0.72_0.18_360)] to-[oklch(0.55_0.20_355)]",
+    chip: "font-mono",
+    ring: "from-[#f472b6] to-[#fb7185]",
+    text: "text-transparent bg-clip-text bg-gradient-to-r from-[#f9a8d4] to-[#fb7185]",
+    bar: "from-[#f472b6] to-[#fb7185]",
   },
 } as const;
 
@@ -401,8 +403,7 @@ function OverviewHero({
           </Link>
           {primaryAttemptId && (
             <Link
-              to="/result/$attemptId"
-              params={{ attemptId: primaryAttemptId }}
+              {...resultRouteForProductSet(primary.productSet ?? "SELF", primaryAttemptId)}
               className="flex items-center justify-between gap-2 rounded-xl px-4 py-3 border border-border/60 bg-secondary/30 hover:border-[oklch(0.82_0.14_200_/_0.55)] transition text-sm"
             >
               <span className="flex items-center gap-2">
@@ -434,7 +435,20 @@ function ProductSuiteCard({ product, index }: { product: PortraitProduct; index:
       className={`bg-glass rounded-2xl p-5 h-full flex flex-col ${completed ? "" : "opacity-80 border border-dashed border-border/60"}`}
     >
       <div className="flex items-start justify-between gap-2">
-        <span className={`chip ${accent.chip} font-mono text-[10px]`}>{product.code}</span>
+        <span
+          className={`chip ${accent.chip} font-mono text-[10px]`}
+          style={
+            product.id === "mate"
+              ? {
+                  background: "rgba(244,114,182,0.12)",
+                  color: "#f9a8d4",
+                  border: "1px solid rgba(244,114,182,0.35)",
+                }
+              : undefined
+          }
+        >
+          {product.code}
+        </span>
         {completed ? (
           <span className="text-[10px] font-mono text-[oklch(0.78_0.15_165)]">DONE</span>
         ) : (
@@ -447,11 +461,11 @@ function ProductSuiteCard({ product, index }: { product: PortraitProduct; index:
       {completed && latest ? (
         <div className="mt-4 flex-1">
           <div className="text-sm font-medium text-foreground/90">
-            {latest.attachmentType ?? latest.archetypeCode ?? "已完成"}
+            {portraitHeadline(latest, product.productSet)}
           </div>
-          {latest.archetypeCode && latest.attachmentType && (
+          {portraitMetaLine(latest, product.productSet) && (
             <p className="text-[10px] font-mono text-muted-foreground/80 mt-0.5">
-              红楼人格 · {latest.archetypeCode}
+              {portraitMetaLine(latest, product.productSet)}
             </p>
           )}
           {latest.tagline && (
@@ -459,7 +473,7 @@ function ProductSuiteCard({ product, index }: { product: PortraitProduct; index:
           )}
           <div className="mt-3 flex items-center justify-between text-[10px] font-mono text-muted-foreground">
             <span>{formatDate(latest.completedAt)}</span>
-            {latest.index != null && <span className="text-foreground/80">指数 {latest.index}</span>}
+            {latest.index != null && <span className="text-foreground/80">{portraitIndexLabel(product.productSet)} {latest.index}</span>}
           </div>
           {product.attemptCount > 1 && (
             <p className="text-[10px] text-muted-foreground mt-2">共 {product.attemptCount} 次记录</p>
@@ -478,12 +492,7 @@ function ProductSuiteCard({ product, index }: { product: PortraitProduct; index:
       <div className="mt-4 pt-3 border-t border-border/40">
         {completed && latest?.attemptId ? (
           <Link
-            to={product.id === "ros" ? "/result/ros/$id" : "/result/$attemptId"}
-            params={
-              product.id === "ros"
-                ? { id: latest.attemptId }
-                : { attemptId: latest.attemptId }
-            }
+            {...resultRouteForProductSet(product.productSet, latest.attemptId)}
             className="text-xs font-mono tracking-wider flex items-center gap-1.5 text-foreground/80 hover:text-foreground"
           >
             查看报告 <ArrowRight className="h-3 w-3" />
@@ -601,8 +610,7 @@ function TimelineSection({ portrait }: { portrait: UserPortrait }) {
                         className={`absolute -left-[26px] md:-left-[34px] top-5 w-3 h-3 rounded-full bg-gradient-to-br ${accent.ring}`}
                       />
                       <Link
-                        to="/result/$attemptId"
-                        params={{ attemptId: item.attemptId }}
+                        {...resultRouteForProductSet(set, item.attemptId)}
                         className="block group"
                       >
                         <div className="bg-glass rounded-2xl p-5 transition-all hover:translate-y-[-2px] hover:glow-violet">
@@ -619,23 +627,23 @@ function TimelineSection({ portrait }: { portrait: UserPortrait }) {
                                 )}
                               </div>
                               <h3 className={`font-display text-xl mt-2 ${accent.text}`}>
-                                {item.attachmentType ?? item.archetypeCode ?? "关系画像"}
+                                {portraitHeadline(item, set)}
                               </h3>
                               {item.tagline && (
                                 <p className="text-xs text-muted-foreground italic mt-0.5">
                                   「{item.tagline}」
                                 </p>
                               )}
-                              {item.archetypeCode && item.attachmentType && (
+                              {portraitMetaLine(item, set) && (
                                 <p className="text-[11px] font-mono text-muted-foreground/80 mt-1">
-                                  红楼人格 · {item.archetypeCode}
+                                  {portraitMetaLine(item, set)}
                                 </p>
                               )}
                             </div>
                             {item.index != null && (
                               <div className="text-right shrink-0">
                                 <div className="font-display text-3xl tabular-nums">{item.index}</div>
-                                <div className="text-[10px] font-mono text-muted-foreground">INDEX</div>
+                                <div className="text-[10px] font-mono text-muted-foreground">{portraitIndexLabel(set)}</div>
                               </div>
                             )}
                           </div>

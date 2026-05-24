@@ -8,6 +8,19 @@ import { ArrowLeft, Lock, KeyRound, Sparkles, ShieldCheck, Mail } from "lucide-r
 import { PRODUCTS } from "@/data/products";
 import { markProductAccess } from "@/lib/accessGate";
 import { lovecompassApi } from "@/lib/lovecompassApi";
+import {
+  getStoredMateGender,
+  getStoredRosGender,
+  getStoredSelfGender,
+  MATE_SUITE_SLUGS,
+  resolveProductId,
+  resolveSuiteSlug,
+  setStoredMateGender,
+  setStoredSelfGender,
+  SELF_SUITE_SLUGS,
+  type MateGender,
+  type SelfGender,
+} from "@/lib/suiteSlugs";
 import { getApiErrorHint } from "@/lib/apiErrors";
 import { AuthChecking, useRequireAuth } from "@/lib/requireAuth";
 
@@ -41,7 +54,13 @@ function AccessPage() {
   const product = PRODUCTS.find((p) => p.id === search.product) ?? PRODUCTS[0];
   const [code, setCode] = useState("");
   const [verifying, setVerifying] = useState(false);
+  const [selfGender, setSelfGender] = useState<SelfGender | null>(() => getStoredSelfGender());
+  const [mateGender, setMateGender] = useState<MateGender | null>(() => getStoredMateGender());
   const inputRef = useRef<HTMLInputElement | null>(null);
+
+  const needsGenderPick = product.id === "self" || product.id === "mate";
+  const pickedGender =
+    product.id === "self" ? selfGender : product.id === "mate" ? mateGender : getStoredRosGender();
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -53,19 +72,52 @@ function AccessPage() {
       toast.error("请输入完整的兑换码");
       return;
     }
+    if (needsGenderPick && !pickedGender) {
+      toast.error("请先选择「女性版」或「男性版」题库");
+      return;
+    }
     setVerifying(true);
     try {
-      const res = await lovecompassApi.verifyRedemption({ code: normalized, product: product.id });
-      const suiteSlug = res.suiteSlug || product.id;
-      markProductAccess(product.id, suiteSlug, res.redemptionEventId);
-      toast.success("解锁成功，正在进入测试…");
-      const target = search.redirect ?? res.redirect;
-      if (target?.includes("/run")) {
-        const slug = target.match(/\/tests\/([^/]+)\/run/)?.[1] ?? suiteSlug;
-        nav({ to: "/tests/$id/run", params: { id: slug } });
-      } else {
-        nav({ to: "/tests/$id/run", params: { id: suiteSlug } });
+      if (product.id === "self" && selfGender) setStoredSelfGender(selfGender);
+      if (product.id === "mate" && mateGender) setStoredMateGender(mateGender);
+      const gender =
+        product.id === "self"
+          ? selfGender
+          : product.id === "ros"
+            ? getStoredRosGender()
+            : mateGender;
+      const suiteSlug = resolveSuiteSlug({
+        productId: product.id,
+        routeId: product.id,
+        sessionSuiteSlug: sessionStorage.getItem(`suite:${product.id}`),
+      });
+      const res = await lovecompassApi.verifyRedemption({
+        code: normalized,
+        product: product.id,
+        suiteSlug,
+        gender: gender ?? undefined,
+      });
+      const verifiedSuiteSlug = res.suiteSlug || suiteSlug;
+      const productId = resolveProductId(verifiedSuiteSlug);
+      markProductAccess(productId, verifiedSuiteSlug, res.redemptionEventId);
+      toast.success("解锁成功");
+
+      if (productId === "ros") {
+        nav({ to: "/ros/start" });
+        return;
       }
+
+      const target = search.redirect;
+      if (target?.includes("/run") && pickedGender) {
+        const slug =
+          productId === "mate"
+            ? MATE_SUITE_SLUGS[pickedGender as MateGender]
+            : SELF_SUITE_SLUGS[pickedGender as SelfGender];
+        nav({ to: "/tests/$id/run", params: { id: slug } });
+        return;
+      }
+
+      nav({ to: "/tests/$id", params: { id: productId } });
     } catch (e) {
       const msg = (e as Error).message || "兑换码无效或已被使用";
       toast.error(msg, { description: getApiErrorHint(msg) ?? undefined });
@@ -116,6 +168,36 @@ function AccessPage() {
             兑换码用于解锁 <span className="text-foreground/90">{product.title}</span>
             。验证通过后会绑定真实测试套件，并保留本次兑换事件用于答题提交。
           </p>
+
+          {needsGenderPick && (
+            <div className="mt-8 rounded-2xl border border-border/50 bg-secondary/20 p-4 space-y-3">
+              <div className="text-[10px] font-mono tracking-[0.3em] text-muted-foreground">
+                选择题库版本
+              </div>
+              <div className="grid grid-cols-2 gap-2.5">
+                {(["female", "male"] as const).map((gender) => {
+                  const selected =
+                    product.id === "self" ? selfGender === gender : mateGender === gender;
+                  return (
+                    <button
+                      key={gender}
+                      type="button"
+                      onClick={() =>
+                        product.id === "self" ? setSelfGender(gender) : setMateGender(gender)
+                      }
+                      className={`h-11 rounded-xl border text-sm font-medium transition ${
+                        selected
+                          ? "border-[oklch(0.68_0.18_285_/_0.7)] bg-[oklch(0.50_0.20_285_/_0.12)] text-foreground"
+                          : "border-border/60 bg-glass text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {gender === "female" ? "女性版" : "男性版"}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           <div className="mt-8">
             <div className="flex justify-between items-center mb-3">

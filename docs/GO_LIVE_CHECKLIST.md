@@ -32,7 +32,13 @@ Authentication → **URL Configuration**：
 
 Google Provider 启用后，在 Google Cloud Console 的 Authorized redirect URI 与 Supabase 保持一致。
 
-### 3. 前端 Vercel — 环境变量
+### 3. 前端 Vercel — Root Directory（**必为 `frontend`**）
+
+Settings → General → **Root Directory** 必须是 `frontend`，不能是 `backend` 或仓库根目录。
+
+Settings → Build & Development → **Install Command / Build Command** 留空（由 `frontend/vercel.json` 接管），**不要**填 `pip install` 或 `python scripts/check_env.py`（那是后端命令）。
+
+### 4. 前端 Vercel — 环境变量
 
 | 变量 | 值 |
 |------|-----|
@@ -40,7 +46,7 @@ Google Provider 启用后，在 Google Cloud Console 的 Authorized redirect URI
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon / publishable key |
 | `VITE_LOVECOMPASS_API_BASE_URL` | `https://lovecompass-api-backend.vercel.app` |
 
-### 4. 可选后端变量
+### 5. 可选后端变量
 
 | 变量 | 说明 |
 |------|------|
@@ -76,3 +82,4 @@ FRONTEND_URL=https://lovecompass-web.vercel.app ./scripts/smoke-production.sh
 | Google 404 | 旧版回调 `/auth/callback` 未部署 | 拉最新代码 redeploy；Supabase 加 `/auth**` |
 | 没进兑换码页 | 旧版 self=free 或未 redeploy | 拉最新 frontend redeploy |
 | 点「开始」无反应 | 旧版 disabled 按钮 | 最新版会 toast + 跳转登录/兑换 |
+| 前端构建跑 `pip install` | Root Directory 错选 `backend`，或 Build 设置误填后端命令 | Root 改为 `frontend`；清空 Install/Build 覆盖项后 Redeploy |

@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
+    "build:vercel": "node scripts/check-env.mjs && NITRO_PRESET=vercel npm run build",
+    "vercel-build": "npm run build:vercel",
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "lint": "eslint .",

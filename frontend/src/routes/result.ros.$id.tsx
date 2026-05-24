@@ -195,7 +195,7 @@ function RosResultPage() {
           <div className="text-[10px] tracking-[0.3em] font-mono text-white/40">YOUR CODE</div>
           <div className="font-mono text-xl tracking-[0.25em] text-white mt-1">{r.code}</div>
           <p className="text-xs text-white/55 mt-2 leading-relaxed">
-            把这个码发给 TA，做完 TA 那一侧的 60 题后，你们会同时解锁完整双人报告。
+            把这个码发给 TA，做完 TA 那一侧的 62 题后，你们会同时解锁完整双人报告。
           </p>
           <div className="grid grid-cols-2 gap-2 mt-4">
             <button onClick={() => copy(r.code, "关系码已复制")}

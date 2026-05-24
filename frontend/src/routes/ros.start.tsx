@@ -104,7 +104,7 @@ function RosStartPage() {
           <span className="chip chip-violet font-mono inline-flex">CHAPTER · 02</span>
           <h1 className="font-display text-4xl md:text-5xl mt-4 text-gradient-violet">你们之间，到底怎么样</h1>
           <p className="text-muted-foreground mt-4 text-sm leading-relaxed">
-            心里有一个具体的人才能作答。60 题 + 2 道校准，约 12 分钟。
+            心里有一个具体的人才能作答。62 题（含 2 道校准），约 12 分钟。
             <br />
             五层结构：吸引 · 互动 · 兼容 · 走向 · 风险。
           </p>
@@ -189,7 +189,7 @@ function RosStartPage() {
             </div>
             <Button disabled={!stage || submitting} onClick={() => void beginTest()}
               className="w-full h-12 bg-gradient-to-r from-[oklch(0.55_0.20_285)] to-[oklch(0.50_0.18_200)] text-white">
-              {submitting ? "准备中…" : "开始 60 题"} <ArrowRight className="h-4 w-4 ml-2" />
+              {submitting ? "准备中…" : "开始 62 题"} <ArrowRight className="h-4 w-4 ml-2" />
             </Button>
           </motion.div>
         )}

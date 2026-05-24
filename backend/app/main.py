@@ -27,6 +27,7 @@ from app.chat_prompt_layers import assess_crisis, build_crisis_response, triage_
 from app.admin import router as admin_router
 from app.core_traits import attach_core_traits_to_payload
 from app.profile_center import rebuild_and_cache_portrait
+from app.report_utils import looks_like_placeholder_report
 from app.ros_router import create_relation_session, link_partner_to_session
 from app.ros_router import router as ros_router
 from app.ros_scoring import is_ros_suite, summarize_ros_scores
@@ -67,7 +68,6 @@ app.add_middleware(
 )
 
 REPORT_PROMPT_VERSION = "self_v1_red_chamber_20260523"
-REPORT_PLACEHOLDER_MARKERS = ("正式 AI 深度报告可由后台任务继续生成", "【AI 占位回复】", "【智谱未配置】")
 
 
 def _safe_uuid(value: str, field_name: str = "attemptId") -> uuid.UUID:
@@ -231,10 +231,6 @@ def _fallback_report_from_attempt(attempt: dict[str, Any]) -> tuple[str, str, di
     return report, summary, payload
 
 
-def _looks_like_placeholder(report: str | None) -> bool:
-    if not report:
-        return True
-    return any(marker in report for marker in REPORT_PLACEHOLDER_MARKERS)
 
 class AnswerIn(BaseModel):
     questionId: str
@@ -717,7 +713,7 @@ def generate_attempt_report(attempt_id: str, refresh: bool = False, user_id: str
             """,
             (attempt_id,),
         ).fetchone()
-        if existing and existing["status"] == "succeeded" and not refresh and not _looks_like_placeholder(attempt.get("ai_report")):
+        if existing and existing["status"] == "succeeded" and not refresh and not looks_like_placeholder_report(attempt.get("ai_report")):
             content = (existing.get("report_payload") or {}).get("content") or attempt.get("ai_report")
             return {
                 "report": {
@@ -740,7 +736,7 @@ def generate_attempt_report(attempt_id: str, refresh: bool = False, user_id: str
         error_message = None
         try:
             content = get_ai_adapter().generate(prompt).strip()
-            if _looks_like_placeholder(content):
+            if looks_like_placeholder_report(content):
                 content, summary, fallback_payload = fallback_suite_report(dict(attempt))
                 generation_mode = "deterministic_fallback"
             else:

@@ -9,7 +9,7 @@ import {
   type ProductSet,
 } from "@/lib/resultRoutes";
 import { resolveAnalyzingProfile, type AnalyzingProfile } from "@/lib/analyzingProfiles";
-import { takePendingAttemptSubmit } from "@/lib/pendingAttemptSubmit";
+import { takePendingAttemptSubmit, takeStashedSubmitResult } from "@/lib/pendingAttemptSubmit";
 import { formatApiErrorMessage } from "@/lib/apiErrors";
 import { ApiErrorPanel } from "@/components/ApiErrorPanel";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -51,6 +51,7 @@ function AnalyzingPage() {
   const [resolvedProductSet, setResolvedProductSet] = useState<ProductSet | null>(
     searchProductSet ?? null,
   );
+  const [submitNext, setSubmitNext] = useState<string | null>(null);
   const [resolvedAttemptId, setResolvedAttemptId] = useState<string | null>(
     initialAttemptId ?? null,
   );
@@ -79,6 +80,19 @@ function AnalyzingPage() {
 
     if (searchPending) {
       const ctx = takePendingAttemptSubmit();
+      const stashed = ctx ? null : takeStashedSubmitResult();
+      if (!ctx && stashed) {
+        if (stashed.relationCode && typeof window !== "undefined") {
+          sessionStorage.setItem("ros:myCode", stashed.relationCode);
+        }
+        setResolvedAttemptId(stashed.attemptId);
+        if (stashed.productSet === "ROS" || stashed.productSet === "MATE" || stashed.productSet === "SELF") {
+          setResolvedProductSet(stashed.productSet);
+        }
+        setSubmitNext(stashed.next ?? null);
+        setWorkState("ready");
+        return;
+      }
       if (!ctx) {
         setWorkState("error");
         setErrorMessage("分析会话已过期，请返回测试页重新提交。");
@@ -96,6 +110,7 @@ function AnalyzingPage() {
           if (res.productSet === "ROS" || res.productSet === "MATE" || res.productSet === "SELF") {
             setResolvedProductSet(res.productSet);
           }
+          setSubmitNext(res.next ?? null);
           setWorkState("ready");
         })
         .catch((e: unknown) => {
@@ -186,8 +201,8 @@ function AnalyzingPage() {
       await new Promise((resolve) => setTimeout(resolve, 380));
       if (cancelled) return;
 
-      const explicit = parseBackendNextPath(to ?? undefined);
-      if (explicit && !resolvedAttemptId) {
+      const explicit = parseBackendNextPath(to ?? submitNext ?? undefined);
+      if (explicit) {
         void nav(explicit);
         return;
       }
@@ -220,6 +235,7 @@ function AnalyzingPage() {
     to,
     resolvedAttemptId,
     resolvedProductSet,
+    submitNext,
     searchProductSet,
   ]);
 

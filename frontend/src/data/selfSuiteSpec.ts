@@ -137,6 +137,38 @@ export const CHARACTER_EMOJI: Record<string, string> = {
   蒋玉菡: "🎵",
 };
 
+/** 套一 result_types × attachment_type（纠正旧数据把人物名写入 attachment 的情况） */
+export const ATTACHMENT_BY_CHARACTER: Record<string, string> = {
+  薛宝钗: "安全型",
+  林黛玉: "焦虑型",
+  妙玉: "回避型",
+  史湘云: "混合型",
+  王熙凤: "高边界安全型",
+  袭人: "低自我高投入型",
+  贾探春: "安全型",
+  贾宝玉: "焦虑型",
+  柳湘莲: "回避型",
+  贾雨村: "混合型",
+  北静王: "高边界安全型",
+  蒋玉菡: "低自我高投入型",
+};
+
+export function isRedChamberCharacter(value: string): boolean {
+  return Object.prototype.hasOwnProperty.call(CHARACTER_EMOJI, value.trim());
+}
+
+/** Hero 主结果必须是依恋类型，不能是红楼人物名 */
+export function resolvePrimaryAttachmentType(
+  attachmentRaw: string | undefined | null,
+  characterCode: string | undefined | null,
+): string {
+  const raw = String(attachmentRaw ?? "").trim();
+  if (raw && !isRedChamberCharacter(raw)) return raw;
+  const code = String(characterCode ?? "").trim();
+  if (code && ATTACHMENT_BY_CHARACTER[code]) return ATTACHMENT_BY_CHARACTER[code];
+  return "独特关系模式";
+}
+
 /** 套一 `tabDetails.behaviorSimulation.scenes` × 依恋类型行为倾向 */
 export const BEHAVIORS_BY_ATTACHMENT: Record<
   string,

@@ -236,8 +236,8 @@ def summarize_scores(
     archetype_code, attachment_type = _primary_archetype_from_scores(dimension_scores, gender)
     result_payload = _build_result_payload(dimension_scores, archetype_code, attachment_type)
     ai_report = (
-        f"## 你的自我关系画像：{archetype_code}\n\n"
-        f"系统已依据 SELF 六维模型完成基础评分。当前依恋类型判断为 **{attachment_type}**。"
+        f"## 你的自我关系画像：{attachment_type}\n\n"
+        f"系统已依据 SELF 六维模型完成基础评分。你的红楼人格原型为 **{archetype_code}**，可在结果页「红楼人格」Tab 揭晓。"
         "正式 AI 深度报告可由后台任务继续生成。"
     )
     return {

@@ -348,11 +348,15 @@ function OverviewHero({
           {hasSelf ? (
             <>
               <div className="font-display text-3xl md:text-4xl mt-2 text-foreground/95">
-                {selfProfile.archetypeCode ?? primary.archetypeCode ?? "关系画像"}
+                {selfProfile.attachmentType ?? primary.attachmentType ?? "关系画像"}
               </div>
               <p className="text-sm text-muted-foreground mt-1">
-                {selfProfile.attachmentType ? `${selfProfile.attachmentType} · ` : ""}
                 {selfProfile.tagline ? `「${selfProfile.tagline}」` : "基于套一 SELF 六维模型"}
+                {(selfProfile.archetypeCode ?? primary.archetypeCode) && (
+                  <span className="block mt-1 text-xs font-mono tracking-wider text-muted-foreground/80">
+                    红楼人格 · {selfProfile.archetypeCode ?? primary.archetypeCode}
+                  </span>
+                )}
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 {completeness.breakdown.map((item) => (
@@ -369,7 +373,7 @@ function OverviewHero({
             <>
               <div className="font-display text-2xl mt-2 text-foreground/90">等待第一套测评</div>
               <p className="text-sm text-muted-foreground mt-1">
-                完成 SELF 后，你的红楼人格原型与依恋类型会出现在这里。
+                完成 SELF 后，你的依恋类型会出现在这里；红楼人格可在结果页「红楼人格」Tab 揭晓。
               </p>
             </>
           )}
@@ -443,8 +447,13 @@ function ProductSuiteCard({ product, index }: { product: PortraitProduct; index:
       {completed && latest ? (
         <div className="mt-4 flex-1">
           <div className="text-sm font-medium text-foreground/90">
-            {latest.archetypeCode ?? "已完成"}
+            {latest.attachmentType ?? latest.archetypeCode ?? "已完成"}
           </div>
+          {latest.archetypeCode && latest.attachmentType && (
+            <p className="text-[10px] font-mono text-muted-foreground/80 mt-0.5">
+              红楼人格 · {latest.archetypeCode}
+            </p>
+          )}
           {latest.tagline && (
             <p className="text-xs text-muted-foreground italic mt-1 line-clamp-2">「{latest.tagline}」</p>
           )}
@@ -606,16 +615,16 @@ function TimelineSection({ portrait }: { portrait: UserPortrait }) {
                                 )}
                               </div>
                               <h3 className={`font-display text-xl mt-2 ${accent.text}`}>
-                                {item.archetypeCode ?? "关系画像"}
+                                {item.attachmentType ?? item.archetypeCode ?? "关系画像"}
                               </h3>
                               {item.tagline && (
                                 <p className="text-xs text-muted-foreground italic mt-0.5">
                                   「{item.tagline}」
                                 </p>
                               )}
-                              {item.attachmentType && (
-                                <p className="text-[11px] text-muted-foreground mt-1">
-                                  {item.attachmentType}
+                              {item.archetypeCode && item.attachmentType && (
+                                <p className="text-[11px] font-mono text-muted-foreground/80 mt-1">
+                                  红楼人格 · {item.archetypeCode}
                                 </p>
                               )}
                             </div>

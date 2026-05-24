@@ -14,6 +14,7 @@ import {
   MATCH_BY_ATTACHMENT,
   normalizeDimensionScore,
   positiveFramingForAttachment,
+  resolvePrimaryAttachmentType,
   scoreDisplaySummary,
   SELF_DIMENSION_BY_CODE,
   SELF_DIMENSIONS,
@@ -248,11 +249,33 @@ function heroAttachmentTitle(attachment: string, greyZone: boolean): string {
   return attachment;
 }
 
+export function sanitizeResultReportMarkdown(
+  markdown: string,
+  attachmentType: string,
+  characterCode?: string,
+): string {
+  if (!markdown.trim()) return markdown;
+  let out = markdown;
+  if (characterCode) {
+    out = out.replace(
+      new RegExp(`^##\\s*你的自我关系画像：\\s*${characterCode}\\s*$`, "m"),
+      `## 你的自我关系画像：${attachmentType}`,
+    );
+  }
+  return out.replace(
+    /^##\s*你的自我关系画像：.+$/m,
+    `## 你的自我关系画像：${attachmentType}`,
+  );
+}
+
 export function mapAttemptToSelfResult(input: AttemptResultInput): SelfResult {
   const payload = input.result_payload ?? {};
   const profile = payload.archetype_profile ?? {};
   const name = String(payload.archetype_code ?? input.archetype_code ?? "你的关系画像");
-  const attachment = String(profile.attachment_type ?? payload.attachment_type ?? "独特关系模式");
+  const attachment = resolvePrimaryAttachmentType(
+    profile.attachment_type ?? payload.attachment_type,
+    name,
+  );
   const scores = rawScores(input);
   const greyZone = isAttachmentGreyZone(scores);
   const dimensions = normalizeDimensions(input);

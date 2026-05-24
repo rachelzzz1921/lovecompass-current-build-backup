@@ -5,7 +5,11 @@ import { ApiErrorPanel } from "@/components/ApiErrorPanel";
 import { SelfResultView } from "@/components/SelfResultView";
 import { formatApiErrorMessage } from "@/lib/apiErrors";
 import { AuthChecking, useRequireAuth } from "@/lib/requireAuth";
-import { mapAttemptToSelfResult, type AttemptResultInput } from "@/lib/mapAttemptToSelfResult";
+import {
+  mapAttemptToSelfResult,
+  sanitizeResultReportMarkdown,
+  type AttemptResultInput,
+} from "@/lib/mapAttemptToSelfResult";
 
 export const Route = createFileRoute("/result/$attemptId")({
   ssr: false,
@@ -79,7 +83,16 @@ function ResultPage() {
   }, [attemptId]);
 
   const mapped = useMemo(() => (data ? mapAttemptToSelfResult(data) : null), [data]);
-  const reportMarkdown = report?.content ?? (isPlaceholderReport(data?.ai_report) ? "" : data?.ai_report ?? "");
+  const rawReportMarkdown =
+    report?.content ?? (isPlaceholderReport(data?.ai_report) ? "" : data?.ai_report ?? "");
+  const reportMarkdown = useMemo(() => {
+    if (!rawReportMarkdown || !mapped) return rawReportMarkdown;
+    return sanitizeResultReportMarkdown(
+      rawReportMarkdown,
+      mapped.archetype.name,
+      mapped.character.name,
+    );
+  }, [rawReportMarkdown, mapped]);
 
   if (authPending) return <AuthChecking />;
 

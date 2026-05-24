@@ -25,10 +25,12 @@ db_health="$(curl -fsS "$BACKEND_URL/health?db=1")"
 pass "GET /health?db=1"
 
 config_health="$(curl -fsS "$BACKEND_URL/health?config=1" 2>/dev/null || echo '{}')"
-if [[ "$config_health" == *'"jwtSecret":true'* ]]; then
-  pass "GET /health?config=1 (jwtSecret configured)"
+if [[ "$config_health" == *'"jwtVerifyJwks":true'* ]]; then
+  pass "GET /health?config=1 (JWKS JWT verify ready)"
+elif [[ "$config_health" == *'"jwtSecretLegacy":true'* ]] || [[ "$config_health" == *'"jwtSecret":true'* ]]; then
+  pass "GET /health?config=1 (legacy jwt secret only — prefer SUPABASE_URL for ES256)"
 else
-  printf "  ! GET /health?config=1 — SUPABASE_JWT_SECRET not set yet (login-protected routes will 500)\n"
+  printf "  ! GET /health?config=1 — set SUPABASE_URL on backend for login-protected routes\n"
 fi
 
 echo ""

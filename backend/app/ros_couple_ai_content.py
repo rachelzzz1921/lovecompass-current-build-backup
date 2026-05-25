@@ -124,7 +124,7 @@ def attach_ros_couple_ai_content(
     ai_content = {
         "insights_list": extra.get("insights") or payload.get("insights") or [],
         "layer_compare": payload.get("layerCompare") or {},
-        "assembled_context": context.to_prompt_dict(),
+        "assembled_context": context.to_model_safe_prompt_dict(),
         "mode": mode,
         "cached": False,
         "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -140,5 +140,5 @@ def attach_ros_couple_ai_content(
         payload["shareLine"] = extra["shareLine"]
 
     payload["ai_content"] = ai_content
-    payload["assembledAiContext"] = context.to_prompt_dict()
+    payload["assembledAiContext"] = context.to_model_safe_prompt_dict()
     return payload

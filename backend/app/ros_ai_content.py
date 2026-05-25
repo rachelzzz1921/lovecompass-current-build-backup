@@ -469,7 +469,7 @@ def build_ros_ai_content(
     ai_content: dict[str, Any] = {
         "evidence": evidence,
         "insights": {item["kind"]: {"title": item["title"], "body": item["body"]} for item in insights},
-        "assembled_context": assembled.to_prompt_dict(),
+        "assembled_context": assembled.to_model_safe_prompt_dict(),
         "insights_list": insights,
         "prescription": prescription,
         "layer_expansion": layer_expansion,

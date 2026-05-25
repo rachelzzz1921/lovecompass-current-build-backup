@@ -523,7 +523,7 @@ def build_self_ai_content(
         "traits": traits,
         "insights": insights,
         "growth_path": build_growth_path_text(character, dimension_scores),
-        "assembled_context": assembled.to_prompt_dict(),
+        "assembled_context": assembled.to_model_safe_prompt_dict(),
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "cached": False,
         "status": "ready",
@@ -571,7 +571,7 @@ def enhance_self_ai_for_attempt(
                 "generated_at": datetime.now(timezone.utc).isoformat(),
                 "pattern_key": pattern_key,
             }
-            payload["assembledAiContext"] = assemble_self_context(payload).to_prompt_dict()
+            payload["assembledAiContext"] = assemble_self_context(payload).to_model_safe_prompt_dict()
             return payload
 
     payload["dimension_summaries"] = build_dimension_summaries(scores)
@@ -630,7 +630,7 @@ def attach_self_ai_content_to_payload(
                 "generated_at": datetime.now(timezone.utc).isoformat(),
                 "pattern_key": pattern_key,
             }
-            payload["assembledAiContext"] = assemble_self_context(payload).to_prompt_dict()
+            payload["assembledAiContext"] = assemble_self_context(payload).to_model_safe_prompt_dict()
             return payload
 
     if not payload.get("core_traits"):

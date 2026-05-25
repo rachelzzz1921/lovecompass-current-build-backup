@@ -99,7 +99,7 @@ def attach_mate_couple_ai_content(
         extra, mode = try_enhance_mate_couple_with_ai(context=context, couple_payload=payload)
 
     ai_content = {
-        "assembled_context": context.to_prompt_dict(),
+        "assembled_context": context.to_model_safe_prompt_dict(),
         "mode": mode,
         "cached": False,
         "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -115,5 +115,5 @@ def attach_mate_couple_ai_content(
         payload["shareLine"] = extra["share_line"]
 
     payload["ai_content"] = {**(existing if isinstance(existing, dict) else {}), **ai_content}
-    payload["assembledAiContext"] = context.to_prompt_dict()
+    payload["assembledAiContext"] = context.to_model_safe_prompt_dict()
     return payload

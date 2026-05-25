@@ -1,0 +1,273 @@
+{
+    "model_name": "套三（MATE）择偶坐标模型",
+    "basic_positioning": {
+        "core_attribute": "红娘辅助工具",
+        "core_principle": "照镜子，不贴标签",
+        "exclude_attribute": "非心理测试"
+    },
+    "core_definition": {
+        "core_question": "在现实择偶市场里，别人会如何评估你？",
+        "evaluation_dimensions": [
+            "第一眼别人怎么看你",
+            "深入接触后别人怎么感受你",
+            "长期关系里别人是否愿意留下",
+            "你的期待与现实是否匹配"
+        ],
+        "essential_purpose": "帮一个人看清自己的市场位置、匹配区间和关系上限"
+    },
+    "overall_structure": {
+        "framework": "五模块 × 双性别独立模型 × 四象限定位",
+        "gender_feature": "男女结构相似，评估逻辑、权重、题目内容不同",
+        "design_reason": "现实里的筛选机制并不完全对称，模型采用「现实仿真」而非「理论平均」"
+    },
+    "gender_core_logic": {
+        "male": {
+            "core_formula": "资源 × 稳定性 × 情感供给能力",
+            "screening_order": [
+                "能不能托底",
+                "靠不靠得住",
+                "相处舒不舒服",
+                "有没有风险"
+            ],
+            "focus_points": [
+                "现实基础",
+                "稳定感",
+                "上升空间",
+                "情感能力"
+            ]
+        },
+        "female": {
+            "core_formula": "吸引力 × 情感价值 × 现实自主性",
+            "screening_order": [
+                "第一感觉",
+                "相处体验",
+                "现实负担",
+                "长期风险"
+            ],
+            "focus_points": [
+                "吸引力持续性",
+                "情绪价值",
+                "独立程度",
+                "关系成熟度"
+            ]
+        }
+    },
+    "five_modules": [
+        {
+            "module_name": "现实底牌（现实支撑层）",
+            "core_question": "你能不能撑起自己的生活，以及未来的关系",
+            "content": {
+                "male": [
+                    "当下经济基础",
+                    "事业轨道",
+                    "家庭助力情况"
+                ],
+                "female": [
+                    "经济独立程度",
+                    "生活自主能力",
+                    "家庭助力情况"
+                ]
+            }
+        },
+        {
+            "module_name": "稳定与可靠度（长期关系层）",
+            "core_question": "别人能不能放心把关系交给你",
+            "content": {
+                "common": [
+                    "承诺履约度",
+                    "情绪稳定性",
+                    "信息透明度",
+                    "边界感"
+                ]
+            }
+        },
+        {
+            "module_name": "情感价值（相处体验层）",
+            "core_question": "跟你在一起是什么感觉",
+            "content": {
+                "common": [
+                    "趣味与话题质量",
+                    "情绪支持能力",
+                    "安全感供给",
+                    "被需要感"
+                ]
+            }
+        },
+        {
+            "module_name": "门面与市场显示度（第一印象层）",
+            "core_question": "陌生人会不会愿意停下来了解你",
+            "content": {
+                "male": [
+                    "外形管理",
+                    "社交表现",
+                    "带出去的体面感"
+                ],
+                "female": [
+                    "外形管理",
+                    "气质存在感",
+                    "新鲜感持续能力"
+                ]
+            }
+        },
+        {
+            "module_name": "风险净值（避坑层）",
+            "core_question": "身上有没有会让别人犹豫的地方",
+            "content": {
+                "common": [
+                    "过去关系包袱",
+                    "控制与边界问题",
+                    "成长停滞风险",
+                    "家庭干预风险",
+                    "情感依赖风险"
+                ]
+            },
+            "scoring_rule": "反向计分：风险越高，最终得分越低"
+        }
+    ],
+    "score_system": {
+        "calculation_process": [
+            "题目得分",
+            "子维度得分",
+            "模块得分",
+            "横轴+纵轴",
+            "人格定位",
+            "市场分析",
+            "匹配上限/舒适区/风险区"
+        ],
+        "male_coordinate": {
+            "horizontal_axis": {
+                "name": "市场显示度",
+                "meaning": "别人会不会想了解你",
+                "formula": "情感供给 ×50% + 门面社交 ×50%"
+            },
+            "vertical_axis": {
+                "name": "现实支撑力",
+                "meaning": "别人能不能放心留下",
+                "formula": "现实底牌 ×55% + 稳定性 ×30% + (100−风险) ×15%"
+            }
+        },
+        "female_coordinate": {
+            "horizontal_axis": {
+                "name": "吸引显示度",
+                "meaning": "别人会不会被吸引",
+                "formula": "吸引力 ×55% + 情感价值 ×45%"
+            },
+            "vertical_axis": {
+                "name": "长期稳定度",
+                "meaning": "别人会不会想长期发展",
+                "formula": "现实自主 ×60% + (100−风险) ×40%"
+            }
+        }
+    },
+    "four_quadrants": [
+        {
+            "quadrant": "第一象限",
+            "feature": "高显示 × 高支撑",
+            "title": "让人想留下来的人",
+            "keywords": ["稳", "舒服", "长期型"],
+            "characteristics": [
+                "第一印象不错",
+                "深入后越来越加分",
+                "留存率高"
+            ]
+        },
+        {
+            "quadrant": "第二象限",
+            "feature": "低显示 × 高支撑",
+            "title": "被读懂之前的人",
+            "keywords": ["低调", "慢热", "实力在里面"],
+            "characteristics": [
+                "第一印象容易吃亏",
+                "熟悉后价值上涨"
+            ]
+        },
+        {
+            "quadrant": "第三象限",
+            "feature": "低显示 × 低支撑",
+            "title": "还没到时候的人",
+            "keywords": ["在建", "成长中", "时间站在你这边"],
+            "characteristics": [
+                "市场报价低于长期价值",
+                "先建设自己"
+            ]
+        },
+        {
+            "quadrant": "第四象限",
+            "feature": "高显示 × 中支撑",
+            "title": "一眼就懂的人",
+            "keywords": ["辨识度高", "所见即所得"],
+            "characteristics": [
+                "吸引效率高",
+                "但长期深度决定上限"
+            ]
+        }
+    ],
+    "special_types": [
+        {
+            "name": "需要被正确打开的人",
+            "keywords": ["非标准", "个性明显"],
+            "characteristics": "市场窄但深"
+        },
+        {
+            "name": "越了解越值钱的人",
+            "keywords": ["复利型", "长期价值"],
+            "characteristics": "短期低估，长期升值"
+        }
+    ],
+    "sensitive_question_rules": {
+        "core_principle": "能让用户自己给答案，就不要系统替他判断",
+        "female_appearance": {
+            "mode": "滑杆自评",
+            "score_reference": {
+                "5分": "普通人水平",
+                "6分": "有辨识度",
+                "7分": "明显好看",
+                "8分": "前10%",
+                "9分": "前3%",
+                "10分": "极少数"
+            },
+            "output_rule": "不显示具体分数，仅输出文字描述"
+        },
+        "male_wealth": {
+            "mode": "城市相对水平分级",
+            "level": ["A 入门层", "B 基础层", "C 中等层", "D 中上层", "E 优质层", "F 顶端层"],
+            "output_rule": "不显示具体等级，仅输出文字描述"
+        },
+        "education": {
+            "role": "修正项",
+            "rule": "不单独决定价值，结合收入匹配成长路径"
+        }
+    },
+    "human_express_rules": {
+        "score_mapping": [
+            {"score_range": "0–30", "output_text": "有较大的成长空间"},
+            {"score_range": "31–50", "output_text": "正处于发展阶段"},
+            {"score_range": "51–65", "output_text": "表现稳定"},
+            {"score_range": "66–80", "output_text": "是重要资产"},
+            {"score_range": "81–100", "output_text": "是核心竞争力"}
+        ],
+        "risk_expression": "有一些值得认真看一看的地方"
+    },
+    "final_output": {
+        "output_items": [
+            "① 市场画像",
+            "② 匹配上限",
+            "③ 最佳适配区（经济适用区）",
+            "④ 风险区",
+            "⑤ 关系建议"
+        ],
+        "example": {
+            "market_portrait": {
+                "第一印象": "辨识度较高",
+                "现实底牌": "稳定增长型",
+                "情感价值": "陪伴感强",
+                "风险水平": "低风险"
+            },
+            "matching_upper_limit": "你容易进入什么类型人的择偶范围",
+            "best_adaptation_area": "成功概率最高的人群",
+            "risk_area": "容易互相消耗的人群",
+            "relationship_suggestion": "你的问题不是条件不够。而是价值释放速度低于真实价值。"
+        }
+    },
+    "core_summary": "套三不是在问「你配得上谁」，而是在帮人看清：自己在哪个位置、适合什么关系、怎样把自己的真实价值更准确地传递出去。"
+}

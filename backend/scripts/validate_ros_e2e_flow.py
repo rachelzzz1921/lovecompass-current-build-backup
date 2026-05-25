@@ -231,7 +231,10 @@ def main() -> None:
 
     code_preview = _assert_ok(*_request("GET", f"/ros/codes/{relation_code}", token=partner_token), "code_preview")
     assert code_preview.get("invitePath") == f"/ros/invite/{relation_code}", code_preview
-    print({"code_preview": "ok", "status": code_preview.get("status")})
+    if code_preview.get("suiteTier") in ("lite", "full"):
+        print({"code_preview": "ok", "status": code_preview.get("status"), "suiteTier": code_preview.get("suiteTier")})
+    else:
+        print({"code_preview": "warn", "detail": "suiteTier missing — redeploy backend for partner tier sync"})
 
     waiting = _request("GET", f"/ros/couple/{relation_code}", token=initiator_token)
     if waiting[0] == 409 or (waiting[0] >= 400 and "等待" in str(waiting[1])):

@@ -233,6 +233,14 @@ def build_core_traits(
                 "highlight": highlight_key == "highlight",
                 "sourceQuestionId": picked.get("externalId"),
                 "dimensionCode": picked.get("dimension"),
+                "source_dimension": picked.get("dimension"),
+                "evidence": [
+                    {
+                        "question_id": str(picked.get("externalId") or ""),
+                        "question_short": _shorten(str(picked.get("questionText") or picked.get("scene") or ""), 48),
+                        "chosen_label": str(picked.get("evidence") or picked.get("behavior") or "").strip(),
+                    }
+                ],
             }
         )
 

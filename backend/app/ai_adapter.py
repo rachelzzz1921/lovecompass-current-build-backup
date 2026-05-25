@@ -5,7 +5,9 @@ import os
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Any, Protocol
+
+from app.semantic_translation import guard_ai_json, guard_ai_output
 
 
 class AIAdapter(Protocol):
@@ -14,7 +16,7 @@ class AIAdapter(Protocol):
     业务层只依赖 generate(prompt)，不依赖具体模型供应商、SDK、鉴权或响应结构。
     """
 
-    def generate(self, prompt: str) -> str:
+    def generate(self, prompt: str, *, json_mode: bool = False) -> str:
         ...
 
 
@@ -27,9 +29,10 @@ class MockAIAdapter:
 
     prefix: str = "【AI 占位回复】"
 
-    def generate(self, prompt: str) -> str:
+    def generate(self, prompt: str, *, json_mode: bool = False) -> str:
         excerpt = prompt.strip().replace("\n", " ")[:240]
-        return f"{self.prefix} 当前尚未配置正式模型 Key。已收到上下文：{excerpt}"
+        raw = f"{self.prefix} 当前尚未配置正式模型 Key。已收到上下文：{excerpt}"
+        return guard_ai_json(raw) if json_mode else guard_ai_output(raw)
 
 
 @dataclass
@@ -45,16 +48,18 @@ class ZhipuAIAdapter:
     model: str = "glm-4-flash"
     timeout_seconds: int = 45
 
-    def generate(self, prompt: str) -> str:
+    def generate(self, prompt: str, *, json_mode: bool = False) -> str:
         url = self.base_url.rstrip("/") + "/chat/completions"
-        payload = {
+        payload: dict[str, Any] = {
             "model": self.model,
             "messages": [
-                {"role": "system", "content": "你是 LoveCompass 的温柔、克制、专业的婚恋画像分析师。"},
+                {"role": "system", "content": "你是 LoveCompass 婚恋档案导演。后端已完成计算；你只负责基于给定原子与素材表达，禁止重新算分或创造新标签。"},
                 {"role": "user", "content": prompt},
             ],
             "temperature": 0.7,
         }
+        if json_mode:
+            payload["response_format"] = {"type": "json_object"}
         req = urllib.request.Request(
             url,
             data=json.dumps(payload).encode("utf-8"),
@@ -74,9 +79,13 @@ class ZhipuAIAdapter:
             raise RuntimeError(f"智谱 API 网络请求失败：{exc.reason}") from exc
 
         try:
-            return data["choices"][0]["message"]["content"]
+            content = data["choices"][0]["message"]["content"]
         except (KeyError, IndexError, TypeError) as exc:
             raise RuntimeError(f"智谱 API 响应结构不符合预期：{json.dumps(data, ensure_ascii=False)[:500]}") from exc
+
+        if json_mode:
+            return guard_ai_json(content)
+        return guard_ai_output(content)
 
 
 def get_ai_adapter() -> AIAdapter:

@@ -10,20 +10,23 @@
 | 4 | `202605230004_seed_demo_auth_user.sql` | 可选 demo 用户 |
 | 5 | `data/001_import_question_banks.sql` | 套一 SELF 男女题库（大文件） |
 | 6 | **`data/004_import_s02_s03_question_banks.sql`** | **套二 ROS + 套三 MATE 男女题库与 scoring_models（必跑）** |
-| 7 | `data/002_import_redemption_codes_e2e_20260523.sql` | E2E 兑换码（可选） |
-| 8 | `data/003_import_redemption_codes_love_2026.sql` | 正式兑换码批次（可选） |
-| 9 | `202605230005_lovecompass_security_hardening.sql` | 安全加固 |
-| 10 | `202605230006_profiles_portrait_cache.sql` | 画像中心 `portrait_cache` 列 |
-| 11 | `202605240001_lovecompass_counselor_personas.sql` | MIRROR 四位顾问 persona |
-| 12 | `202605240002_universal_redemption_shadow_codes.sql` | 万能码 shadow redemption（`MIRROR-ALL-ACCESS`） |
-| 13 | `202605250001_ros_relation_sessions.sql` | ROS 关系码双人会话表 |
+| 7 | **`data/005_import_lite_question_banks.sql`** | **三套精简版（各 20 题 × 男女 = 6 套件）** |
+| 8 | `data/002_import_redemption_codes_e2e_20260523.sql` | E2E 兑换码（可选） |
+| 9 | `data/003_import_redemption_codes_love_2026.sql` | 正式兑换码批次（可选） |
+| 10 | `202605230005_lovecompass_security_hardening.sql` | 安全加固 |
+| 11 | `202605230006_profiles_portrait_cache.sql` | 画像中心 `portrait_cache` 列 |
+| 12 | `202605240001_lovecompass_counselor_personas.sql` | MIRROR 四位顾问 persona |
+| 13 | `202605240002_universal_redemption_shadow_codes.sql` | 万能码 shadow redemption（`MIRROR-ALL-ACCESS`） |
+| 14 | `202605250001_ros_relation_sessions.sql` | ROS 关系码双人会话表 |
+| 15 | `202605240003_mate_relation_sessions.sql` | MATE 关系码双人会话表（与 ROS 分表，码格式共用） |
+| 16 | `202605250002_self_ai_pattern_cache.sql` | SELF `ai_content` 分数 pattern 缓存 |
 
 ## 目标库状态（三套体系齐全后）
 
 | 项 | 期望值 |
 |----|--------|
-| `test_suites` | 6 行：`s01_self_*`、`s02_ros_*`、`s03_mate_*` |
-| `test_questions` | SELF ~100 + ROS ~120 + MATE ~160（以 import SQL 为准） |
+| `test_suites` | 12 行：完整版 6 + 精简版 6（`*_lite`） |
+| `test_questions` | 完整版 ~380 + 精简版 ~120（以 import SQL 为准） |
 | `scoring_models` | 每套件至少 1 条活跃 `ROS_V3` / SELF 模型 |
 
 ## 校验命令

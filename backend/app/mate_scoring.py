@@ -6,6 +6,9 @@ from pathlib import Path
 from typing import Any
 
 from app.chat_prompt_layers import score_band_label
+from app.mate_engine import apply_v4_position_overrides, enrich_mate_payload_v4
+from app.mate_express import asset_module_label, module_display_label, risk_module_label
+from app.ros_scoring import generate_relation_code
 from app.scoring import _clamp, answer_to_numeric
 
 DATA_DIR = Path(__file__).resolve().parents[1] / "data"
@@ -27,10 +30,27 @@ APPEARANCE_SLIDER_IDS = {
     "male": "MS4-A-M-49",
 }
 
+APPEARANCE_SLIDER_CANDIDATES: dict[str, list[str]] = {
+    "female": ["FS1-A-F-01", "FS1-F-01"],
+    "male": ["MS4-A-M-49", "MS4-M-15"],
+}
+
 APPEARANCE_CALIBRATION_SIGNALS = {
     "FS1-A-F-01": ["FS1-A-F-03", "FS1-A-F-02", "FS1-B-F-12"],
+    "FS1-F-01": ["FS1-F-03", "FS1-F-02", "FS1-F-04"],
     "MS4-A-M-49": ["MS4-A-M-50", "MS4-A-M-53", "MS4-A-M-52"],
+    "MS4-M-15": ["MS4-M-16", "MS4-M-17", "MS4-M-14"],
 }
+
+
+def _resolve_appearance_slider_id(gender: str, question_ids: set[str]) -> str | None:
+    for candidate in APPEARANCE_SLIDER_CANDIDATES.get(gender, []):
+        if candidate in question_ids:
+            return candidate
+    legacy = APPEARANCE_SLIDER_IDS.get(gender)
+    if legacy and legacy in question_ids:
+        return legacy
+    return None
 
 
 def _appearance_asset_label(adjusted_1_10: float) -> str:
@@ -97,7 +117,7 @@ def _apply_appearance_calibration(
     normalized_by_external: dict[str, float],
     numeric_by_external: dict[str, float],
 ) -> tuple[float | None, str | None]:
-    slider_id = APPEARANCE_SLIDER_IDS.get(gender)
+    slider_id = _resolve_appearance_slider_id(gender, set(normalized_by_external))
     if not slider_id:
         return None, None
 
@@ -220,7 +240,7 @@ def _aggregate_sub_and_module_scores(
         numeric_by_external=numeric_by_external,
     )
     appearance_label = None
-    slider_id = APPEARANCE_SLIDER_IDS.get(gender)
+    slider_id = _resolve_appearance_slider_id(gender, set(normalized_by_external))
     if slider_id and slider_id in normalized_by_external:
         adjusted = normalized_by_external[slider_id] / 10
         appearance_label = _appearance_asset_label(adjusted)
@@ -356,13 +376,7 @@ def _stars_from_score(score: float) -> int:
 
 
 def _risk_band(fs5: float) -> str:
-    if fs5 <= 35:
-        return "低风险"
-    if fs5 <= 55:
-        return "中低风险"
-    if fs5 <= 70:
-        return "中等风险"
-    return "需留意"
+    return risk_module_label(fs5)["label"]
 
 
 def _first_impression_label(axis_x: float) -> str:
@@ -611,10 +625,7 @@ def _build_modules_display(module_scores: dict[str, float], scoring_formula: dic
         if score is None:
             continue
         label = str(cfg.get("label") or code)
-        if cfg.get("direction") == "reverse":
-            summary = _risk_band(score)
-        else:
-            summary = score_band_label(score)
+        summary = module_display_label(code, score)
         items.append({"code": code, "label": label, "displaySummary": summary})
     return items
 
@@ -637,7 +648,10 @@ def _build_mate_result_payload(
     assets = [
         {
             "label": item["label"],
-            "summary": score_band_label(module_scores.get(item["module"], 50))
+            "summary": module_display_label(
+                item["module"],
+                module_scores.get(item["module"], 50),
+            )
             if item["module"] not in ("FS5", "MS5")
             else item["role"],
             "role": item["role"],
@@ -652,7 +666,7 @@ def _build_mate_result_payload(
     display_summaries = {str(item["code"]): str(item["displaySummary"]) for item in modules if item.get("displaySummary")}
 
     payload = {
-        "model": "MATE_V3",
+        "model": "MATE_V4",
         "productSet": "MATE",
         "gender": gender,
         "axisX": axis_x,
@@ -730,18 +744,22 @@ def summarize_mate_scores(
     gender: str = "female",
     profile_payload: dict[str, Any] | None = None,
     result_profiles: dict[str, Any] | None = None,
+    relation_code: str | None = None,
 ) -> dict[str, Any]:
     type_rules = (scoring_model or {}).get("type_rules") or {}
     scoring_formula = (scoring_model or {}).get("scoring_formula") or {}
     if not isinstance(scoring_formula, dict):
         scoring_formula = {}
 
-    module_scores, _sub_scores, numeric_by_external, appearance_label = _aggregate_sub_and_module_scores(
+    module_scores, sub_scores, numeric_by_external, appearance_label = _aggregate_sub_and_module_scores(
         rows, answers, scoring_formula, gender=gender
     )
     axis_x, axis_y = _compute_axes(module_scores, scoring_formula)
     position_name, quadrant = _resolve_position_type(
         axis_x, axis_y, module_scores, type_rules, gender
+    )
+    position_name = apply_v4_position_overrides(
+        position_name, axis_x, axis_y, module_scores, gender
     )
 
     profiles = result_profiles if result_profiles is not None else _load_result_profiles(gender)
@@ -759,6 +777,19 @@ def summarize_mate_scores(
         profile=profile,
         scoring_formula=scoring_formula,
         appearance_label=appearance_label,
+    )
+
+    code = relation_code or generate_relation_code()
+    result_payload["relationCode"] = code
+
+    result_payload = enrich_mate_payload_v4(
+        result_payload,
+        questions=rows,
+        answers=answers,
+        module_scores=module_scores,
+        sub_scores=sub_scores,
+        scoring_formula=scoring_formula,
+        quadrant=quadrant,
     )
 
     mate_index = round((axis_x + axis_y) / 2, 2)
@@ -781,6 +812,7 @@ def summarize_mate_scores(
         "quadrant": quadrant,
         "axis_x": axis_x,
         "axis_y": axis_y,
+        "relation_code": code,
     }
 
 

@@ -1,0 +1,237 @@
+{
+  "version": "1.0",
+  "purpose": "三套结果页 UI 区块 ↔ result_payload 字段 ↔ AI 文案槽位。生成/校验文案与 payload 时引用此文件。",
+  "toneRulesRef": "backend/data/analysis_phrase_library_v1.json",
+  "productSets": {
+    "SELF": {
+      "setLabel": "SET · 01 / SELF",
+      "route": "/result/{attemptId}",
+      "primaryMetric": { "label": "依恋类型", "payloadPath": "attachment_type", "fallbackPath": "archetype_profile.attachment_type" },
+      "secondaryMetric": { "label": "红楼人格", "payloadPath": "archetype_code", "uiOnly": true },
+      "scoreField": { "label": "综合指数", "dbColumn": "ros_index", "payloadPath": "dimensions", "range": [0, 100] },
+      "dimensionCodes": ["SA1", "SA2", "SA3", "SA4", "SA5", "SA6"],
+      "sections": [
+        {
+          "id": "hero",
+          "label": "Hero",
+          "requiredPaths": ["attachment_type", "archetype_code"],
+          "fields": {
+            "badge": { "static": "你的依恋类型" },
+            "name": { "path": "attachment_type" },
+            "code": { "derived": "attachment_code_label" },
+            "overallScore": { "path": "ros_index", "source": "attempt" },
+            "tagline": { "path": "archetype_profile.tagline" },
+            "description": { "path": "archetype_profile.description" }
+          }
+        },
+        {
+          "id": "traits",
+          "label": "核心特质",
+          "tab": true,
+          "requiredPaths": ["core_traits"],
+          "arrayPath": "core_traits",
+          "itemShape": { "icon": "shield|key|eye", "title": "string", "body": "string", "highlight": "boolean?" },
+          "aiSlot": "ai_content.traits",
+          "count": 3
+        },
+        {
+          "id": "radar",
+          "label": "六维画像",
+          "tab": true,
+          "requiredPaths": ["dimensions"],
+          "arrayPath": "dimensions",
+          "itemShape": { "code": "SA1-6", "name": "string", "score": "number", "displaySummary": "string?" },
+          "summariesPath": "dimension_summaries"
+        },
+        {
+          "id": "scenes",
+          "label": "行为模拟",
+          "tab": true,
+          "staticCopyPath": "static_copy.behaviors",
+          "fallback": "attachment_behavior_templates"
+        },
+        {
+          "id": "character",
+          "label": "红楼人格",
+          "tab": true,
+          "requiredPaths": ["archetype_code", "archetype_profile"],
+          "fields": {
+            "name": { "path": "archetype_code" },
+            "archetypeLine": { "path": "static_copy.archetype_line", "fallback": "archetype_profile.tagline" },
+            "quote": { "path": "archetype_profile.description" },
+            "reasons": { "path": "static_copy.character_reasons", "derived": true }
+          }
+        },
+        {
+          "id": "insight",
+          "label": "AI 洞察",
+          "tab": true,
+          "arrayPath": "ai_content.insights",
+          "fallbackPath": "insights",
+          "itemShape": { "kind": "strength|watch|match|growth", "title": "string", "body": "string" },
+          "count": 4,
+          "deepReport": { "endpoint": "POST /attempts/{id}/report", "markdownField": "ai_report" }
+        }
+      ],
+      "reportPromptVersion": "self_v1_red_chamber_20260523",
+      "reportHeadings": ["你此刻的样子", "关系里的高光", "可以温柔留意的地方", "给你下一段关系的建议"]
+    },
+    "ROS": {
+      "setLabel": "SET · 02 / ROS",
+      "routeSingle": "/result/ros/{attemptId}",
+      "routeCouple": "/result/ros/couple/{relationCode}",
+      "primaryMetric": { "label": "关系类型", "payloadPath": "relationshipType.name" },
+      "secondaryMetric": { "label": "共鸣指数", "payloadPath": "resonance.score" },
+      "dimensionCodes": ["AT", "IN", "CO", "EV", "RK"],
+      "sections": [
+        {
+          "id": "hero",
+          "label": "Hero",
+          "requiredPaths": ["relationshipType", "resonance", "dims"],
+          "fields": {
+            "timeLabel": { "path": "timeTag", "map": "stage_options" },
+            "resonanceScore": { "path": "resonance.score" },
+            "resonanceTier": { "path": "resonance.tier" },
+            "typeName": { "path": "relationshipType.name" },
+            "oneLiner": { "path": "relationshipType.one_liner" },
+            "keywords": { "path": "keywords", "max": 3 }
+          }
+        },
+        {
+          "id": "stage_curve",
+          "label": "九阶段曲线",
+          "requiredPaths": ["relationshipStage.id"],
+          "fields": { "stageId": { "path": "relationshipStage.id", "range": [1, 9] } }
+        },
+        {
+          "id": "five_layers",
+          "label": "五维手风琴",
+          "arrayPath": "layers",
+          "detailsPath": "layerDetails",
+          "aiExpansionPath": "ai_content.layer_expansion",
+          "itemShape": { "code": "AT|IN|CO|EV|RK", "displaySummary": "string", "read": "string", "watch": "string", "bright": "string" }
+        },
+        {
+          "id": "insights",
+          "label": "洞察时间线",
+          "arrayPath": "insights",
+          "fallbackPath": "ai_content.insights_list",
+          "itemShape": { "kind": "strength|watch|advice|action", "title": "string", "body": "string" },
+          "count": 4
+        },
+        {
+          "id": "prescription",
+          "label": "关系处方",
+          "objectPath": "prescription",
+          "aiPath": "ai_content.prescription",
+          "fields": ["warmup", "chiefComplaint", "rx", "followUp"]
+        },
+        {
+          "id": "relation_code",
+          "label": "关系码",
+          "requiredPaths": ["relationCode"]
+        },
+        {
+          "id": "blind_spot",
+          "label": "盲区提示",
+          "optionalPath": "ai_content.blind_spot"
+        }
+      ],
+      "coupleSections": ["overview", "stage", "dual", "attach", "action"],
+      "reportPromptVersion": "ros_v1_relationship_20260524",
+      "reportHeadings": ["你的高光", "可以温柔留意", "下一段关系里", "匹配建议"]
+    },
+    "MATE": {
+      "setLabel": "SET · 03 / MATE",
+      "route": "/result/mate/{attemptId}",
+      "primaryMetric": { "label": "市场定位", "payloadPath": "positionType.name", "fallbackPath": "identityCard.title" },
+      "secondaryMetric": { "label": "四象限", "payloadPath": "quadrant" },
+      "dimensionCodesFemale": ["FS1", "FS2", "FS3", "FS4", "FS5"],
+      "dimensionCodesMale": ["MS1", "MS2", "MS3", "MS4", "MS5"],
+      "sections": [
+        {
+          "id": "identity",
+          "label": "身份卡",
+          "navId": "identity",
+          "objectPath": "identityCard",
+          "requiredPaths": ["identityCard.title", "identityCard.tagline"]
+        },
+        {
+          "id": "modules",
+          "label": "模块雷达",
+          "navId": "modules",
+          "arrayPath": "modules",
+          "itemShape": { "code": "FS*|MS*", "label": "string", "displaySummary": "string" }
+        },
+        {
+          "id": "coordinate",
+          "label": "坐标站",
+          "navId": "coordinate",
+          "objectPath": "marketCoordinate",
+          "fields": ["axisX", "axisY", "horizontalLabel", "verticalLabel", "summary", "insight"]
+        },
+        {
+          "id": "observe",
+          "label": "观察室",
+          "navId": "observe",
+          "arrayPath": "matchmakerRecords",
+          "aiSlot": "ai_content.matchmaker_records",
+          "count": 3
+        },
+        {
+          "id": "rehearse",
+          "label": "恋爱预演",
+          "navId": "rehearse",
+          "arrayPath": "loveTimeline"
+        },
+        {
+          "id": "match",
+          "label": "匹配区间",
+          "navId": "match",
+          "objects": ["upperMatch", "sweetSpot", "lowerMatch"]
+        },
+        {
+          "id": "advice",
+          "label": "市场建议",
+          "navId": "advice",
+          "arrayPath": "secularAdvice",
+          "aiSlot": "ai_content.secular_advice"
+        },
+        {
+          "id": "lens",
+          "label": "透视镜",
+          "navId": "lens",
+          "arrayPath": "aiLens",
+          "aiSlot": "ai_content.ai_lens",
+          "count": 3
+        },
+        {
+          "id": "social_quotes",
+          "label": "他人评价",
+          "arrayPath": "socialQuotes",
+          "aiSlot": "ai_content.social_quotes"
+        },
+        {
+          "id": "insights",
+          "label": "AI 洞察四卡",
+          "arrayPath": "ai_content.insights",
+          "fallbackPath": "insights",
+          "itemShape": { "kind": "strength|watch|match|growth", "title": "string", "body": "string" },
+          "count": 4
+        }
+      ],
+      "reportPromptVersion": "mate_v1_market_20260524",
+      "reportHeadings": ["你的牌面", "你的高光", "可以温柔留意", "匹配建议"]
+    }
+  },
+  "aiContentBlock": {
+    "description": "写入 result_payload.ai_content 的统一元数据",
+    "requiredMeta": ["status", "mode", "generated_at"],
+    "modes": ["deterministic", "ai", "cached"]
+  },
+  "validation": {
+    "forbidBareScoresInUserCopy": true,
+    "forbidInternalCodesInUserCopy": ["SA1", "SA2", "AT", "RK", "FS1", "MS1"],
+    "requireProductSet": true
+  }
+}

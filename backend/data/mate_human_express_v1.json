@@ -1,0 +1,223 @@
+{
+  "version": "1.0",
+  "engine": "MATE_HUMAN_EXPRESS_V1",
+  "score_mapping_config": {
+    "asset_dimensions": [
+      {"min": 0, "max": 30, "text": "有较大的成长空间"},
+      {"min": 31, "max": 50, "text": "正处于发展阶段"},
+      {"min": 51, "max": 65, "text": "表现稳定"},
+      {"min": 66, "max": 80, "text": "是重要资产"},
+      {"min": 81, "max": 100, "text": "是核心竞争力"}
+    ],
+    "risk_dimension": [
+      {
+        "min": 0,
+        "max": 35,
+        "text": "极低风险",
+        "system_note": "长期稳健资产，相处舒适度极高",
+        "action": "normal"
+      },
+      {
+        "min": 36,
+        "max": 50,
+        "text": "中性",
+        "system_note": "具备正常边界，无明显拉扯隐患",
+        "action": "normal"
+      },
+      {
+        "min": 51,
+        "max": 65,
+        "text": "轻度关注",
+        "system_note": "有一些值得认真看一看的地方",
+        "action": "alert"
+      },
+      {
+        "min": 66,
+        "max": 100,
+        "text": "高风险",
+        "system_note": "高危拉扯风险项",
+        "action": "melt_down",
+        "position_override": "还没到时候的人"
+      }
+    ]
+  },
+  "badge_desensitization_config": {
+    "female": {
+      "FS1_appearance": {
+        "source": {"question_id": "FS1-A-F-01", "value_type": "slider_1_10"},
+        "bands": [
+          {"min": 1, "max": 4, "badge": "自然务实风格"},
+          {"min": 5, "max": 7, "badge": "有辨识度"},
+          {"min": 8, "max": 10, "badge": "视觉高吸引"}
+        ]
+      },
+      "FS1_presence": {
+        "source": {"sub_code": "FS1_B", "value_type": "score_0_100"},
+        "bands": [
+          {"min": 0, "max": 50, "badge": "低调内敛"},
+          {"min": 51, "max": 75, "badge": "表现稳定"},
+          {"min": 76, "max": 100, "badge": "独特场域感"}
+        ]
+      },
+      "FS1_freshness": {
+        "source": {"sub_code": "FS1_C", "value_type": "score_0_100"},
+        "bands": [
+          {"min": 0, "max": 60, "badge": "平实好相处"},
+          {"min": 61, "max": 100, "badge": "资产级内核"}
+        ]
+      },
+      "FS2_emotion_stability": {
+        "source": {"sub_code": "FS2_A", "value_type": "score_0_100"},
+        "bands": [
+          {"min": 0, "max": 50, "badge": "敏感细腻"},
+          {"min": 51, "max": 80, "badge": "表现稳定"},
+          {"min": 81, "max": 100, "badge": "磐石托底型"}
+        ]
+      },
+      "FS2_empathy_supply": {
+        "source": {"sub_code": "FS2_C", "value_type": "score_0_100"},
+        "bands": [
+          {"min": 0, "max": 50, "badge": "理智型倾听"},
+          {"min": 51, "max": 100, "badge": "高浓度滋养"}
+        ]
+      },
+      "FS3_wealth": {
+        "source": {"sub_code": "FS3_A", "value_type": "score_0_100"},
+        "bands": [
+          {"min": 0, "max": 50, "badge": "独立自主"},
+          {"min": 51, "max": 80, "badge": "稳定增长型"},
+          {"min": 81, "max": 100, "badge": "高净值底牌"}
+        ]
+      },
+      "FS5_friction": {
+        "source": {"sub_code": "FS5_B", "value_type": "score_0_100"},
+        "bands": [
+          {"min": 0, "max": 40, "badge": "清爽零负担"},
+          {"min": 41, "max": 100, "badge": "有潜在的情绪羁绊"}
+        ]
+      }
+    },
+    "male": {
+      "MS1_wealth_tier": {
+        "source": {"question_id": "MS1-A-M-01", "value_type": "wealth_level_A_F"},
+        "tier_map": {
+          "A": "稳步起步",
+          "B": "资产基础扎实",
+          "C": "核心骨干",
+          "D": "优质资源层",
+          "E": "顶级托底力",
+          "F": "顶级托底力"
+        }
+      },
+      "MS2_career_certainty": {
+        "source": {"sub_code": "MS1_B", "value_type": "score_0_100"},
+        "bands": [
+          {"min": 0, "max": 50, "badge": "探索发展期"},
+          {"min": 51, "max": 100, "badge": "高抗风险航线"}
+        ]
+      },
+      "MS2_life_discipline": {
+        "source": {"sub_code": "MS2_A", "value_type": "score_0_100"},
+        "bands": [
+          {"min": 0, "max": 50, "badge": "随性自由"},
+          {"min": 51, "max": 100, "badge": "作风高度稳健"}
+        ]
+      },
+      "MS3_care": {
+        "source": {"sub_code": "MS3_B", "value_type": "score_0_100"},
+        "bands": [
+          {"min": 0, "max": 50, "badge": "粗线条务实"},
+          {"min": 51, "max": 100, "badge": "高觉察力支撑"}
+        ]
+      },
+      "MS4_social": {
+        "source": {"module_code": "MS4", "value_type": "score_0_100"},
+        "bands": [
+          {"min": 0, "max": 50, "badge": "质朴不张扬"},
+          {"min": 51, "max": 100, "badge": "具备极强社交面"}
+        ]
+      }
+    }
+  },
+  "evidence_triggers": {
+    "female": [
+      {
+        "alias": "FS1_聚会表现题",
+        "question_id": "FS1-B-F-07",
+        "option_key": "D",
+        "output": "你在走进一个聚会通常发生什么那题中，勾选了进去的时候通常会有人抬头看。这在模型算法中证明你具备一种天然的场域感。"
+      },
+      {
+        "alias": "FS2_伴侣低落处理题",
+        "question_id": "FS2-A-F-19",
+        "option_key": "C",
+        "output": "你在伴侣状态低落时怎么做那题中，选择了默默做好晚饭在身旁陪伴。这直接证实了你具备极其罕见的高质量长线陪伴资产。"
+      }
+    ],
+    "male": [
+      {
+        "alias": "MS2_承诺兑现题",
+        "question_id": "MS2-A-M-19",
+        "option_key": "A",
+        "output": "你在关于承诺兑现那题里，选择了说出口的哪怕吃亏也会做到。这是红娘系统中判定一个人具备稳定可靠长线信用的最高权级证据。"
+      }
+    ]
+  },
+  "lens_cross_model": {
+    "SELF_attachment": [
+      {
+        "match": "安全型",
+        "output": "若套一模型为安全型依恋，将完美对冲掉你当前仅存的防御沟通风险，属于黄金伴侣候选人。"
+      },
+      {
+        "match": "焦虑型",
+        "output": "由于套一检测出轻度焦虑，你的低显示度可能会在无意中演变成冷战防御，建议对高匹配度对象主动释放降压信号。"
+      },
+      {
+        "match": "回避型",
+        "output": "套一回避型底色叠加当前低表达模式，容易被误读为冷淡；对高意向对象需要更明确的靠近信号。"
+      },
+      {
+        "match": "混合型",
+        "output": "套一混合型说明你在不同关系阶段会切换策略；完成 ROS 双人测评可进一步校准相处节奏。"
+      }
+    ]
+  },
+  "footer_quote_pools": {
+    "让人想留下来的人": [
+      "和她在一起，你完全不用担心生活会偏离轨道，她是最稳的锚。",
+      "第一眼惊艳，第一百眼安心，这大概是择偶市场里的最高配了。",
+      "能在她的朋友圈里留下来，本身就是一种极高水准的现实筛选。"
+    ],
+    "被读懂之前的人": [
+      "跟她在一起，越聊越觉得她精神世界深不可测，相见恨晚。",
+      "她是那种需要你带着诚意和耐心，一层层去剥开的绝藏级宝藏。",
+      "那些因为第一眼冷淡而错过她的人，真该为了自己的急躁而惋惜。"
+    ],
+    "越了解越值钱的人": [
+      "她是典型的长线复利资产，时间越久，替代她的成本就高得越吓人。",
+      "和她相处了三个月以上的人，没有一个能微笑着全身而退，太上头了。",
+      "作风务实，不整虚的，她给的关系托底感比什么甜言蜜语都管用。"
+    ],
+    "一眼就懂的人": [
+      "她不需要被翻译，但需要被认真选择。",
+      "第一眼就有判断，筛选效率高，所见即所得。",
+      "能在她的标准里留下来，说明你是被认真评估过的。"
+    ],
+    "需要被正确打开的人": [
+      "频道对了是惊喜，频道错了是误解。",
+      "她不是难懂，是需要对频。",
+      "用错方式接近她，会错过最好的版本。"
+    ],
+    "还没到时候的人": [
+      "你不是不够好，是最好版本还在路上。",
+      "时间站在你这边，先把底牌建设好。",
+      "现在的重点不是急进，而是把牌面做扎实。"
+    ]
+  },
+  "personality_position_map": {
+    "01": "让人想留下来的人",
+    "02": "被读懂之前的人",
+    "05": "越了解越值钱的人"
+  }
+}

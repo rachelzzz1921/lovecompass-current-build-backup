@@ -1,0 +1,79 @@
+{
+  "model_name": "MATE Pair 婚恋适配模型",
+  "version": "V1.0",
+  "engineering_code": "MATE_PAIR_ENGINE_V1.0",
+  "model_positioning": "相亲/婚恋平台辅助模型",
+  "core_orientation": "现实适配优先 + 情感需求补充",
+  "core_question": "你们不是能不能恋爱，而是能不能长期稳定地走下去",
+  "core_formula": "关系适配度 = 现实条件适配 + 关系需求适配 + 相处节奏适配 + 长期规划适配 − 风险冲突 + 化学增益",
+  "module_weights": {
+    "P1": 0.30,
+    "P2": 0.25,
+    "P3": 0.15,
+    "P4": 0.15,
+    "P5": 0.10,
+    "P6": 0.05
+  },
+  "six_modules": [
+    {
+      "module_code": "P1",
+      "module_name": "现实条件适配",
+      "core_question": "条件差距是否合理",
+      "adaptation_level": [
+        {"gap_max": 10, "status": "高适配"},
+        {"gap_max": 20, "status": "可磨合"},
+        {"gap_max": 30, "status": "存在落差"},
+        {"gap_max": 100, "status": "长期压力较大"}
+      ]
+    },
+    {
+      "module_code": "P2",
+      "module_name": "情感需求适配",
+      "core_question": "想要的关系是否一致",
+      "adaptation_level": [
+        {"score_min": 85, "status": "高同步"},
+        {"score_min": 70, "status": "基本同步"},
+        {"score_min": 50, "status": "存在差异"},
+        {"score_min": 0, "status": "容易累"}
+      ]
+    },
+    {
+      "module_code": "P3",
+      "module_name": "相处节奏适配",
+      "core_question": "日常会不会累"
+    },
+    {
+      "module_code": "P4",
+      "module_name": "长期规划适配",
+      "core_question": "对未来想法是否一致"
+    },
+    {
+      "module_code": "P5",
+      "module_name": "风险碰撞",
+      "core_question": "雷区是否冲突",
+      "risk_matrix": [
+        {"you_high": "FS5", "ta_high": "MS5", "risk_name": "双向拉扯", "level": "高", "deduction": 18},
+        {"you_low_display": true, "ta_high_emotion_need": true, "risk_name": "边界冲突", "level": "中", "deduction": 12},
+        {"you_high_family": true, "ta_high_boundary": true, "risk_name": "家庭介入冲突", "level": "中", "deduction": 10}
+      ]
+    },
+    {
+      "module_code": "P6",
+      "module_name": "火花增益",
+      "core_question": "有没有自然吸引",
+      "spark_types": [
+        {"key": "stable_warm", "name": "稳定升温", "trigger": "P1高且P2同步"},
+        {"key": "instant_click", "name": "一拍即合", "trigger": "吸引高且兴趣相近"},
+        {"key": "mutual_growth", "name": "双向成长", "trigger": "双方成长性高"},
+        {"key": "mutual_care", "name": "互相照顾", "trigger": "一方外放一方稳定"},
+        {"key": "high_tension", "name": "高压拉扯", "trigger": "吸引高且风险高"}
+      ]
+    }
+  ],
+  "relationship_status_rules": [
+    {"min_score": 82, "status": "稳定升温型"},
+    {"min_score": 70, "status": "可磨合推进型"},
+    {"min_score": 55, "status": "需要认真磨合型"},
+    {"min_score": 0, "status": "长期压力型"}
+  ]
+}

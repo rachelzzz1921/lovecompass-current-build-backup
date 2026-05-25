@@ -289,6 +289,35 @@ def _resolve_stage_id(
     return max(1, min(9, best_id))
 
 
+def resolve_weather(display_resonance: float, rk_score: float) -> dict[str, str]:
+    """Layer B：关系天气（四种状态）。"""
+    resonance = float(display_resonance)
+    rk = float(rk_score)
+    if resonance >= 85 and rk <= 30:
+        return {"icon": "sun", "label": "晴天", "sub": "关系状态良好，你们处于一个好的阶段"}
+    if resonance < 60 and rk > 65:
+        return {
+            "icon": "cloud-lightning",
+            "label": "暴风雨前",
+            "sub": "有一些明显的信号需要正视，建议认真沟通",
+        }
+    if resonance >= 65 and rk <= 50:
+        return {"icon": "cloud-sun", "label": "多云转晴", "sub": "有一些小摩擦，但在往好的方向走"}
+    if resonance < 65 or rk > 50:
+        return {"icon": "cloud-rain", "label": "阴雨", "sub": "有些地方需要认真用心了"}
+    return {"icon": "cloud-sun", "label": "多云转晴", "sub": "有一些小摩擦，但在往好的方向走"}
+
+
+def prescription_followup(rk_score: float, stage_id: int) -> str:
+    if stage_id <= 3:
+        return "一个月后"
+    if rk_score >= 60:
+        return "一个月后"
+    if rk_score >= 40:
+        return "三个月后"
+    return "六个月后"
+
+
 def _prescription_warmup(stage_id: int, time_tag: str | None, display_score: float) -> str:
     if time_tag == "married" and display_score < 70:
         return "在一起久了，有些东西会钝化——这很正常，不是感情出了问题。这张处方是帮你们重新找到彼此的频道——"
@@ -318,19 +347,36 @@ def _build_insights(layer_scores: dict[str, float], relationship_type: dict[str,
     }
     return [
         {
-            "kind": "edge",
-            "title": "你们之间最珍贵的",
-            "body": f"{highest_label}（{highest_score}）相对突出——这是你们关系里最难伪装的部分，值得被认真看见。",
+            "kind": "strength",
+            "title": "你们的高光",
+            "body": (
+                f"{highest_label}层（{highest_score}）很扎实——"
+                f"这是你们关系里最难伪装的部分，值得被认真看见。"
+            ),
         },
         {
             "kind": "watch",
-            "title": "需要温柔留意",
-            "body": f"{lowest_label}（{lowest_score}）还有提升空间。日常里的小摩擦如果没有及时修复，会慢慢消耗彼此的好感。",
+            "title": "值得留意的地方",
+            "body": (
+                f"{lowest_label}有一个值得正视的缺口（{lowest_score}）。"
+                f"日常里的小摩擦如果没有及时修复，可能会以「和好了」的形式慢慢积累。"
+            ),
         },
         {
             "kind": "advice",
-            "title": "给你的一句建议",
-            "body": advice_map.get(relationship_type.get("key", ""), "下一次沟通里，先把情绪落地，再谈事情本身。"),
+            "title": "给你们的建议",
+            "body": advice_map.get(
+                relationship_type.get("key", ""),
+                "下一次沟通里，先把情绪落地，再谈事情本身——从说清楚一件小事开始。",
+            ),
+        },
+        {
+            "kind": "action",
+            "title": "接下来可以做什么",
+            "body": (
+                "邀请对方也来做这道题，看看他/她眼中的关系是什么样的。"
+                "两份视角叠加，才能看见真正的你们——我很好奇 TA 会给互动质量打几分。"
+            ),
         },
     ]
 
@@ -408,6 +454,24 @@ def _build_ros_result_payload(
         for code in ROS_LAYER_CODES
     ]
     display_summaries = {str(item["code"]): str(item["displaySummary"]) for item in layers}
+    positive_layers = [c for c in ("AT", "IN", "CO", "EV") if layer_scores.get(c) is not None]
+    highest = max(positive_layers, key=lambda c: layer_scores.get(c, 0), default="IN")
+    lowest = min(positive_layers, key=lambda c: layer_scores.get(c, 100), default="IN")
+    rk = layer_scores.get("RK", 0)
+    weather = resolve_weather(display_index, rk)
+    follow_up = prescription_followup(rk, stage_id)
+    computed = {
+        "raw_resonance": round(raw_index),
+        "display_resonance": round(display_index),
+        "resonance_level": resonance["tier"],
+        "relationship_type": relationship_type.get("name"),
+        "stage": stage_name,
+        "stage_index": stage_id,
+        "weather": weather["label"],
+        "followup_time": follow_up,
+        "highest_layer": highest,
+        "lowest_layer": lowest,
+    }
     return {
         "model": "ROS_V3",
         "productSet": "ROS",
@@ -430,11 +494,13 @@ def _build_ros_result_payload(
         "display_summaries": display_summaries,
         "layerDetails": layer_details,
         "insights": insights,
+        "weather": weather,
+        "computed": computed,
         "prescription": {
             "warmup": _prescription_warmup(stage_id, time_tag, display_index),
             "chiefComplaint": _chief_complaint(layer_scores),
             "rx": _prescription_rx(layer_scores, relationship_type),
-            "followUp": "三个月后",
+            "followUp": follow_up,
         },
         "typeRulesRef": bool(type_rules),
         "stageRulesRef": bool(stage_rules),

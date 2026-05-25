@@ -12,19 +12,34 @@ from app.ros_scoring import (
     _prescription_warmup,
     _raw_overall_index,
     _resonance_tier,
+    prescription_followup,
+    resolve_weather,
+)
+from app.ros_couple_content import (
+    build_couple_insights,
+    build_layer_compare,
+    diff_level,
+    enrich_bond,
+    perception_gap_message,
 )
 
 
-def _weather_from_score(score: float) -> dict[str, str]:
-    if score >= 85:
-        return {"icon": "sun", "label": "晴朗", "sub": "整体稳定，阳光充足"}
-    if score >= 75:
-        return {"icon": "cloud-sun", "label": "多云转晴", "sub": "有阴影，但阳光更多"}
-    if score >= 65:
-        return {"icon": "cloud", "label": "多云", "sub": "有些不确定，但仍在彼此靠近"}
-    if score >= 55:
-        return {"icon": "cloud-rain", "label": "小雨", "sub": "需要一点修复和耐心"}
-    return {"icon": "cloud-lightning", "label": "风雨欲来", "sub": "值得认真谈一谈，但不是终点"}
+def _weather_from_score(score: float, rk_avg: float) -> dict[str, str]:
+    return resolve_weather(float(score), float(rk_avg))
+
+
+def _display_ros_index(attempt: dict[str, Any]) -> float:
+    raw = attempt.get("ros_index")
+    if raw is not None:
+        try:
+            return round(float(raw))
+        except (TypeError, ValueError):
+            pass
+    payload = coerce_dict(attempt.get("result_payload"))
+    resonance = payload.get("resonance") or {}
+    if isinstance(resonance, dict) and resonance.get("score") is not None:
+        return round(float(resonance["score"]))
+    return 0.0
 
 
 def _keywords_from_layers(you: dict[str, float], ta: dict[str, float], rel_type: str) -> list[str]:
@@ -196,16 +211,32 @@ def build_couple_payload(
 
     gap = _gap_analysis(you_layers, ta_layers)
     consensus = _consensus_analysis(you_layers, ta_layers)
+    layer_compare = build_layer_compare(you_layers, ta_layers)
+    you_score = _display_ros_index(initiator)
+    ta_score = _display_ros_index(partner)
+    perception_gap_val = abs(you_score - ta_score)
+    perception = diff_level(perception_gap_val)
+
     collision_map = type_rules.get("attachment_collision_map") or {}
-    collision = _lookup_collision(
-        _attachment_from_attempt(initiator),
-        _attachment_from_attempt(partner),
-        collision_map,
+    you_att = _attachment_from_attempt(initiator)
+    ta_att = _attachment_from_attempt(partner)
+    collision = _lookup_collision(you_att, ta_att, collision_map)
+    bond = enrich_bond(collision, you_att, ta_att, gap["dimLabel"])
+
+    rk_avg = (float(you_layers.get("RK", 0)) + float(ta_layers.get("RK", 0))) / 2
+    insights = build_couple_insights(
+        layer_compare=layer_compare,
+        consensus_label=consensus["dimLabel"],
+        gap_label=gap["dimLabel"],
+        gap_value=float(layer_compare.get(gap["dimKey"], {}).get("gap", 0)),
+        you_attachment=you_att,
+        ta_attachment=ta_att,
     )
 
     type_name = (you_payload.get("relationshipType") or {}).get("name") or "彼此生长"
     type_one_liner = (you_payload.get("relationshipType") or {}).get("one_liner") or ""
     time_tag = you_payload.get("timeTag") or ta_payload.get("timeTag")
+    follow_up = prescription_followup(rk_avg, stage_id)
 
     return {
         "code": code,
@@ -214,7 +245,18 @@ def build_couple_payload(
             "tier": resonance["tier"],
             "desc": resonance["desc"],
         },
-        "weather": _weather_from_score(display_score),
+        "perspectives": {
+            "you": {"score": you_score, "label": "你的视角"},
+            "ta": {"score": ta_score, "label": "对方视角"},
+        },
+        "perceptionGap": {
+            "value": round(perception_gap_val),
+            "level": perception["level"],
+            "color": perception["color"],
+            "label": perception["label"],
+            "message": perception_gap_message(perception_gap_val),
+        },
+        "weather": _weather_from_score(display_score, rk_avg),
         "stageId": stage_id,
         "type": {
             "key": rel_type,
@@ -223,6 +265,15 @@ def build_couple_payload(
             "description": (you_payload.get("relationshipType") or {}).get("description") or "",
         },
         "dims": dims,
+        "layerCompare": layer_compare,
+        "insights": insights,
+        "bond": bond,
+        "computed": {
+            "display_resonance": round(display_score),
+            "biggest_gap_layer": gap["dimKey"],
+            "smallest_gap_layer": consensus["dimLabel"],
+            "followup_time": follow_up,
+        },
         "keywords": _keywords_from_layers(you_layers, ta_layers, rel_type),
         "highlights": {
             "glow": "你们能在沉默里也不完全尴尬——这本身就是一种默契。",
@@ -292,9 +343,17 @@ def build_couple_payload(
         },
         "prescription": {
             "warmup": _prescription_warmup(stage_id, time_tag, display_score),
-            "chiefComplaint": gap["dimLabel"] + "感知不一致",
-            "rx": "每周一次\n不带手机的\n两小时对话",
-            "followUp": "三个月后",
+            "chiefComplaint": (
+                f"{gap['dimLabel']}层感知差距"
+                f"{layer_compare.get(gap['dimKey'], {}).get('gap', '')} 分"
+            ),
+            "rx": "每周一次\n各说一件「想说但没说的话」",
+            "followUp": follow_up,
+        },
+        "ai_content": {
+            "insights_list": insights,
+            "layer_compare": layer_compare,
+            "mode": "deterministic",
         },
         "shareLine": "我们之间，是一种很难被替代的默契。",
         "participants": {
@@ -312,6 +371,8 @@ def _attachment_from_attempt(attempt: dict[str, Any]) -> str | None:
 
 def attempt_snapshot(attempt: dict[str, Any]) -> dict[str, Any]:
     payload = coerce_dict(attempt.get("result_payload"))
+    suite_slug = str(attempt.get("suite_slug") or "")
+    suite_tier = "lite" if "_lite" in suite_slug else "full"
     return jsonable(
         {
             "attemptId": str(attempt.get("id") or ""),
@@ -321,5 +382,7 @@ def attempt_snapshot(attempt: dict[str, Any]) -> dict[str, Any]:
             "relationshipType": payload.get("relationshipType"),
             "relationshipStage": payload.get("relationshipStage"),
             "timeTag": payload.get("timeTag"),
+            "suiteSlug": suite_slug or None,
+            "suiteTier": suite_tier,
         }
     )

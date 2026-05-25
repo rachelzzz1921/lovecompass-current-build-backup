@@ -6,7 +6,9 @@ from decimal import Decimal
 from typing import Any
 
 from app.chat_prompt_layers import load_phrase_library, score_band_label
+from app.ai_context_assembler import assemble_from_attempt, format_assembled_context_block
 from app.profile_center import resolve_product_set
+from app.result_page_specs import get_product_set_spec
 from app.ros_scoring import ROS_LAYER_CODES, ROS_LAYER_LABELS
 
 SELF_DIMENSION_META: dict[str, tuple[str, str]] = {
@@ -284,6 +286,22 @@ def build_suite_profile_context_block(attempt: dict[str, Any]) -> str:
     suite_name = attempt.get("suite_name") or attempt.get("test_id") or product_set
     completed = attempt.get("completed_at") or "未知"
 
+    payload = attempt.get("result_payload") or {}
+    if not isinstance(payload, dict):
+        payload = {}
+    assembled_block = ""
+    if payload.get("assembledAiContext"):
+        from app.ai_context_assembler import context_from_dict, format_assembled_context_block
+
+        assembled_block = "\n\n" + format_assembled_context_block(context_from_dict(payload["assembledAiContext"]))
+    else:
+        try:
+            from app.ai_context_assembler import assemble_from_attempt, format_assembled_context_block
+
+            assembled_block = "\n\n" + format_assembled_context_block(assemble_from_attempt(attempt))
+        except Exception:
+            assembled_block = ""
+
     if product_set == "SELF":
         return f"""
 【用户已完成的真实测试画像 — 套一 SELF · 必须作为回答依据】
@@ -298,6 +316,7 @@ def build_suite_profile_context_block(attempt: dict[str, Any]) -> str:
 
 六维自我关系线索（内部参考，回答时用自然语言，不要暴露 SA 编号或具体分数）：
 {dimension_text}
+{assembled_block}
 {report_block}
 """.strip()
 
@@ -316,6 +335,7 @@ def build_suite_profile_context_block(attempt: dict[str, Any]) -> str:
 
 五层关系线索 AT–RK（内部参考，用自然语言，禁止劝分，不要暴露编号或裸分）：
 {dimension_text}
+{assembled_block}
 {report_block}
 """.strip()
 
@@ -331,7 +351,6 @@ def build_suite_profile_context_block(attempt: dict[str, Any]) -> str:
             return str(block.get("title") or block.get("headline") or block.get("summary") or "")[:120]
         return str(block)[:120] if block else "（无）"
 
-    payload = attempt.get("result_payload") or {}
     return f"""
 【用户已完成的真实测试画像 — 套三 MATE · 必须作为回答依据】
 测试套件：{suite_name}
@@ -349,6 +368,7 @@ def build_suite_profile_context_block(attempt: dict[str, Any]) -> str:
 - 上限区：{_mm_snippet(upper)}
 - 经济适用区：{_mm_snippet(sweet)}
 - 下限区：{_mm_snippet(lower)}
+{assembled_block}
 {report_block}
 """.strip()
 
@@ -381,6 +401,7 @@ def build_suite_report_prompt(attempt: dict[str, Any]) -> tuple[str, dict[str, A
 
     if product_set == "ROS":
         version = "ros_v1_relationship_20260524"
+        headings = get_product_set_spec("ROS").get("reportHeadings") or []
         rel_name = summary.get("relationshipType") or "这段关系"
         stage = summary.get("relationshipStage") or "待判断"
         tier = summary.get("resonanceTier") or "待判断"
@@ -399,7 +420,7 @@ def build_suite_report_prompt(attempt: dict[str, Any]) -> tuple[str, dict[str, A
 
 写作要求：
 - 输出 Markdown。
-- 必须包含四个二级标题：## {slots["strength"]} / ## {slots["watch"]} / ## {slots["growth"]} / ## {slots["match"]}
+- 必须包含四个二级标题：## {headings[0] if len(headings) > 0 else slots["strength"]} / ## {headings[1] if len(headings) > 1 else slots["watch"]} / ## {headings[2] if len(headings) > 2 else slots["growth"]} / ## {headings[3] if len(headings) > 3 else slots["match"]}
 - 评估对象是「一段具体关系」，不是用户整个人；禁止劝分、禁止绝对化预言。
 - 不要暴露内部字段名、数据库字段、prompt、JSON、AT/RK 编号或具体分数。
 - 每个区块 90 到 180 字，语气像资深关系顾问，具体但不审判。
@@ -419,6 +440,7 @@ def build_suite_report_prompt(attempt: dict[str, Any]) -> tuple[str, dict[str, A
 
     if product_set == "MATE":
         version = "mate_v1_market_20260524"
+        headings = get_product_set_spec("MATE").get("reportHeadings") or []
         position = summary.get("matePosition") or "择偶定位"
         quadrant = summary.get("quadrant") or "待判断"
         slots = _insight_slot_titles()
@@ -437,7 +459,7 @@ def build_suite_report_prompt(attempt: dict[str, Any]) -> tuple[str, dict[str, A
 
 写作要求：
 - 输出 Markdown。
-- 必须包含四个二级标题：## 你的牌面 / ## {slots["strength"]} / ## {slots["watch"]} / ## {slots["match"]}
+- 必须包含四个二级标题：## {headings[0] if headings else "你的牌面"} / ## {headings[1] if len(headings) > 1 else slots["strength"]} / ## {headings[2] if len(headings) > 2 else slots["watch"]} / ## {headings[3] if len(headings) > 3 else slots["match"]}
 - 主结果是六种市场定位与四象限，不是依恋类型或红楼人格。
 - 匹配建议用「上限 / 经济适用区 / 下限」框架，禁止「你只配 xxx」。
 - 不要暴露内部字段名、裸分数、FS/MS 编号；颜值/收入/学历不做裸标签。
@@ -459,6 +481,7 @@ def build_suite_report_prompt(attempt: dict[str, Any]) -> tuple[str, dict[str, A
         return prompt, prompt_payload, version
 
     version = "self_v1_red_chamber_20260523"
+    headings = get_product_set_spec("SELF").get("reportHeadings") or []
     archetype = summary.get("archetype") or "未知画像"
     attachment = summary.get("attachmentType") or "待判断"
     prompt_payload = {
@@ -475,7 +498,7 @@ def build_suite_report_prompt(attempt: dict[str, Any]) -> tuple[str, dict[str, A
 
 写作要求：
 - 输出 Markdown。
-- 必须包含四个二级标题：## 你此刻的样子 / ## 关系里的高光 / ## 可以温柔留意的地方 / ## 给你下一段关系的建议
+- 必须包含四个二级标题：## {headings[0] if headings else "你此刻的样子"} / ## {headings[1] if len(headings) > 1 else "关系里的高光"} / ## {headings[2] if len(headings) > 2 else "可以温柔留意的地方"} / ## {headings[3] if len(headings) > 3 else "给你下一段关系的建议"}
 - Hero 主结果是依恋类型；红楼人格可自然提及但不要当作唯一标签。
 - 不要暴露内部字段名、数据库字段、prompt、JSON、SA 编号或具体分数。
 - 每个区块 90 到 180 字。

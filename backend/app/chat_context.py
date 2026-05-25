@@ -21,6 +21,7 @@ from app.suite_context import (
 )
 
 from app.report_utils import looks_like_placeholder_report
+from app.ros_chat_layers import build_ros_inquiry_layer
 
 
 def extract_dimensions(result_payload: dict[str, Any], dimension_scores: Any) -> list[dict[str, Any]]:
@@ -338,6 +339,7 @@ def build_chat_prompt(
         except Exception:
             portrait_layer = ""
     profile_block = build_profile_context_block(attempt) if attempt else build_unbound_context_message()
+    ros_inquiry_layer = build_ros_inquiry_layer(user_message, attempt)
 
     history_lines = []
     for item in history:
@@ -350,6 +352,8 @@ def build_chat_prompt(
         layers.append(crisis_layer)
     if portrait_layer:
         layers.append(portrait_layer)
+    if ros_inquiry_layer:
+        layers.append(ros_inquiry_layer)
 
     return f"""
 {chr(10).join(layers)}

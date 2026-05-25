@@ -1,0 +1,972 @@
+{
+  "suite": {
+    "gender": "male",
+    "version": "1.0-lite",
+    "estimated_minutes": 5,
+    "is_free": false,
+    "layers": [
+      "AT",
+      "IN",
+      "CO",
+      "EV",
+      "RK"
+    ],
+    "relationship_types": [
+      "彼此生长",
+      "难舍难分",
+      "温水同行",
+      "心甘情愿地累",
+      "烈火烹油",
+      "此刻刚好"
+    ],
+    "relationship_stages": [
+      "怦然相遇",
+      "渐入佳境",
+      "暗流初现",
+      "磨合阵痛",
+      "倦怠低谷",
+      "十字路口",
+      "重建信任",
+      "深度联结",
+      "并肩同行"
+    ],
+    "question_types_used": [
+      "slider",
+      "scenario",
+      "binary",
+      "choice"
+    ],
+    "id": "S02_ROS_MALE_LITE",
+    "name": "关系画像测试 · 快速版",
+    "total_questions": 20,
+    "pre_questions": 1,
+    "tier": "lite",
+    "full_suite_id": "S02_ROS_MALE"
+  },
+  "pre_questions": [
+    {
+      "id": "PRE-M-00A",
+      "type": "choice",
+      "text": "在开始之前，先告诉我你们现在处于什么阶段？",
+      "note": "此答案影响题目措辞与阶段判断，不计分。",
+      "options": [
+        {
+          "key": "A",
+          "text": "暗恋/还没在一起",
+          "tag": "secret_crush"
+        },
+        {
+          "key": "B",
+          "text": "暧昧中",
+          "tag": "ambiguous"
+        },
+        {
+          "key": "C",
+          "text": "在一起不到一年",
+          "tag": "early"
+        },
+        {
+          "key": "D",
+          "text": "在一起一到三年",
+          "tag": "mid"
+        },
+        {
+          "key": "E",
+          "text": "在一起三年以上",
+          "tag": "long"
+        },
+        {
+          "key": "F",
+          "text": "已婚/长期伴侣",
+          "tag": "married"
+        }
+      ]
+    }
+  ],
+  "scoring_formula": {
+    "layers": {
+      "AT": {
+        "label": "吸引基础",
+        "direction": "positive",
+        "weight": 0.2,
+        "male_focus": "你对她的吸引感是真实的还是习惯了"
+      },
+      "IN": {
+        "label": "互动质量",
+        "direction": "positive",
+        "weight": 0.3,
+        "male_focus": "跟她在一起轻不轻松，她的情绪对你影响有多大"
+      },
+      "CO": {
+        "label": "兼容程度",
+        "direction": "positive",
+        "weight": 0.25,
+        "male_focus": "生活方式和节奏合不合，她带来的是助力还是阻力"
+      },
+      "EV": {
+        "label": "关系走向",
+        "direction": "positive",
+        "weight": 0.15,
+        "male_focus": "这段关系有没有让你有动力往前走，还是在消耗你"
+      },
+      "RK": {
+        "label": "风险信号",
+        "direction": "reverse",
+        "weight": 0.1,
+        "male_focus": "有没有让你感到消耗、压抑或者不对劲的信号"
+      }
+    },
+    "overall": {
+      "formula": "AT*0.20 + IN*0.30 + CO*0.25 + EV*0.15 + (100-RK)*0.10",
+      "display_adjustment": {
+        "note": "所有分数向上平移，底部有托底，最低显示55",
+        "mapping": [
+          {
+            "raw_min": 0,
+            "raw_max": 40,
+            "display_min": 55,
+            "display_max": 65
+          },
+          {
+            "raw_min": 41,
+            "raw_max": 60,
+            "display_min": 65,
+            "display_max": 75
+          },
+          {
+            "raw_min": 61,
+            "raw_max": 80,
+            "display_min": 75,
+            "display_max": 88
+          },
+          {
+            "raw_min": 81,
+            "raw_max": 100,
+            "display_min": 88,
+            "display_max": 96
+          }
+        ]
+      }
+    },
+    "resonance_levels": [
+      {
+        "min": 88,
+        "max": 96,
+        "name": "心有灵犀",
+        "desc": "你们之间有一种很难被替代的默契"
+      },
+      {
+        "min": 75,
+        "max": 87,
+        "name": "深度共鸣",
+        "desc": "真实的联结，值得好好珍惜"
+      },
+      {
+        "min": 65,
+        "max": 74,
+        "name": "温柔磨合",
+        "desc": "你们在彼此靠近的路上，慢慢来"
+      },
+      {
+        "min": 55,
+        "max": 64,
+        "name": "初见雏形",
+        "desc": "关系还在成形，有空间，也有可能"
+      }
+    ]
+  },
+  "stage_rules": {
+    "note": "结合时间输入和各层得分综合判断，男版更看重EV层和IN层的轻松感",
+    "time_constraints": {
+      "secret_crush": {
+        "locked_stages": [
+          "重建信任",
+          "深度联结",
+          "并肩同行"
+        ]
+      },
+      "ambiguous": {
+        "locked_stages": [
+          "重建信任",
+          "深度联结",
+          "并肩同行"
+        ]
+      },
+      "married": {
+        "low_resonance_language": "long_term_version"
+      }
+    },
+    "score_mapping": {
+      "①怦然相遇": {
+        "EV_range": [
+          75,
+          100
+        ],
+        "AT_range": [
+          80,
+          100
+        ],
+        "IN_range": [
+          0,
+          100
+        ]
+      },
+      "②渐入佳境": {
+        "EV_range": [
+          70,
+          100
+        ],
+        "AT_range": [
+          65,
+          100
+        ],
+        "IN_range": [
+          60,
+          100
+        ]
+      },
+      "③暗流初现": {
+        "EV_range": [
+          50,
+          75
+        ],
+        "AT_range": [
+          50,
+          80
+        ],
+        "RK_range": [
+          30,
+          60
+        ]
+      },
+      "④磨合阵痛": {
+        "EV_range": [
+          40,
+          65
+        ],
+        "IN_range": [
+          30,
+          60
+        ],
+        "RK_range": [
+          40,
+          70
+        ]
+      },
+      "⑤倦怠低谷": {
+        "EV_range": [
+          20,
+          45
+        ],
+        "RK_range": [
+          60,
+          100
+        ],
+        "IN_range": [
+          20,
+          50
+        ]
+      },
+      "⑥十字路口": {
+        "EV_range": [
+          25,
+          50
+        ],
+        "RK_range": [
+          55,
+          85
+        ]
+      },
+      "⑦重建信任": {
+        "EV_range": [
+          55,
+          75
+        ],
+        "IN_range": [
+          60,
+          85
+        ],
+        "RK_range": [
+          20,
+          50
+        ]
+      },
+      "⑧深度联结": {
+        "EV_range": [
+          70,
+          90
+        ],
+        "IN_range": [
+          75,
+          100
+        ],
+        "AT_range": [
+          60,
+          100
+        ]
+      },
+      "⑨并肩同行": {
+        "EV_range": [
+          80,
+          100
+        ],
+        "CO_range": [
+          75,
+          100
+        ],
+        "IN_range": [
+          75,
+          100
+        ]
+      }
+    }
+  },
+  "relationship_type_rules": {
+    "彼此生长": {
+      "condition": "EV >= 75 && IN >= 70 && RK <= 35",
+      "tagline": "在一起让你成为更好的自己",
+      "desc": "有助力、有成长、跟她在一起是充电",
+      "male_insight": "你在这段关系里不只是在付出，你也在得到——这种双向的滋养是最好的关系底色。"
+    },
+    "难舍难分": {
+      "condition": "AT >= 75 && IN >= 65 && EV < 65",
+      "tagline": "深度融合，分不清是爱还是需要",
+      "desc": "离不开，但不确定是真正喜欢还是习惯了",
+      "male_insight": "你们之间有很深的联结，但值得想一想：是真的喜欢她，还是已经习惯了她在？"
+    },
+    "温水同行": {
+      "condition": "RK <= 40 && IN < 65 && EV < 60",
+      "tagline": "不冷不热，舒适但缺少真正的联结",
+      "desc": "不吵架，但也没有真正在一起过",
+      "male_insight": "这段关系很平稳，但平稳有时候是因为双方都没有真正投入——值得问自己，你想要的是这样吗？"
+    },
+    "心甘情愿地累": {
+      "condition": "RK >= 55 && EV < 55 && AT >= 60",
+      "tagline": "付出多于回报，但还在坚持",
+      "desc": "有消耗，但舍不得或者走不掉",
+      "male_insight": "你在这段关系里付出了很多，这值得被看见。但好的关系不应该让你一直在消耗——这不是你的问题，是关系本身需要调整。"
+    },
+    "烈火烹油": {
+      "condition": "AT >= 75 && RK >= 50 && IN < 70",
+      "tagline": "极好极坏，情绪过山车",
+      "desc": "高强度的吸引和消耗并存",
+      "male_insight": "你们之间的吸引是真实的，但冲突和消耗也是真实的。这种组合很难维持，需要双方都愿意主动降温和建立规则。"
+    },
+    "此刻刚好": {
+      "condition": "CO < 65 && EV < 60 && RK <= 45",
+      "tagline": "现在很好，但没有太多未来感",
+      "desc": "舒适但没有明确的方向",
+      "male_insight": "你们现在相处得还不错，但有些重要的问题还没有被认真面对——比如这段关系要走向哪里。"
+    }
+  },
+  "prescription_rules": null,
+  "attachment_collision_map": {
+    "安全型×安全型": {
+      "name": "天作之合",
+      "desc": "两个内心稳定的人在一起，是最少内耗的组合。不是没有问题，是有能力一起解决。"
+    },
+    "安全型×焦虑型": {
+      "name": "避风港与浪",
+      "desc": "稳定的人能给焦虑的人真实的安全感，但时间久了容易出现不平衡——一个一直在给，一个一直在要。"
+    },
+    "安全型×回避型": {
+      "name": "开门与关门",
+      "desc": "安全型足够稳定，不会因为回避型的后退而崩溃——这是这个组合能走下去的原因。"
+    },
+    "安全型×混合型": {
+      "name": "稳中有变",
+      "desc": "安全型是这段关系的锚，混合型的情绪起伏会被安全型的稳定慢慢平衡。"
+    },
+    "焦虑型×焦虑型": {
+      "name": "双向拉扯",
+      "desc": "两个都需要确认的人在一起，前期浓烈，后期容易把彼此都耗尽。"
+    },
+    "焦虑型×回避型": {
+      "name": "欢喜冤家",
+      "desc": "最常见也最戏剧性的组合。一个追，一个退，形成经典的追逃模式。吸引力是真实的，但如果不打破这个模式，最终会耗尽双方。"
+    },
+    "焦虑型×混合型": {
+      "name": "迷雾中的彼此",
+      "desc": "两个人都不够稳定，但方式不同。对方的忽冷忽热会持续触发焦虑型的不安全感。"
+    },
+    "回避型×回避型": {
+      "name": "平行宇宙",
+      "desc": "两个人都不主动靠近，关系很平静，但也很难真正深入。"
+    },
+    "回避型×混合型": {
+      "name": "捉摸不定",
+      "desc": "混合型的忽冷忽热反而能让回避型感到相对舒适。但这个组合很难建立真正的深度。"
+    },
+    "混合型×混合型": {
+      "name": "一团烟火",
+      "desc": "两个情绪都不稳定的人在一起，会非常热烈，也会非常混乱。"
+    },
+    "高边界安全型×焦虑型": {
+      "name": "冰与火",
+      "desc": "高边界的安全感让焦虑型感到有依靠，但边界的硬度也会让焦虑型觉得进不去。"
+    },
+    "高边界安全型×回避型": {
+      "name": "两座山",
+      "desc": "两个都有很强边界感的人在一起，相互尊重，但也可能相互疏远。"
+    },
+    "低自我高投入型×任意": {
+      "name": "全心付出",
+      "desc": "无论对方是什么类型，这个组合的核心风险不在对方，在自己——需要先学会照顾自己。"
+    },
+    "高边界安全型×混合型": {
+      "name": "规则与例外",
+      "desc": "高边界的清晰给混合型一种难得的稳定感，只要双方愿意沟通，互补性很强。"
+    },
+    "低自我高投入型×回避型": {
+      "name": "给不到的距离",
+      "desc": "付出最多的人遇到了最难靠近的人。这个组合需要付出型学会有边界地爱。"
+    }
+  },
+  "questions": [
+    {
+      "id": "AT-M-01",
+      "order": 1,
+      "type": "slider",
+      "weight": 1.5,
+      "direction": "positive",
+      "text": "你现在对她的吸引感，跟最开始相比？",
+      "slider": {
+        "min": 0,
+        "max": 100,
+        "min_label": "淡了很多",
+        "max_label": "还是一样强，甚至更深了"
+      },
+      "scoring": {
+        "method": "slider_to_5",
+        "formula": "value / 100 * 5"
+      },
+      "layer": "AT"
+    },
+    {
+      "id": "AT-M-02",
+      "order": 2,
+      "type": "binary",
+      "weight": 1.5,
+      "direction": "positive",
+      "text": "当初让你喜欢上她的那些东西，现在还在吗？",
+      "options": [
+        {
+          "key": "left",
+          "text": "在，了解越深越喜欢",
+          "score": 85
+        },
+        {
+          "key": "right",
+          "text": "有些还在，但有些随着了解消退了",
+          "score": 50
+        }
+      ],
+      "scoring": {
+        "method": "direct"
+      },
+      "layer": "AT"
+    },
+    {
+      "id": "AT-M-03",
+      "order": 3,
+      "type": "choice",
+      "weight": 1.0,
+      "direction": "auxiliary",
+      "text": "你喜欢她，最核心的原因是？",
+      "options": [
+        {
+          "key": "A",
+          "text": "跟她在一起很放松，不需要表演",
+          "score": 75
+        },
+        {
+          "key": "B",
+          "text": "她让我想成为更好的自己",
+          "score": 80
+        },
+        {
+          "key": "C",
+          "text": "就是被她吸引，说不清楚",
+          "score": 70
+        },
+        {
+          "key": "D",
+          "text": "她是我真正欣赏的人",
+          "score": 80
+        }
+      ],
+      "scoring": {
+        "method": "direct"
+      },
+      "layer": "AT"
+    },
+    {
+      "id": "AT-M-04",
+      "order": 4,
+      "type": "scenario",
+      "weight": 1.3,
+      "direction": "positive",
+      "text": "如果她现在从你的生活里消失，你的第一反应会是？",
+      "options": [
+        {
+          "key": "A",
+          "text": "很难受，她在我生活里有真实的重量",
+          "score": 85
+        },
+        {
+          "key": "B",
+          "text": "会有影响，但能想象没有她的生活",
+          "score": 55
+        },
+        {
+          "key": "C",
+          "text": "说不清楚",
+          "score": 45
+        },
+        {
+          "key": "D",
+          "text": "可能有点如释重负",
+          "score": 20
+        }
+      ],
+      "scoring": {
+        "method": "direct"
+      },
+      "layer": "AT"
+    },
+    {
+      "id": "IN-M-05",
+      "order": 5,
+      "type": "slider",
+      "weight": 1.5,
+      "direction": "positive",
+      "text": "跟她在一起，你整体的感觉是轻松还是有负担？",
+      "slider": {
+        "min": 0,
+        "max": 100,
+        "min_label": "经常感到有压力或消耗",
+        "max_label": "跟她在一起非常轻松"
+      },
+      "scoring": {
+        "method": "slider_to_5",
+        "formula": "value / 100 * 5"
+      },
+      "layer": "IN"
+    },
+    {
+      "id": "IN-M-06",
+      "order": 6,
+      "type": "binary",
+      "weight": 1.5,
+      "direction": "positive",
+      "text": "她的情绪状态，对你的情绪影响大吗？",
+      "options": [
+        {
+          "key": "left",
+          "text": "不太大，我能把自己的状态和她的情绪分开",
+          "score": 80
+        },
+        {
+          "key": "right",
+          "text": "比较大，她不高兴我就很难放松",
+          "score": 35
+        }
+      ],
+      "scoring": {
+        "method": "direct"
+      },
+      "layer": "IN"
+    },
+    {
+      "id": "IN-M-07",
+      "order": 7,
+      "type": "scenario",
+      "weight": 1.5,
+      "direction": "positive",
+      "text": "你今天心情不好，不想说话。她的反应通常是？",
+      "options": [
+        {
+          "key": "A",
+          "text": "感觉到了，给我空间，但让我知道她在",
+          "score": 90
+        },
+        {
+          "key": "B",
+          "text": "问我怎么了，想帮我解决问题",
+          "score": 60
+        },
+        {
+          "key": "C",
+          "text": "没感觉到，照常说话",
+          "score": 35
+        },
+        {
+          "key": "D",
+          "text": "感觉到了，但开始担心是不是自己的问题",
+          "score": 25
+        }
+      ],
+      "scoring": {
+        "method": "direct"
+      },
+      "layer": "IN"
+    },
+    {
+      "id": "IN-M-08",
+      "order": 8,
+      "type": "choice",
+      "weight": 1.5,
+      "direction": "positive",
+      "text": "你们吵架或有矛盾之后，通常怎么结束？",
+      "options": [
+        {
+          "key": "A",
+          "text": "真正说清楚，和好，感觉更近了",
+          "score": 90
+        },
+        {
+          "key": "B",
+          "text": "冷静了就和好，但没完全说清楚",
+          "score": 60
+        },
+        {
+          "key": "C",
+          "text": "一个人先让步，然后过去了",
+          "score": 40
+        },
+        {
+          "key": "D",
+          "text": "冷处理，假装没发生过",
+          "score": 20
+        }
+      ],
+      "scoring": {
+        "method": "direct"
+      },
+      "layer": "IN"
+    },
+    {
+      "id": "IN-M-09",
+      "order": 9,
+      "type": "slider",
+      "weight": 1.5,
+      "direction": "positive",
+      "text": "在你们的关系里，你感觉自己被她真正理解的程度是多少？",
+      "slider": {
+        "min": 0,
+        "max": 100,
+        "min_label": "她不太了解真正的我",
+        "max_label": "她是少数真正懂我的人之一"
+      },
+      "scoring": {
+        "method": "slider_to_5",
+        "formula": "value / 100 * 5"
+      },
+      "layer": "IN"
+    },
+    {
+      "id": "IN-M-10",
+      "order": 10,
+      "type": "binary",
+      "weight": 1.3,
+      "direction": "positive",
+      "text": "她说话算数吗？答应你的事，她做到的概率是？",
+      "options": [
+        {
+          "key": "left",
+          "text": "很高，说了基本都会做到",
+          "score": 85
+        },
+        {
+          "key": "right",
+          "text": "不一定，经常有变化或者忘了",
+          "score": 25
+        }
+      ],
+      "scoring": {
+        "method": "direct"
+      },
+      "layer": "IN"
+    },
+    {
+      "id": "CO-M-11",
+      "order": 11,
+      "type": "scenario",
+      "weight": 1.5,
+      "direction": "positive",
+      "text": "你们谈到未来。你们的方向是？",
+      "options": [
+        {
+          "key": "A",
+          "text": "基本一致，细节可以商量",
+          "score": 90
+        },
+        {
+          "key": "B",
+          "text": "有些不同，但都愿意妥协",
+          "score": 65
+        },
+        {
+          "key": "C",
+          "text": "有一个核心分歧，暂时搁置",
+          "score": 35
+        },
+        {
+          "key": "D",
+          "text": "没认真谈过，或谈了发现差很多",
+          "score": 20
+        }
+      ],
+      "scoring": {
+        "method": "direct"
+      },
+      "layer": "CO"
+    },
+    {
+      "id": "CO-M-12",
+      "order": 12,
+      "type": "binary",
+      "weight": 1.5,
+      "direction": "positive",
+      "text": "她对你需要的个人空间，理解吗？",
+      "options": [
+        {
+          "key": "left",
+          "text": "理解，不会因为我需要独处而有意见",
+          "score": 85
+        },
+        {
+          "key": "right",
+          "text": "有时候不理解，我需要空间时会有摩擦",
+          "score": 30
+        }
+      ],
+      "scoring": {
+        "method": "direct"
+      },
+      "layer": "CO"
+    },
+    {
+      "id": "CO-M-13",
+      "order": 13,
+      "type": "slider",
+      "weight": 1.5,
+      "direction": "positive",
+      "text": "你们在核心价值观上有多一致？",
+      "slider": {
+        "min": 0,
+        "max": 100,
+        "min_label": "差异很大",
+        "max_label": "非常一致"
+      },
+      "scoring": {
+        "method": "slider_to_5",
+        "formula": "value / 100 * 5"
+      },
+      "layer": "CO"
+    },
+    {
+      "id": "CO-M-14",
+      "order": 14,
+      "type": "choice",
+      "weight": 1.5,
+      "direction": "positive",
+      "text": "你觉得她是一个跟你能走很远的人吗？",
+      "options": [
+        {
+          "key": "A",
+          "text": "是",
+          "score": 90
+        },
+        {
+          "key": "B",
+          "text": "可能是，但还不确定",
+          "score": 60
+        },
+        {
+          "key": "C",
+          "text": "不太确定",
+          "score": 40
+        },
+        {
+          "key": "D",
+          "text": "不太像，但现在也还好",
+          "score": 25
+        }
+      ],
+      "scoring": {
+        "method": "direct"
+      },
+      "layer": "CO"
+    },
+    {
+      "id": "EV-M-15",
+      "order": 15,
+      "type": "slider",
+      "weight": 1.5,
+      "direction": "positive",
+      "text": "跟她在一起这段时间，你觉得自己有没有在进步？",
+      "slider": {
+        "min": 0,
+        "max": 100,
+        "min_label": "这段关系让我停滞甚至退步",
+        "max_label": "在这段关系里我明显变好了"
+      },
+      "scoring": {
+        "method": "slider_to_5",
+        "formula": "value / 100 * 5"
+      },
+      "layer": "EV"
+    },
+    {
+      "id": "EV-M-16",
+      "order": 16,
+      "type": "binary",
+      "weight": 1.5,
+      "direction": "positive",
+      "text": "这段关系有没有让你有动力往前走？",
+      "options": [
+        {
+          "key": "left",
+          "text": "有，她让我更想努力",
+          "score": 85
+        },
+        {
+          "key": "right",
+          "text": "没有特别，或者反而有点消耗",
+          "score": 30
+        }
+      ],
+      "scoring": {
+        "method": "direct"
+      },
+      "layer": "EV"
+    },
+    {
+      "id": "EV-M-17",
+      "order": 17,
+      "type": "choice",
+      "weight": 1.5,
+      "direction": "positive",
+      "text": "你想象一年后的你们，第一个浮现的画面是？",
+      "options": [
+        {
+          "key": "A",
+          "text": "比现在更好，能清楚想象",
+          "score": 90
+        },
+        {
+          "key": "B",
+          "text": "差不多，继续现在这样",
+          "score": 60
+        },
+        {
+          "key": "C",
+          "text": "有点模糊，不确定",
+          "score": 40
+        },
+        {
+          "key": "D",
+          "text": "很难想象，或者想到就有点担心",
+          "score": 20
+        }
+      ],
+      "scoring": {
+        "method": "direct"
+      },
+      "layer": "EV"
+    },
+    {
+      "id": "EV-M-18",
+      "order": 18,
+      "type": "scenario",
+      "weight": 1.5,
+      "direction": "positive",
+      "text": "你回顾你们在一起的这段时间，整体感受是？",
+      "options": [
+        {
+          "key": "A",
+          "text": "值得，有很多真实的快乐，我不后悔",
+          "score": 90
+        },
+        {
+          "key": "B",
+          "text": "有好有坏，总体还是值得的",
+          "score": 65
+        },
+        {
+          "key": "C",
+          "text": "有些累，但还没想清楚",
+          "score": 35
+        },
+        {
+          "key": "D",
+          "text": "如果能重来可能会做不同选择",
+          "score": 15
+        }
+      ],
+      "scoring": {
+        "method": "direct"
+      },
+      "layer": "EV"
+    },
+    {
+      "id": "RK-M-19",
+      "order": 19,
+      "type": "binary",
+      "weight": 1.5,
+      "direction": "reverse",
+      "text": "在这段关系里，你有没有感觉过「我在压抑自己」？",
+      "options": [
+        {
+          "key": "left",
+          "text": "很少，我在她面前大多数时候可以做自己",
+          "score": 15
+        },
+        {
+          "key": "right",
+          "text": "有，有一些东西不敢说或者不得不压着",
+          "score": 75
+        }
+      ],
+      "scoring": {
+        "method": "direct"
+      },
+      "layer": "RK"
+    },
+    {
+      "id": "RK-M-20",
+      "order": 20,
+      "type": "choice",
+      "weight": 1.5,
+      "direction": "reverse",
+      "text": "如果最好的哥们描述一段跟你们很相似的关系，问你怎么看，你会说？",
+      "options": [
+        {
+          "key": "A",
+          "text": "挺好的，值得珍惜",
+          "score": 10
+        },
+        {
+          "key": "B",
+          "text": "有些地方需要注意，但整体健康",
+          "score": 30
+        },
+        {
+          "key": "C",
+          "text": "我会有点担心，提醒他注意某些模式",
+          "score": 60
+        },
+        {
+          "key": "D",
+          "text": "建议他认真想想值不值得继续",
+          "score": 85
+        }
+      ],
+      "scoring": {
+        "method": "direct"
+      },
+      "layer": "RK"
+    }
+  ]
+}

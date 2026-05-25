@@ -18,9 +18,20 @@ def _public_options(options: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return public
 
 
-def adapt_question(row: dict[str, Any]) -> dict[str, Any]:
+def adapt_question(row: dict[str, Any], suite_slug: str | None = None) -> dict[str, Any]:
     qtype = row["question_type"]
     payload = row.get("question_payload") or {}
+    scoring = row.get("scoring_payload") or {}
+    dimension_code = row.get("dimension_code") or ""
+    display_order = int(row.get("display_order") or 0)
+    slug = (suite_slug or "").lower()
+    pin_order = scoring.get("pinOrder")
+    if pin_order is None and dimension_code == "PRE":
+        pin_order = display_order
+    foundation_pinned = False
+    is_ros = "_ros_" in slug or slug.endswith("_ros") or slug == "ros" or slug.startswith("s02_ros")
+    if not is_ros and dimension_code != "PRE" and display_order <= 3:
+        foundation_pinned = True
     options = payload.get("options") or []
     ui: dict[str, Any] = {}
 
@@ -92,4 +103,8 @@ def adapt_question(row: dict[str, Any]) -> dict[str, Any]:
         "required": True,
         "ui": {k: v for k, v in ui.items() if v is not None and v != []},
         "options": _public_options(options),
+        "dimensionCode": dimension_code,
+        "pinOrder": pin_order,
+        "scoringSensitive": scoring.get("sensitive"),
+        "foundationPinned": foundation_pinned,
     }

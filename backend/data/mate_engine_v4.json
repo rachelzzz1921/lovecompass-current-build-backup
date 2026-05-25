@@ -1,0 +1,254 @@
+{
+    "project_info": {
+        "project_name": "MATE 择偶坐标档案",
+        "version": "V4.1",
+        "engineering_code": "MATE_ENGINE_V4.1",
+        "core_upgrade": "引入AI上下文装配器，实现规则定骨架、AI赋灵魂，解决用户"被看见"的核心需求",
+        "product_philosophy": "用户买的不是分数和标签，而是"操，这怎么像偷拍了我的恋爱经历"的精准共鸣",
+        "design_principles": [
+            "算法决定你是谁",
+            "AI决定怎么让你觉得像你",
+            "AI只参与叙事，不参与任何判断",
+            "所有AI模块共享统一上下文，避免认知分裂"
+        ]
+    },
+    "architecture_flow": [
+        "用户答题",
+        "数学计算层",
+        "人格原子提取层",
+        "词库引擎",
+        "AI上下文装配器",
+        "AI导演层",
+        "页面JSON",
+        "前端渲染"
+    ],
+    "ai_participation_rules": {
+        "ai_responsible_modules": [
+            "镜像反转(mate-reverse)",
+            "观察室(mate-observe)",
+            "恋爱预演(mate-rehearse)",
+            "参数模拟器动态文案(mate-simulator)",
+            "透视镜洞察(mate-lens)",
+            "底部传播语录(footer)",
+            "场景化关系镜头"
+        ],
+        "ai_prohibited_modules": [
+            "人格计算",
+            "坐标计算",
+            "风险判定",
+            "模块分数计算",
+            "标签生成",
+            "适配区计算",
+            "风险区计算",
+            "基础建议生成"
+        ],
+        "strong_constraint": "AI绝对不能修改任何算法输出的数值、人格类型、标签和判定结果，仅能基于给定素材进行叙事创作"
+    },
+    "layers": {
+        "layer_1_math_calculation": {
+            "responsibility": "仅负责数值计算，100%硬代码实现，无任何AI参与",
+            "female_formula": {
+                "display_degree_X": "FS1×0.55 + FS2×0.45",
+                "reality_support_Y": "FS3×0.60 + (100−FS5)×0.40"
+            },
+            "male_formula": {
+                "display_degree_X": "MS3×0.50 + MS4×0.50",
+                "reality_support_Y": "MS1×0.55 + MS2×0.30 + (100−MS5)×0.15"
+            },
+            "risk_fuse_rule": "if risk>65 then main_type=还没到时候的人",
+            "special_personality_rule": "if 低显示 + 高支撑 + 长期稳定>80 then main_type=越了解越值钱的人"
+        },
+        "layer_2_personality_atom_extractor": {
+            "responsibility": "将数值结果拆解为标准化人格原子，为所有下游模块提供统一数据基础",
+            "output_structure": {
+                "main_type": "string",
+                "sub_type": "string",
+                "trait_atoms": "array<string>",
+                "behavior_atoms": "array<string>",
+                "relationship_atoms": "array<string>"
+            },
+            "sub_type_mapping": {
+                "低显示+高支撑+高情绪": "慢热筛选者",
+                "高显示+高支撑+高情感": "关系经营者",
+                "高显示+低支撑+高吸引": "瞬时点火型",
+                "低显示+高稳定": "长期托底者"
+            }
+        },
+        "layer_3_dictionary_engine": {
+            "responsibility": "提供标准化素材库，为AI生成提供事实依据",
+            "directory_structure": [
+                "dictionary/display_degree.json",
+                "dictionary/emotion_value.json",
+                "dictionary/relationship_speed.json",
+                "dictionary/support_strength.json",
+                "dictionary/risk_type.json",
+                "dictionary/behavior_style.json",
+                "dictionary/scene_library.json"
+            ]
+        },
+        "layer_4_ai_context_assembler": {
+            "responsibility": "核心中间层，统一装配所有AI模块的输入上下文，彻底解决AI各自为战的问题",
+            "input_sources": [
+                "人格原子提取器输出",
+                "词库引擎素材",
+                "用户答题证据",
+                "模块分数结果"
+            ],
+            "unified_output_structure": {
+                "main_type": "被读懂之前的人",
+                "sub_type": "慢热筛选者",
+                "trait_atoms": [
+                    "低显示",
+                    "高支撑",
+                    "价值释放后置",
+                    "高情绪价值",
+                    "低风险"
+                ],
+                "behavior_atoms": [
+                    "观察型",
+                    "筛选型",
+                    "托底型"
+                ],
+                "scene_atoms": [
+                    "熟了以后突然变得话多",
+                    "会记住别人说过的小事",
+                    "不主动但一直在"
+                ],
+                "evidence": [
+                    "聚会中容易被注意",
+                    "情绪支持能力82",
+                    "现实支撑85"
+                ]
+            },
+            "rule": "所有AI模块必须使用此统一上下文作为输入，禁止直接读取原始分数或用户答题数据"
+        },
+        "layer_5_ai_director": {
+            "responsibility": "基于统一上下文进行叙事创作，生成有共鸣感的自然语言内容",
+            "modules": {
+                "mate-reverse": {
+                    "input": "统一上下文",
+                    "output_structure": {
+                        "misread": "string",
+                        "mechanism": "string",
+                        "cost": "string"
+                    },
+                    "system_prompt": "# Role\n关系档案解码师\n\n# Task\n根据用户人格原子，还原三层真相：别人怎么误解、为什么产生误解、误解会造成什么代价\n\n# Rules\n不要抽象人格描述，优先写现实镜头，必须让用户产生"这在说我"的感觉\n\n# Output Format\n【别人以为】\n【真实机制】\n【隐藏代价】",
+                    "output_example": "【别人以为】\n她好像一个人就能过很好。\n\n【真实机制】\n因为你不会快速释放热情，也不习惯提前透支情绪。\n\n【隐藏代价】\n很多人会在看见你的价值之前先离开。"
+                },
+                "mate-observe": {
+                    "input": "统一上下文 + 场景参数",
+                    "output_structure": {
+                        "first_glance": "string",
+                        "five_minutes_later": "string",
+                        "after_leaving": "string"
+                    },
+                    "system_prompt": "# Task\n根据用户人格原子，模拟约会对象的第一视角\n\n# Output Format\n【第一眼】\n【五分钟后】\n【离开以后】\n\n# Rules\n每段50字以内，只写具体可感知的细节，不写抽象评价",
+                    "output_example": "【第一眼】\n会先注意你的整体气场。\n\n【五分钟后】\n开始被你的说话节奏吸引。\n\n【离开以后】\n会突然想起你提过的某个细节。"
+                },
+                "mate-rehearse": {
+                    "input": "统一上下文 + 阶段参数(Day1/Day30/Day90)",
+                    "output_structure": {
+                        "plot": "string",
+                        "partner_psychology": "string",
+                        "warning": "string",
+                        "suggestion": "string"
+                    },
+                    "system_prompt": "# Task\n推演对应阶段的关系发展状态\n\n# Output Format\n【剧情推进】\n【对方心理】\n【危险信号】\n【红娘动作】\n\n# Rules\n语言要像真实红娘的经验之谈，不要太书面化",
+                    "output_example": "【剧情推进】\n荷尔蒙开始退场，对方开始观察长期稳定性。\n\n【对方心理】\n她很好，但我不知道她到底有没有喜欢我。\n\n【危险信号】\n低显示人格容易被误判成冷淡。\n\n【红娘动作】\n主动共享一个今天发生的小情绪。"
+                },
+                "mate-simulator": {
+                    "input": "统一上下文 + 变化参数(before/after/boost)",
+                    "output": "string",
+                    "system_prompt": "# Task\n描述如果用户调整对应参数后，关系世界会发生什么变化\n\n# Rules\n要有命运感，80字以内，不要用"效率提高XX%"这种冰冷的数字表述",
+                    "output_example": "显示度提升15%以后，你的价值不再出现在关系后半段。那些原本需要三个月才能发现你的人，会提前停下来。"
+                },
+                "mate-lens": {
+                    "input": "统一上下文",
+                    "output_structure": {
+                        "hidden_asset": "string",
+                        "blind_spot": "string",
+                        "cross_model_insight": "string"
+                    },
+                    "system_prompt": "# Task\n基于人格原子输出深度洞察\n\n# Output Format\n【隐形资产】\n【盲区】\n【联动洞察】",
+                    "output_example": "【隐形资产】\n你会记住很多小事，而这会给别人非常强的被重视感。\n\n【盲区】\n你以为是独立，对方可能理解成拒绝靠近。\n\n【联动洞察】\n如果安全型依恋成立，你的长期关系上限会明显提高。"
+                },
+                "footer_marquee": {
+                    "input": "统一上下文",
+                    "output": "array<string>",
+                    "system_prompt": "# Task\n模拟别人匿名评价这个人的感觉\n\n# Rules\n一句话，20字以内，口语化，有真实感，生成3-5条",
+                    "output_example": [
+                        "刚认识觉得普通，后来越来越上头。",
+                        "跟她待久了，会越来越舍不得。",
+                        "情绪特别稳，待着很舒服。",
+                        "她是那种越熟越贵的人。"
+                    ]
+                }
+            }
+        }
+    },
+    "ui_module_execution": {
+        "mate-identity": {
+            "backend_flow": [
+                "人格计算",
+                "二级人格匹配",
+                "标签词库调用",
+                "生成身份卡数据"
+            ],
+            "ai_participation": "无"
+        },
+        "mate-modules": {
+            "backend_flow": [
+                "模块分数计算",
+                "子维度徽章生成",
+                "证据映射库匹配",
+                "市场映射生成"
+            ],
+            "ai_participation": "无"
+        },
+        "mate-coordinate": {
+            "backend_flow": [
+                "XY坐标计算",
+                "区域判定"
+            ],
+            "ai_participation": "无"
+        },
+        "mate-advice": {
+            "backend_flow": [
+                "风险等级匹配好消息库",
+                "显示度匹配提醒库",
+                "最大短板匹配行动库"
+            ],
+            "ai_participation": "无"
+        },
+        "mate-match": {
+            "backend_flow": [
+                "多维度特征融合",
+                "匹配温度引擎计算",
+                "匹配带判定",
+                "目标画像与场景生成"
+            ],
+            "ai_participation": "无"
+        }
+    },
+    "final_page_unified_json_structure": {
+        "identity": {},
+        "radar": {},
+        "simulator": {},
+        "coordinate": {},
+        "reverse": {},
+        "observe": {},
+        "rehearse": {},
+        "advice": {},
+        "match": {},
+        "lens": {},
+        "footer": {},
+        "profile_engine": {
+            "main_type": "string",
+            "sub_type": "string",
+            "trait_atoms": "array<string>",
+            "behavior_atoms": "array<string>",
+            "relationship_atoms": "array<string>"
+        }
+    },
+    "development_note": "AI上下文装配器是本版本的核心，所有AI模块必须严格使用其输出的统一上下文，禁止任何模块自行解析原始数据。这样可以确保整个报告对用户的描述保持高度一致，同时最大化AI的叙事能力，让用户产生强烈的"被看见"的感觉。"
+}

@@ -12,6 +12,7 @@ from app.auth import resolve_user_id
 from app.db import get_conn
 from app.json_utils import coerce_dict, jsonable
 from app.ros_couple import attempt_snapshot, build_couple_payload
+from app.ros_couple_ai_content import attach_ros_couple_ai_content
 from app.ros_scoring import is_ros_suite
 
 router = APIRouter(prefix="/ros", tags=["ros"])
@@ -146,6 +147,7 @@ def merge_and_store_couple_report(conn: Any, session_id: uuid.UUID) -> dict[str,
             type_rules=type_rules,
         )
     )
+    couple_payload = attach_ros_couple_ai_content(couple_payload, use_ai=True)
 
     conn.execute(
         """
@@ -181,6 +183,16 @@ def link_partner_to_session(
     partner_attempt = _fetch_attempt(conn, partner_attempt_id, partner_user_id)
     if not partner_attempt or not is_ros_suite(partner_attempt.get("suite_slug")):
         raise HTTPException(status_code=400, detail="伴侣测评无效")
+
+    initiator = _fetch_attempt(conn, session["initiator_attempt_id"])
+    if initiator:
+        initiator_tier = _infer_suite_tier(initiator.get("suite_slug"))
+        partner_tier = _infer_suite_tier(partner_attempt.get("suite_slug"))
+        if initiator_tier != partner_tier:
+            raise HTTPException(
+                status_code=400,
+                detail="伴侣需使用与发起人相同的测试版本（快速版/完整版）",
+            )
 
     conn.execute(
         """
@@ -234,6 +246,10 @@ def create_relation_session(
     return dict(row)
 
 
+def _infer_suite_tier(slug: str | None) -> str:
+    return "lite" if slug and "_lite" in slug.lower() else "full"
+
+
 @router.get("/codes/{code}")
 def get_relation_code_preview(code: str):
     normalized = _normalize_relation_code(code)
@@ -249,10 +265,23 @@ def get_relation_code_preview(code: str):
         else:
             rel_type = (snapshot.get("relationshipType") or {}) if isinstance(snapshot, dict) else {}
             stage = (snapshot.get("relationshipStage") or {}) if isinstance(snapshot, dict) else {}
+
+        suite_slug = None
+        if initiator:
+            suite_slug = initiator.get("suite_slug")
+        if not suite_slug and isinstance(snapshot, dict):
+            suite_slug = snapshot.get("suiteSlug")
+        suite_tier = (
+            snapshot.get("suiteTier")
+            if isinstance(snapshot, dict) and snapshot.get("suiteTier") in ("lite", "full")
+            else _infer_suite_tier(str(suite_slug or ""))
+        )
     return {
         "ok": True,
         "code": normalized,
         "status": session.get("status"),
+        "suiteTier": suite_tier,
+        "suiteSlug": suite_slug,
         "preview": {
             "relationshipType": rel_type,
             "relationshipStage": stage,
@@ -299,6 +328,17 @@ def get_ros_single_result(attempt_id: str, user_id: str = Depends(resolve_user_i
             raise HTTPException(status_code=400, detail="该记录不是 ROS 关系测评")
 
         payload = attempt.get("result_payload") or {}
+        if isinstance(payload, dict):
+            from app.ros_ai_content import attach_ros_ai_content_to_payload
+
+            payload = attach_ros_ai_content_to_payload(
+                conn,
+                attempt_id,
+                payload,
+                attempt.get("dimension_scores"),
+                use_ai=False,
+                gender=str(attempt.get("archetype_gender") or "female"),
+            )
         code = attempt.get("relation_code") or (payload.get("relationCode") if isinstance(payload, dict) else None)
         session = _fetch_session_by_code(conn, code) if code else None
 

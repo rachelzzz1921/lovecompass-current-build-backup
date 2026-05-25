@@ -1,0 +1,281 @@
+{
+    "project_info": {
+        "model_name": "MATE 择偶坐标档案",
+        "design_style": "档案室美学 手写卷宗质感",
+        "core_positioning": "婚恋平台红娘辅助工具",
+        "ui_rule": "去除星号 圆点列表 采用网格卡片边框呈现",
+        "data_rule": "男女独立计算公式 脱敏输出 不展示原始分值"
+    },
+    "page_entry": {
+        "layout": "2×N非线性卡片网格",
+        "interaction": "点击卡片平滑滚动至对应区块",
+        "nav_cards": [
+            {
+                "icon": "📍",
+                "title": "坐标站",
+                "desc": "你在择偶市场上的城市定位"
+            },
+            {
+                "icon": "🔬",
+                "title": "模块雷达",
+                "desc": "五维能力深度仿真拆解"
+            },
+            {
+                "icon": "🪞",
+                "title": "观察室",
+                "desc": "陌生人/约会对象眼中的你"
+            },
+            {
+                "icon": "🎬",
+                "title": "恋爱预演",
+                "desc": "关系推演与情绪指数剧集"
+            },
+            {
+                "icon": "📋",
+                "title": "市场建议",
+                "desc": "红娘给你的大实话与避坑指南"
+            },
+            {
+                "icon": "💡",
+                "title": "匹配区间",
+                "desc": "成功率最高的三个温度带"
+            },
+            {
+                "icon": "🔭",
+                "title": "透视镜",
+                "desc": "AI深度洞察与隐形资产"
+            },
+            {
+                "icon": "🪞",
+                "title": "镜像反转",
+                "desc": "解密关于你最深的误解"
+            }
+        ]
+    },
+    "modules": [
+        {
+            "module_key": "mate-identity",
+            "module_name": "身份定位卡",
+            "visual_style": "高端猎头评估卷宗 情报局卷宗封面",
+            "content": {
+                "title": "MIRROR · 择偶坐标档案",
+                "sub_title": "SET 03 / MATE  |  CONFIDENTIAL",
+                "quadrant_result": "被读懂之前的人",
+                "quadrant_desc": "象限判定：低显示 × 高支撑",
+                "slogan": "你有很多好，但藏得很深——大多数人没有耐心等到那一刻。",
+                "badges": [
+                    {
+                        "name": "外形管理",
+                        "result": "有辨识度"
+                    },
+                    {
+                        "name": "情感价值",
+                        "result": "表现稳定"
+                    },
+                    {
+                        "name": "现实底牌",
+                        "result": "稳定增长型"
+                    }
+                ],
+                "tags": "高价值低显示度 慢热复利型 需要对的频道"
+            },
+            "data_adaptation": "女性用户外形触发滑杆自评脱敏规则 不暴露底层分值"
+        },
+        {
+            "module_key": "mate-modules",
+            "module_name": "模块雷达",
+            "visual_style": "环形仪表盘 五边形蜂巢图",
+            "interaction": "点击格子触发手风琴特效展开",
+            "dashboard": [
+                {
+                    "level": "最外环",
+                    "dimension": "吸引力资产",
+                    "visual": "██████████░░░░",
+                    "output": "是重要资产"
+                },
+                {
+                    "level": "次外环",
+                    "dimension": "情感价值",
+                    "visual": "████████░░░░░░",
+                    "output": "表现稳定"
+                },
+                {
+                    "level": "中间环",
+                    "dimension": "现实支撑层",
+                    "visual": "██████████░░░░",
+                    "output": "正处于发展阶段"
+                },
+                {
+                    "level": "次内环",
+                    "dimension": "风险净值",
+                    "visual": "●●○○○",
+                    "output": "有一些值得认真看一看的地方"
+                }
+            ],
+            "accordion_example": {
+                "dimension": "吸引力资产",
+                "tag": "核心竞争力",
+                "sub_badges": [
+                    "外形管理 · 有辨识度",
+                    "气质存在感 · 表现稳定",
+                    "新鲜感持续 · 资产级"
+                ],
+                "answer_evidence": "你在走进一个聚会通常发生什么那题中，勾选了进去的时候通常会有人抬头看。这在模型算法中不是偶然，证明你具备一种天然的场域感。",
+                "market_mapping": "吸引力资产是你让人想停下来了解的能力。你在本模块的得分表明，第一印象在现实筛选中绝对不会成为你的阻碍。"
+            }
+        },
+        {
+            "module_key": "mate-simulator",
+            "module_name": "参数模拟器",
+            "location": "模块雷达正下方",
+            "interaction": "滑动滑块触发数据图形动态改变",
+            "visual_title": "档案重组 · 换一个版本的你",
+            "slogan": "你与最优资产释放路径，其实只差了一次局部的轻微调整",
+            "diagnosis": "你的整体底牌极好，但显示度略显短板。",
+            "slider": {
+                "name": "吸引力/门面显示度",
+                "visual": "░░░░░░░░░░░░░░░░░░░░░░●",
+                "value": "+15%",
+                "method": "轻度穿搭升级 与 社交局部曝光"
+            },
+            "dynamic_effect": [
+                "环形雷达图吸引力最外环正在扩张",
+                "城市地图中★的坐标正在平滑向上移动"
+            ],
+            "dynamic_text": "当显示度提升15%时，你的坐标将直接跨越至第一象限 让人想留下来的人。这意味着对方不再需要耗费数月时间去盲猜你的好，你的择偶匹配效率将瞬间缩短35%！"
+        },
+        {
+            "module_key": "mate-coordinate",
+            "module_name": "坐标站",
+            "visual_style": "择偶市场城市地图",
+            "map_title": "你在择偶市场的地图上，落脚于此：",
+            "axis": {
+                "horizontal": "显示度",
+                "vertical": "现实支撑力"
+            },
+            "map_area": [
+                "稳健区",
+                "全能区",
+                "待开发",
+                "窗口期"
+            ],
+            "user_location": "② 你的位置 ★(波纹扩散)",
+            "gender_formula": {
+                "male": {
+                    "horizontal": "情感供给 ×50% + 门面社交 ×50%",
+                    "vertical": "现实底牌 ×55% + 稳定性 ×30% + (100−风险) ×15%"
+                },
+                "female": {
+                    "horizontal": "吸引力 ×55% + 情感价值 ×45%",
+                    "vertical": "现实自主 ×60% + (100−风险) ×40%"
+                }
+            }
+        },
+        {
+            "module_key": "mate-reverse",
+            "module_name": "镜像反转卡片",
+            "location": "坐标站下方",
+            "interaction": "3D翻转卡片动效 点击翻转180度",
+            "card_front": {
+                "title": "观察室 · 关于你最深的误解",
+                "subtitle": "外 界 误 读",
+                "content": "她好像很冷淡，完全不需要陪伴。感觉她一个人就能过得很好，任何人都很难真正走进她的世界。",
+                "tip": "点击卡片，翻看红娘剥离表象后的灵魂真相"
+            },
+            "card_back": {
+                "title": "观察室 · 关于你最深的误解",
+                "subtitle": "底 牌 真 相",
+                "content": "真实情况是：你只是不轻易交付，更拒绝廉价的快餐式社交。在现实中，那些真正通过筛选、得以留下来的人会惊讶地发现——你给予的支撑极为扎实，你提供的情绪滋养比谁都更有质量。你不是不需要陪伴，你只是坚持，把最好的自己留给对的人。",
+                "share_tip": "极其罕见的长期高纯度伴侣，长按可保存卡片分享"
+            }
+        },
+        {
+            "module_key": "mate-observe",
+            "module_name": "观察室",
+            "visual_style": "侦探卷宗目击者证词 横向翻页",
+            "content": {
+                "slice": "观察者视角的切片 01 / 03",
+                "title": "第一次见面时，约会对象会……",
+                "correct_traits": "对你进门时的整体气场产生印象、被你独特的说话节奏吸引。",
+                "missing_traits": "..."
+            }
+        },
+        {
+            "module_key": "mate-rehearse",
+            "module_name": "恋爱预演",
+            "visual_style": "Netflix剧集卡片 横向排列",
+            "interaction": "点击卡片弹出底部半屏抽屉",
+            "episodes": [
+                {
+                    "name": "EP1 初见阶段",
+                    "time": "Day 1 - 3",
+                    "desc": "心动发生的瞬间"
+                },
+                {
+                    "name": "EP2 试探阶段",
+                    "time": "Day 30",
+                    "desc": "情绪稳定性的博弈"
+                },
+                {
+                    "name": "EP3 真实阶段",
+                    "time": "Day 90+",
+                    "desc": "核心资产的沉淀"
+                }
+            ],
+            "drawer_example": {
+                "episode": "EP2 试探阶段",
+                "plot": "在这个阶段，对方开始高频观察你是否名副其实，你的边界感与信息透明度将直接接受测试。",
+                "warning": "由于你属于低显示度人格，此时极易让对方产生她是不是对我没兴趣的误判。",
+                "suggestion": "主动共享一两件你的日常小想法，无需过度示弱，重在向对方传递你在场的信号。",
+                "comfort_index": "💙💙💙○○"
+            }
+        },
+        {
+            "module_key": "mate-advice",
+            "module_name": "市场建议",
+            "visual_style": "真人红娘对话气泡",
+            "content": {
+                "good_news": "先透露一个确定性的好消息 你的风险净值极低，在性格上完全不是那种看着光鲜但相处起来极其消耗人的类型，这在当下的择偶市场上属于绝对的硬通货。",
+                "warning": "但有一件事我必须提醒你 你的市场显示度偏低，这意味着你极度依赖熟人网络。如果一味原地等待别人来挖掘你，效率会非常低，你需要主动为自己做局部曝光。"
+            }
+        },
+        {
+            "module_key": "mate-match",
+            "module_name": "匹配区间",
+            "visual_style": "市场温度带视觉滑块",
+            "slider_title": "你的择偶市场最佳匹配温度带",
+            "slider_range": "极冷 至 极热",
+            "zones": ["风险区", "最佳适配区", "挑战上限区"],
+            "user_zone": "最佳适配区",
+            "zone_analysis": {
+                "target_portrait": "作风务实、重视生活稳定性、不盲目追求高调即时浪漫的理性人。",
+                "matching_reason": "这类人在筛选中具备足够的耐心与眼光，能顶住第一眼的平淡，去置信你长期的复利价值。",
+                "meet_scene": "高校校友圈、高壁垒的专业工作场合、高信任度的主管或朋友引介。"
+            }
+        },
+        {
+            "module_key": "mate-lens",
+            "module_name": "透视镜",
+            "visual_style": "三宫格设计 点击方块弹窗解密",
+            "grid_content": [
+                {
+                    "title": "你的隐形资产",
+                    "desc": "你提供的情绪滋养，比你自己以为的还要贵重数倍"
+                },
+                {
+                    "title": "你的盲区",
+                    "desc": "你以为的独立，在对方眼里可能被解读为难以攻克的冷漠"
+                },
+                {
+                    "title": "跨模型联动",
+                    "desc": "若套一模型为安全型依恋，将完美对冲掉你仅存的沟通风险"
+                }
+            ]
+        }
+    ],
+    "page_footer": {
+        "component": "横向跑马灯滚动条",
+        "interaction": "3秒自动轮播 一键生成分享卡片",
+        "content": "匿名评价回音壁：跟她在一起，越聊越觉得她精神世界深不可测"
+    }
+}

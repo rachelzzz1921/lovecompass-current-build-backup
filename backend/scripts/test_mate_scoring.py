@@ -85,7 +85,7 @@ def test_mate_suite_detection() -> None:
     assert not is_mate_suite("s01_self_female")
 
 
-def test_mate_scoring_produces_v3_payload() -> None:
+def test_mate_scoring_produces_v4_payload() -> None:
     bank = _load_bank("female")
     questions = _sample_questions(bank)
     answers = _mid_answers(questions)
@@ -95,7 +95,8 @@ def test_mate_scoring_produces_v3_payload() -> None:
     }
     result = summarize_mate_scores(questions, answers, scoring_model, gender="female")
     payload = result["result_payload"]
-    assert payload["model"] == "MATE_V3"
+    assert payload["model"] == "MATE_V4"
+    assert payload["engine"] == "MATE_ENGINE_V4.1"
     assert payload["productSet"] == "MATE"
     assert payload["positionType"]["name"]
     assert payload["identityCard"]["title"]
@@ -106,8 +107,19 @@ def test_mate_scoring_produces_v3_payload() -> None:
     assert len(payload["secularAdvice"]) >= 4
     assert len(payload["aiLens"]) == 3
     assert "axisX" in payload and "axisY" in payload
+    assert payload.get("relationCode", "").startswith("ROS-")
     assert isinstance(payload.get("display_summaries"), dict)
     assert payload["display_summaries"]
+    assert payload.get("profileEngine", {}).get("main_type")
+    assert len(payload.get("moduleAccordions") or []) >= 3
+    assert payload.get("reverse", {}).get("front", {}).get("title")
+    assert len(payload.get("observeSlices") or []) >= 3
+    assert len(payload.get("rehearseEpisodes") or []) >= 3
+    assert payload.get("simulator", {}).get("title")
+    assert payload.get("adviceV4", {}).get("goodNews")
+    assert payload.get("matchZone", {}).get("userZone")
+    assert len(payload.get("lensGrid") or []) == 3
+    assert len(payload.get("footerMarquee", {}).get("marquee") or []) >= 1
 
 
 def test_appearance_calibration_pulls_down_high_self_rating() -> None:
@@ -141,7 +153,7 @@ def test_mate_scoring_includes_appearance_asset_label() -> None:
 
 if __name__ == "__main__":
     test_mate_suite_detection()
-    test_mate_scoring_produces_v3_payload()
+    test_mate_scoring_produces_v4_payload()
     test_appearance_calibration_pulls_down_high_self_rating()
     test_mate_scoring_includes_appearance_asset_label()
     print("mate scoring tests passed")

@@ -1,9 +1,8 @@
-import type { CSSProperties } from "react";
-import type { ProductId } from "@/lib/resultRoutes";
+import type { ProductId } from "@/lib/productRegistry";
+import { productTheme } from "@/lib/productTheme";
 
 export type TestRunTheme = {
   chipClass: string;
-  chipStyle?: CSSProperties;
   progressClass: string;
   sectionActive: string;
   sectionCurrent: string;
@@ -15,57 +14,23 @@ export type TestRunTheme = {
   submittingTitleClass: string;
 };
 
-const SELF_THEME: TestRunTheme = {
-  chipClass: "chip-violet",
-  progressClass: "from-[oklch(0.68_0.18_285)] to-[oklch(0.82_0.14_200)]",
-  sectionActive:
-    "border-[oklch(0.68_0.18_285_/_0.5)] bg-[oklch(0.50_0.20_285_/_0.12)] text-[oklch(0.85_0.10_285)]",
-  sectionCurrent:
-    "border-[oklch(0.82_0.14_200_/_0.6)] bg-[oklch(0.55_0.16_200_/_0.16)] text-[oklch(0.88_0.10_200)] glow-cyan",
-  sectionIdle: "border-border/60 text-muted-foreground/70",
-  dotPast: "w-1.5 bg-[oklch(0.68_0.18_285_/_0.7)]",
-  dotCurrent: "w-5 bg-gradient-to-r from-[oklch(0.68_0.18_285)] to-[oklch(0.82_0.14_200)]",
-  buttonClass:
-    "rounded-xl bg-gradient-to-r from-[oklch(0.68_0.18_285)] to-[oklch(0.82_0.14_200)] text-primary-foreground",
-  submittingOrbClass: "from-[oklch(0.68_0.18_285)] to-[oklch(0.82_0.14_200)]",
-  submittingTitleClass: "text-gradient-violet",
-};
+const SECTION_IDLE = "border-border/60 text-muted-foreground/70";
 
-const ROS_THEME: TestRunTheme = {
-  chipClass: "chip-cyan",
-  progressClass: "from-[oklch(0.82_0.14_200)] to-[oklch(0.55_0.16_200)]",
-  sectionActive:
-    "border-[oklch(0.82_0.14_200_/_0.5)] bg-[oklch(0.55_0.16_200_/_0.12)] text-[oklch(0.88_0.10_200)]",
-  sectionCurrent:
-    "border-[oklch(0.68_0.18_285_/_0.45)] bg-[oklch(0.50_0.20_285_/_0.14)] text-[oklch(0.85_0.10_285)]",
-  sectionIdle: "border-border/60 text-muted-foreground/70",
-  dotPast: "w-1.5 bg-[oklch(0.82_0.14_200_/_0.75)]",
-  dotCurrent: "w-5 bg-gradient-to-r from-[oklch(0.82_0.14_200)] to-[oklch(0.55_0.16_200)]",
-  buttonClass:
-    "rounded-xl bg-gradient-to-r from-[oklch(0.82_0.14_200)] to-[oklch(0.55_0.16_200)] text-primary-foreground",
-  submittingOrbClass: "from-[oklch(0.82_0.14_200)] to-[oklch(0.55_0.16_200)]",
-  submittingTitleClass: "text-gradient-cyan",
-};
-
-const MATE_THEME: TestRunTheme = {
-  chipClass: "font-mono text-[10px] tracking-[0.25em]",
-  chipStyle: {
-    background: "rgba(244,114,182,0.12)",
-    color: "#f9a8d4",
-    border: "1px solid rgba(244,114,182,0.35)",
-    borderRadius: "9999px",
-    padding: "0.25rem 0.75rem",
-  },
-  progressClass: "from-[#f472b6] to-[#fb7185]",
-  sectionActive: "border-[#f472b6]/50 bg-[#f472b6]/12 text-[#f9a8d4]",
-  sectionCurrent: "border-[#fb7185]/60 bg-[#fb7185]/16 text-[#fecdd3]",
-  sectionIdle: "border-border/60 text-muted-foreground/70",
-  dotPast: "w-1.5 bg-[#f472b6]/75",
-  dotCurrent: "w-5 bg-gradient-to-r from-[#f472b6] to-[#fb7185]",
-  buttonClass: "rounded-xl bg-gradient-to-r from-[#f472b6] to-[#fb7185] text-white",
-  submittingOrbClass: "from-[#f472b6] to-[#fb7185]",
-  submittingTitleClass: "text-transparent bg-clip-text bg-gradient-to-r from-[#f9a8d4] to-[#fb7185]",
-};
+function buildTestRunTheme(productId: ProductId): TestRunTheme {
+  const t = productTheme(productId);
+  return {
+    chipClass: t.chipClass,
+    progressClass: `${t.progressFrom} ${t.progressTo}`,
+    sectionActive: t.sectionActive,
+    sectionCurrent: t.sectionCurrent,
+    sectionIdle: SECTION_IDLE,
+    dotPast: `w-1.5 bg-gradient-to-r ${t.ringGradient} opacity-75`,
+    dotCurrent: `w-5 bg-gradient-to-r ${t.buttonGradient}`,
+    buttonClass: `rounded-xl bg-gradient-to-r ${t.buttonGradient} text-primary-foreground`,
+    submittingOrbClass: `${t.progressFrom} ${t.progressTo}`,
+    submittingTitleClass: t.titleGradient,
+  };
+}
 
 export const TEST_RUN_SECTIONS: Record<ProductId, string[]> = {
   self: ["序章 · 直觉", "底色 · 依恋", "节奏 · 边界", "回声 · 情绪", "尾声 · 取向"],
@@ -74,7 +39,52 @@ export const TEST_RUN_SECTIONS: Record<ProductId, string[]> = {
 };
 
 export function testRunThemeForProduct(productId: ProductId): TestRunTheme {
-  if (productId === "ros") return ROS_THEME;
-  if (productId === "mate") return MATE_THEME;
-  return SELF_THEME;
+  return buildTestRunTheme(productId);
+}
+
+const ROS_SECTION_BY_DIMENSION: Record<string, number> = {
+  PRE: 0,
+  AT: 0,
+  IN: 1,
+  CO: 2,
+  EV: 3,
+  RK: 4,
+};
+
+const SELF_SECTION_BY_DIMENSION: Record<string, number> = {
+  SA1: 0,
+  SA2: 1,
+  SA3: 1,
+  SA4: 2,
+  SA5: 3,
+  SA6: 4,
+};
+
+function mateModuleIndex(dimensionCode: string): number | null {
+  const match = dimensionCode.match(/^(FS|MS)(\d)/);
+  if (!match) return null;
+  return Math.max(0, Number(match[2]) - 1);
+}
+
+/** Map the current question's dimension to a progress-chip index (0-based). */
+export function sectionIndexForQuestion(
+  productId: ProductId,
+  dimensionCode: string | undefined | null,
+  fallbackIdx: number,
+  sectionCount: number,
+): number {
+  const code = (dimensionCode ?? "").trim();
+  if (!code) {
+    return Math.min(sectionCount - 1, Math.max(0, fallbackIdx));
+  }
+  if (productId === "ros") {
+    const idx = ROS_SECTION_BY_DIMENSION[code];
+    return idx ?? Math.min(sectionCount - 1, fallbackIdx);
+  }
+  if (productId === "mate") {
+    const idx = mateModuleIndex(code);
+    return idx ?? Math.min(sectionCount - 1, fallbackIdx);
+  }
+  const idx = SELF_SECTION_BY_DIMENSION[code];
+  return idx ?? Math.min(sectionCount - 1, fallbackIdx);
 }

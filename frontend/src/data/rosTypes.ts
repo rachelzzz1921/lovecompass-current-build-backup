@@ -36,6 +36,52 @@ export type RosLayerDetail = {
   tags: string[];
 };
 
+export type RosLayerExpansion = {
+  subdims: { key: string; label: string; score: number; summary: string }[];
+  probe_question: string;
+  evidence_text: string;
+  tier_label: string;
+};
+
+export type RosAiContent = {
+  evidence?: Partial<Record<"AT" | "IN" | "CO" | "EV" | "RK", string>>;
+  insights?: Partial<Record<"strength" | "watch" | "advice" | "action", { title: string; body: string }>>;
+  insights_list?: { kind: "strength" | "watch" | "advice" | "action" | "edge"; title: string; body: string }[];
+  prescription?: { complaint: string; prescription_text: string; followup: string };
+  blind_spot?: string;
+  blind_spot_meta?: {
+    layer?: string;
+    self_reported_score?: number;
+    behavior_implied_score?: number;
+    gap?: number;
+    blind_spot_text?: string;
+  };
+  layer_expansion?: Partial<Record<RosDim["key"], RosLayerExpansion>>;
+  mode?: string;
+  cached?: boolean;
+};
+
+export type RosComputed = {
+  raw_resonance?: number;
+  display_resonance?: number;
+  resonance_level?: string;
+  relationship_type?: string;
+  stage?: string;
+  stage_index?: number;
+  weather?: string;
+  followup_time?: string;
+  highest_layer?: string;
+  lowest_layer?: string;
+  blind_spot_layer?: string;
+  blind_spot_gap?: number;
+};
+
+export type RosStaticCopy = {
+  type?: { tagline?: string; desc?: string; hero_quote?: string };
+  stage?: { desc?: string; guide?: string };
+  hero_quote?: string;
+};
+
 export type RosSingleResult = {
   code: string;
   type: RelType;
@@ -44,7 +90,7 @@ export type RosSingleResult = {
   timeLabel?: string | null;
   dims: RosDim[];
   layerDetails?: Partial<Record<RosDim["key"], RosLayerDetail>>;
-  insights: { kind: "edge" | "watch" | "advice"; title: string; body: string }[];
+  insights: { kind: "strength" | "watch" | "advice" | "action" | "edge"; title: string; body: string }[];
   resonance?: { score: number; tier: string; desc: string };
   prescription?: {
     warmup: string;
@@ -52,7 +98,10 @@ export type RosSingleResult = {
     rx: string;
     followUp: string;
   };
-  weather?: { icon: string; label: string; sub: string };
+  weather?: { icon: "sun" | "cloud-sun" | "cloud" | "cloud-rain" | "cloud-lightning"; label: string; sub: string };
+  computed?: RosComputed;
+  aiContent?: RosAiContent;
+  staticCopy?: RosStaticCopy;
   keywords?: string[];
 };
 
@@ -80,13 +129,53 @@ export type CoupleDim = {
   color: string;
 };
 
+export type CoupleLayerCompare = {
+  code: string;
+  label: string;
+  you: number;
+  ta: number;
+  gap: number;
+  gap_signed?: number;
+  diff_level: "consistent" | "moderate" | "significant";
+  diff_color: "green" | "blue" | "amber";
+  diff_dots: number;
+  you_perspective: string;
+  ta_perspective: string;
+  gap_text: string;
+  probe_question?: string;
+  you_highlight?: string;
+  ta_highlight?: string;
+};
+
 export type RosCoupleResult = {
   code: string;
   resonance: Resonance;
+  perspectives?: { you: { score: number; label: string }; ta: { score: number; label: string } };
+  perceptionGap?: {
+    value: number;
+    level: string;
+    color: "green" | "blue" | "amber";
+    label: string;
+    message: string;
+  };
   weather: { icon: "sun" | "cloud-sun" | "cloud" | "cloud-rain" | "cloud-lightning"; label: string; sub: string };
   stageId: number;
   type: RelType;
   dims: CoupleDim[];
+  layerCompare?: Partial<Record<RosDim["key"], CoupleLayerCompare>>;
+  insights?: { kind: "strength" | "watch" | "advice" | "action"; title: string; body: string }[];
+  bond?: {
+    combo: string;
+    name: string;
+    body: string;
+    you_type?: string;
+    ta_type?: string;
+    gap_reason?: string;
+    advice_you?: string;
+    advice_ta?: string;
+    self_unlocked?: boolean;
+    partner_unlocked?: boolean;
+  };
   keywords: string[];
   highlights: { glow: string; shadow: string };
   timeline: { label: string; value: number; note?: string }[];
@@ -105,6 +194,7 @@ export type RosCoupleResult = {
   doDont: { do: string[]; dont: string[] };
   prescription: { warmup: string; chiefComplaint: string; rx: string; followUp: string };
   shareLine: string;
+  participants?: { initiatorAttemptId?: string; partnerAttemptId?: string };
 };
 
 export const STAGE_OPTIONS = [

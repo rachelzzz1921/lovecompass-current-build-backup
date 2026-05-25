@@ -1,12 +1,22 @@
 import type {
   MateAdviceCard,
+  MateAdviceV4,
+  MateAiContent,
   MateDeepArchive,
-  MateIdentityCard,
+  MateIdentityDossier,
   MateLensCard,
+  MateLensGridItem,
   MateMarketCoordinate,
+  MateMatchZone,
   MateMatchmakerRecord,
   MateModule,
+  MateModuleAccordion,
+  MateObserveSlice,
+  MateProfileEngine,
+  MateRehearseEpisode,
   MateResult,
+  MateReverseCard,
+  MateSimulator,
   MateSweetSpot,
   MateTimelineNode,
   MateTraitProfile,
@@ -23,15 +33,25 @@ function asNumber(v: unknown, fallback = 0): number {
   return Number.isFinite(n) ? n : fallback;
 }
 
-function mapIdentityCard(raw: unknown): MateIdentityCard {
+function mapIdentityCard(raw: unknown): MateIdentityDossier {
   const card = (raw && typeof raw === "object" ? raw : {}) as ApiPayload;
   const pos = (card.positionType as ApiPayload) || {};
   const assetsRaw = Array.isArray(card.assets) ? card.assets : [];
   return {
-    title: asString(card.title || pos.name, "择偶坐标"),
+    title: asString(card.title || pos.name || card.quadrantResult, "择偶坐标"),
     tags: Array.isArray(card.tags || pos.tags) ? (card.tags || pos.tags).map(String) : [],
-    tagline: asString(card.tagline || pos.tagline),
+    tagline: asString(card.tagline || pos.tagline || card.slogan),
     subtitle: asString(card.subtitle || pos.subtitle),
+    subTitle: asString(card.subTitle),
+    quadrantResult: asString(card.quadrantResult),
+    quadrantDesc: asString(card.quadrantDesc),
+    slogan: asString(card.slogan),
+    badges: Array.isArray(card.badges)
+      ? card.badges.map((b) => {
+          const item = b as ApiPayload;
+          return { name: asString(item.name), result: asString(item.result) };
+        })
+      : undefined,
     assets: assetsRaw.map((item) => {
       const a = item as ApiPayload;
       return {
@@ -167,11 +187,56 @@ function mapModules(raw: unknown, single: ApiPayload): MateModule[] {
     const score = asNumber(rawScore, NaN);
     return {
       code,
-      label: asString(m.label),
-      displaySummary: asString(m.displaySummary),
+      label: asString(m.label || m.dimension),
+      displaySummary: asString(m.displaySummary || m.display),
       score: Number.isFinite(score) ? score : undefined,
     };
   });
+}
+
+function mapAccordions(raw: unknown): MateModuleAccordion[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((item) => {
+    const m = item as ApiPayload;
+    return {
+      code: asString(m.code),
+      dimension: asString(m.dimension),
+      display: asString(m.display),
+      visual: asString(m.visual),
+      tag: asString(m.tag),
+      subBadges: Array.isArray(m.subBadges) ? m.subBadges.map(String) : [],
+      answerEvidence: asString(m.answerEvidence),
+      marketMapping: asString(m.marketMapping),
+    };
+  });
+}
+
+function mapProfileEngine(raw: unknown): MateProfileEngine | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const p = raw as ApiPayload;
+  return {
+    main_type: asString(p.main_type),
+    sub_type: asString(p.sub_type),
+    trait_atoms: Array.isArray(p.trait_atoms) ? p.trait_atoms.map(String) : [],
+    behavior_atoms: Array.isArray(p.behavior_atoms) ? p.behavior_atoms.map(String) : [],
+    relationship_atoms: Array.isArray(p.relationship_atoms) ? p.relationship_atoms.map(String) : [],
+    scene_atoms: Array.isArray(p.scene_atoms) ? p.scene_atoms.map(String) : [],
+  };
+}
+
+function mapAiContent(raw: unknown): MateAiContent | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const a = raw as ApiPayload;
+  const mode = a.mode;
+  if (mode !== "deterministic" && mode !== "ai" && mode !== "cached") {
+    return { mode: "deterministic", status: asString(a.status, "pending") as MateAiContent["status"] };
+  }
+  return {
+    mode,
+    cached: Boolean(a.cached),
+    status: a.status === "ready" ? "ready" : "pending",
+    generated_at: a.generated_at ? asString(a.generated_at) : undefined,
+  };
 }
 
 export function mapApiSingleToMateResult(attemptId: string, single: ApiPayload): MateResult {
@@ -186,7 +251,7 @@ export function mapApiSingleToMateResult(attemptId: string, single: ApiPayload):
   return {
     attemptId,
     gender: single.gender === "male" ? "male" : "female",
-    positionName: asString(pos.name, "择偶坐标"),
+    positionName: asString(pos.name || identityRaw.quadrantResult, "择偶坐标"),
     quadrant: asString(single.quadrant, "Q0"),
     identityCard: mapIdentityCard({ ...identityRaw, positionType: pos }),
     marketCoordinate: mapMarketCoordinate(single.marketCoordinate || single),
@@ -200,13 +265,28 @@ export function mapApiSingleToMateResult(attemptId: string, single: ApiPayload):
     deepArchive: mapDeepArchive(single.deepArchive),
     socialQuotes: Array.isArray(single.socialQuotes) ? single.socialQuotes.map(String) : [],
     modules: mapModules(single.modules, single),
+    profileEngine: mapProfileEngine(single.profileEngine),
+    moduleAccordions: mapAccordions(single.moduleAccordions),
+    reverse: single.reverse as MateReverseCard | undefined,
+    observeSlices: Array.isArray(single.observeSlices)
+      ? (single.observeSlices as MateObserveSlice[])
+      : undefined,
+    rehearseEpisodes: Array.isArray(single.rehearseEpisodes)
+      ? (single.rehearseEpisodes as MateRehearseEpisode[])
+      : undefined,
+    simulator: single.simulator as MateSimulator | undefined,
+    adviceV4: single.adviceV4 as MateAdviceV4 | undefined,
+    matchZone: single.matchZone as MateMatchZone | undefined,
+    lensGrid: Array.isArray(single.lensGrid) ? (single.lensGrid as MateLensGridItem[]) : undefined,
+    footerMarquee: single.footerMarquee as MateResult["footerMarquee"],
+    aiContent: mapAiContent(single.ai_content),
   };
 }
 
 export function mapAttemptToMateResult(attemptId: string, attempt: ApiPayload): MateResult | null {
   const payload = attempt.result_payload;
   if (!payload || typeof payload !== "object") return null;
-  if ((payload as ApiPayload).productSet !== "MATE" && (payload as ApiPayload).model !== "MATE_V3") {
+  if ((payload as ApiPayload).productSet !== "MATE" && !["MATE_V3", "MATE_V4"].includes(String((payload as ApiPayload).model))) {
     return null;
   }
   return mapApiSingleToMateResult(attemptId, payload as ApiPayload);

@@ -1,4 +1,10 @@
-import type { RosCoupleResult, RosLayerDetail, RosSingleResult } from "@/data/rosTypes";
+import type {
+  RosAiContent,
+  RosComputed,
+  RosLayerDetail,
+  RosSingleResult,
+  RosStaticCopy,
+} from "@/data/rosTypes";
 import { STAGE_OPTIONS } from "@/data/rosTypes";
 
 type ApiSinglePayload = Record<string, unknown>;
@@ -6,6 +12,8 @@ type ApiSinglePayload = Record<string, unknown>;
 const TIME_LABELS: Record<string, string> = Object.fromEntries(
   STAGE_OPTIONS.map((o) => [o.tag, o.label]),
 );
+
+const WEATHER_ICONS = new Set(["sun", "cloud-sun", "cloud", "cloud-rain", "cloud-lightning"]);
 
 function mapLayerDetails(raw: unknown): RosSingleResult["layerDetails"] {
   if (!raw || typeof raw !== "object") return undefined;
@@ -24,6 +32,73 @@ function mapLayerDetails(raw: unknown): RosSingleResult["layerDetails"] {
   return Object.keys(out).length ? out : undefined;
 }
 
+function mapAiContent(raw: unknown): RosAiContent | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const item = raw as Record<string, unknown>;
+  return {
+    evidence: item.evidence as RosAiContent["evidence"],
+    insights: item.insights as RosAiContent["insights"],
+    insights_list: Array.isArray(item.insights_list)
+      ? (item.insights_list as RosAiContent["insights_list"])
+      : undefined,
+    prescription: item.prescription as RosAiContent["prescription"],
+    blind_spot: item.blind_spot ? String(item.blind_spot) : undefined,
+    blind_spot_meta: item.blind_spot_meta as RosAiContent["blind_spot_meta"],
+    layer_expansion: item.layer_expansion as RosAiContent["layer_expansion"],
+    mode: item.mode ? String(item.mode) : undefined,
+    cached: Boolean(item.cached),
+  };
+}
+
+function mapInsights(
+  single: ApiSinglePayload,
+  ai: RosAiContent | undefined,
+): RosSingleResult["insights"] {
+  if (ai?.insights_list?.length) {
+    return ai.insights_list.map((item) => ({
+      kind: (item.kind === "edge" ? "strength" : item.kind) as RosSingleResult["insights"][0]["kind"],
+      title: item.title,
+      body: item.body,
+    }));
+  }
+  if (ai?.insights && typeof ai.insights === "object") {
+    const order: Array<"strength" | "watch" | "advice" | "action"> = [
+      "strength",
+      "watch",
+      "advice",
+      "action",
+    ];
+    return order
+      .map((kind) => {
+        const block = ai.insights?.[kind];
+        if (!block) return null;
+        return { kind, title: block.title, body: block.body };
+      })
+      .filter(Boolean) as RosSingleResult["insights"];
+  }
+  const insights = Array.isArray(single.insights) ? single.insights : [];
+  return insights.map((item: Record<string, string>) => ({
+    kind: (item.kind === "edge" ? "strength" : item.kind || "watch") as RosSingleResult["insights"][0]["kind"],
+    title: item.title || "",
+    body: item.body || "",
+  }));
+}
+
+function mapPrescription(
+  single: ApiSinglePayload,
+  ai: RosAiContent | undefined,
+): RosSingleResult["prescription"] {
+  const base = single.prescription as RosSingleResult["prescription"];
+  const aiRx = ai?.prescription;
+  if (!aiRx) return base;
+  return {
+    warmup: base?.warmup ?? "",
+    chiefComplaint: aiRx.complaint || base?.chiefComplaint || "",
+    rx: aiRx.prescription_text || base?.rx || "",
+    followUp: aiRx.followup || base?.followUp || "三个月后",
+  };
+}
+
 export function mapApiSingleToRosResult(
   single: ApiSinglePayload,
   relationCode: string,
@@ -31,19 +106,25 @@ export function mapApiSingleToRosResult(
   const relType = (single.relationshipType as Record<string, string>) || {};
   const stage = (single.relationshipStage as Record<string, unknown>) || {};
   const dims = Array.isArray(single.dims) ? single.dims : [];
-  const insights = Array.isArray(single.insights) ? single.insights : [];
   const resonance = single.resonance as RosSingleResult["resonance"];
   const timeTag = single.timeTag ? String(single.timeTag) : null;
+  const aiContent = mapAiContent(single.ai_content);
+  const staticCopy = (single.static_copy as RosStaticCopy) || undefined;
+  const computed = (single.computed as RosComputed) || undefined;
+  const weatherRaw = single.weather as { icon?: string; label?: string; sub?: string } | undefined;
+  const weatherIcon = (
+    weatherRaw?.icon && WEATHER_ICONS.has(weatherRaw.icon) ? weatherRaw.icon : "cloud-sun"
+  ) as NonNullable<RosSingleResult["weather"]>["icon"];
 
   return {
     code: relationCode || String(single.relationCode || ""),
     type: {
       key: relType.key || "warm",
       name: relType.name || "温水同行",
-      one_liner: relType.one_liner || relType.oneLiner || "",
-      description: relType.description || relType.desc || "",
+      one_liner: relType.one_liner || relType.oneLiner || staticCopy?.type?.tagline || "",
+      description: relType.description || relType.desc || staticCopy?.type?.desc || "",
     },
-    stageId: Number(stage.id || 4),
+    stageId: Number(stage.id || computed?.stage_index || 4),
     timeTag,
     timeLabel: timeTag ? TIME_LABELS[timeTag] ?? null : null,
     dims: dims.map((d: Record<string, unknown>) => ({
@@ -53,17 +134,17 @@ export function mapApiSingleToRosResult(
       color: String(d.color || "oklch(0.68 0.18 285)"),
     })),
     layerDetails: mapLayerDetails(single.layerDetails),
-    insights: insights.map((item: Record<string, string>) => ({
-      kind: (item.kind || "edge") as "edge" | "watch" | "advice",
-      title: item.title || "",
-      body: item.body || "",
-    })),
+    insights: mapInsights(single, aiContent),
     resonance,
-    prescription: single.prescription as RosSingleResult["prescription"],
+    prescription: mapPrescription(single, aiContent),
+    weather: weatherRaw
+      ? { icon: weatherIcon, label: weatherRaw.label || "多云转晴", sub: weatherRaw.sub || "" }
+      : undefined,
+    computed,
+    aiContent,
+    staticCopy,
     keywords: Array.isArray(single.keywords) ? (single.keywords as string[]) : undefined,
   };
 }
 
-export function mapApiCouplePayload(couple: Record<string, unknown>): RosCoupleResult {
-  return couple as unknown as RosCoupleResult;
-}
+export { mapApiCouplePayload } from "@/lib/mapRosCoupleResult";

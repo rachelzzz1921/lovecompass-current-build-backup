@@ -65,7 +65,7 @@ export function detectProductSetFromAttempt(attempt: Record<string, unknown>): P
   const payload = (attempt.result_payload ?? {}) as Record<string, unknown>;
   const raw = payload.productSet ?? payload.product_set;
   if (raw === "ROS" || raw === "MATE" || raw === "SELF") return raw;
-  if (payload.model === "MATE_V3") return "MATE";
+  if (payload.model === "MATE_V3" || payload.model === "MATE_V4") return "MATE";
   if (payload.model === "ROS_V3" || payload.relationCode) return "ROS";
   const slug = String(attempt.test_id ?? attempt.suite_slug ?? payload.suiteSlug ?? "");
   return productSetFromSlug(slug);
@@ -84,6 +84,11 @@ export function dedicatedResultRouteFromAttempt(
 export function parseBackendNextPath(next: string | null | undefined): ResultRoute | null {
   if (!next) return null;
   const path = next.startsWith("http") ? new URL(next).pathname + new URL(next).search : next;
+
+  const mateCoupleMatch = path.match(/\/result\/mate\/couple\/([^/?]+)/);
+  if (mateCoupleMatch) {
+    return { to: "/result/mate/couple/$code", params: { code: mateCoupleMatch[1] } };
+  }
 
   const coupleMatch = path.match(/\/result\/ros\/couple\/([^/?]+)/);
   if (coupleMatch) {
@@ -140,11 +145,40 @@ export type SubmitAttemptResponse = {
   relationCode?: string;
 };
 
+/** After analyzing animation — never loop back to `/analyzing`; resolve to the real result route. */
+export function resolvePostAnalyzingRoute(options: {
+  next?: string | null;
+  attemptId?: string | null;
+  productSet?: ProductSet | null;
+}): ResultRoute | null {
+  const { next, attemptId, productSet } = options;
+  const parsed = parseBackendNextPath(next ?? undefined);
+
+  if (parsed?.to === "/analyzing") {
+    const aid = attemptId ?? parsed.search?.attemptId;
+    const ps =
+      productSet ??
+      (parsed.search?.productSet === "ROS" ||
+      parsed.search?.productSet === "MATE" ||
+      parsed.search?.productSet === "SELF"
+        ? parsed.search.productSet
+        : null);
+    if (aid && ps) return resultRouteForProductSet(ps, aid);
+    if (aid) return { to: "/result/$attemptId", params: { attemptId: aid } };
+    return null;
+  }
+
+  return parsed;
+}
+
 export function routeAfterAttemptSubmit(
   res: SubmitAttemptResponse,
   options?: { partnerRelationCode?: string | null; productSet?: ProductSet },
 ): ResultRoute {
   if (options?.partnerRelationCode) {
+    if (options.productSet === "MATE") {
+      return { to: "/result/mate/couple/$code", params: { code: options.partnerRelationCode } };
+    }
     return { to: "/result/ros/couple/$code", params: { code: options.partnerRelationCode } };
   }
   const fromNext = parseBackendNextPath(res.next);

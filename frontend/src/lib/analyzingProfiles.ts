@@ -13,6 +13,8 @@ import {
   Users,
 } from "lucide-react";
 import type { ProductSet } from "@/lib/resultRoutes";
+import type { ProductId } from "@/lib/productRegistry";
+import { productTheme } from "@/lib/productTheme";
 
 export type AnalyzingStage = {
   icon: LucideIcon;
@@ -46,31 +48,20 @@ export type AnalyzingProfile = {
   theme: AnalyzingTheme;
 };
 
-const SELF_THEME: AnalyzingTheme = {
-  chipClass: "chip-violet",
-  titleClass: "text-gradient-violet",
-  progressClass: "from-[oklch(0.68_0.18_285)] to-[oklch(0.82_0.14_200)]",
-  coreShadow: "0 0 60px oklch(0.65 0.20 285 / 0.6)",
-};
-
-const ROS_THEME: AnalyzingTheme = {
-  chipClass: "chip-cyan",
-  titleClass: "text-gradient-cyan",
-  progressClass: "from-[oklch(0.82_0.14_200)] to-[oklch(0.55_0.16_200)]",
-  coreShadow: "0 0 60px oklch(0.65 0.20 200 / 0.6)",
-};
-
-const MATE_THEME: AnalyzingTheme = {
-  chipClass: "font-mono",
-  titleClass: "text-transparent bg-clip-text bg-gradient-to-r from-[#f9a8d4] to-[#fb7185]",
-  progressClass: "from-[#f472b6] to-[#fb7185]",
-  coreShadow: "0 0 60px rgba(244,114,182,0.55)",
-};
+function analyzingThemeFor(productId: ProductId): AnalyzingTheme {
+  const t = productTheme(productId);
+  return {
+    chipClass: t.chipClass,
+    titleClass: t.titleGradient,
+    progressClass: `${t.progressFrom} ${t.progressTo}`,
+    coreShadow: t.coreShadow,
+  };
+}
 
 const SELF_PROFILE: AnalyzingProfile = {
   productSet: "SELF",
   chip: "SET · 01 / SELF",
-  theme: SELF_THEME,
+  theme: analyzingThemeFor("self"),
   progressLabel: "底片合成进度",
   footer: "请稍候 · 正在绘制你的关系底片 · DO NOT LEAVE",
   submittingTitle: "正在提交并合成自我底片…",
@@ -105,9 +96,9 @@ const SELF_PROFILE: AnalyzingProfile = {
     },
     {
       icon: Brain,
-      title: "正在匹配红楼 34 个人格原型",
-      whisper: "在所有可能的你之中，找最像、也最能解释你的那一个。",
-      detail: "MATCHING · 34 ARCHETYPES",
+      title: "正在匹配红楼六维人格原型",
+      whisper: "在六种可能的你之中，找最像、也最能解释你的那一个。",
+      detail: "MATCHING · 6 ARCHETYPES",
       hue: 300,
       dur: 2100,
     },
@@ -146,7 +137,7 @@ const SELF_PROFILE: AnalyzingProfile = {
 const ROS_PROFILE: AnalyzingProfile = {
   productSet: "ROS",
   chip: "SET · 02 / ROS",
-  theme: ROS_THEME,
+  theme: analyzingThemeFor("ros"),
   progressLabel: "关系画像合成进度",
   footer: "请稍候 · 正在读取你们之间的真实互动 · DO NOT LEAVE",
   submittingTitle: "正在提交并读取关系信号…",
@@ -222,7 +213,7 @@ const ROS_PROFILE: AnalyzingProfile = {
 const MATE_PROFILE: AnalyzingProfile = {
   productSet: "MATE",
   chip: "SET · 03 / MATE",
-  theme: MATE_THEME,
+  theme: analyzingThemeFor("mate"),
   progressLabel: "坐标档案合成进度",
   footer: "请稍候 · 正在计算你的市场坐标 · DO NOT LEAVE",
   submittingTitle: "正在提交并计算择偶坐标…",

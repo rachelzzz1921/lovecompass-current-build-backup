@@ -1,10 +1,12 @@
 import type {
+  AiContentBlock,
   Behavior,
   CoreTrait,
   Dimension,
   Insight,
   MatchType,
   SelfResult,
+  TraitEvidence,
 } from "@/data/mockResult";
 import {
   BEHAVIORS_BY_ATTACHMENT,
@@ -27,7 +29,7 @@ export type AttemptResultInput = {
   archetype_gender?: string;
   ros_index?: number;
   dimension_scores?: Record<string, number>;
-  result_payload?: {
+    result_payload?: {
     attachment_type?: string;
     archetype_code?: string;
     dimensions?: Array<{ code: string; name: string; core?: string; score: number }>;
@@ -43,7 +45,20 @@ export type AttemptResultInput = {
       title: string;
       body: string;
       highlight?: boolean;
+      source_dimension?: string;
+      dimensionCode?: string;
+      evidence?: TraitEvidence[];
     }>;
+    dimension_summaries?: Record<
+      string,
+      { label?: string; detail?: string; coreQuestion?: string; name?: string }
+    >;
+    ai_content?: AiContentBlock;
+    static_copy?: {
+      scenes?: Behavior[];
+      character_reasons?: Array<{ title: string; body: string; highlight?: boolean }>;
+      archetype_line?: string;
+    };
   };
   ai_report?: string | null;
 };
@@ -61,9 +76,17 @@ function rawScores(input: AttemptResultInput): Record<string, number> {
   return Object.fromEntries(fromPayload.map((d) => [d.code, Number(d.score)]));
 }
 
-function normalizeDimensions(input: AttemptResultInput): ScoredDimension[] {
+function normalizeDimensions(
+  input: AttemptResultInput,
+  payloadSummaries?: AttemptResultInput["result_payload"] extends infer P
+    ? P extends { dimension_summaries?: infer S }
+      ? S
+      : undefined
+    : undefined,
+): ScoredDimension[] {
   const scores = rawScores(input);
   const payloadDims = input.result_payload?.dimensions ?? [];
+  const summaries = payloadSummaries ?? input.result_payload?.dimension_summaries;
 
   return SELF_DIMENSIONS.map((spec) => {
     const payloadItem = payloadDims.find((d) => d.code === spec.code);
@@ -71,14 +94,18 @@ function normalizeDimensions(input: AttemptResultInput): ScoredDimension[] {
       spec.code,
       Number(scores[spec.code] ?? payloadItem?.score ?? 0),
     );
+    const summaryRow =
+      summaries && typeof summaries === "object"
+        ? (summaries as Record<string, { label?: string; coreQuestion?: string }>)[spec.code]
+        : undefined;
     return {
       key: spec.code,
       label: spec.name,
-      coreQuestion: spec.coreQuestion,
+      coreQuestion: summaryRow?.coreQuestion ?? spec.coreQuestion,
       value: rawScore,
       rawScore,
       color: spec.color,
-      displaySummary: scoreDisplaySummary(rawScore),
+      displaySummary: summaryRow?.label ?? scoreDisplaySummary(rawScore),
     };
   });
 }
@@ -97,6 +124,8 @@ function buildCoreTraits(
       title: trait.title,
       body: trait.body,
       highlight: trait.highlight,
+      source_dimension: trait.source_dimension ?? trait.dimensionCode,
+      evidence: trait.evidence,
     }));
   }
 
@@ -134,7 +163,15 @@ function buildCoreTraits(
   return traits;
 }
 
-function buildBehaviors(attachment: string): Behavior[] {
+function buildBehaviors(attachment: string, payload?: AttemptResultInput["result_payload"]): Behavior[] {
+  const fromStatic = payload?.static_copy?.scenes;
+  if (fromStatic?.length) {
+    return fromStatic.map((b) => ({
+      scene: b.scene,
+      title: b.title,
+      body: b.body,
+    }));
+  }
   return BEHAVIORS_BY_ATTACHMENT[attachment] ?? BEHAVIORS_BY_ATTACHMENT["安全型"];
 }
 
@@ -197,7 +234,16 @@ function buildCharacterReasons(
   attachment: string,
   dimensions: ScoredDimension[],
   profile: NonNullable<AttemptResultInput["result_payload"]>["archetype_profile"],
+  payload?: AttemptResultInput["result_payload"],
 ): Array<{ title: string; body: string; highlight?: boolean }> {
+  const fromStatic = payload?.static_copy?.character_reasons;
+  if (fromStatic?.length) {
+    return fromStatic.map((r) => ({
+      title: r.title,
+      body: r.body,
+      highlight: r.highlight,
+    }));
+  }
   const baseline = profile?.radar_baseline ?? {};
   const deltas = dimensions
     .map((d) => ({
@@ -278,11 +324,37 @@ export function mapAttemptToSelfResult(input: AttemptResultInput): SelfResult {
   );
   const scores = rawScores(input);
   const greyZone = isAttachmentGreyZone(scores);
-  const dimensions = normalizeDimensions(input);
+  const dimensions = normalizeDimensions(input, payload.dimension_summaries);
   const overallScore = normalizeDimensionScore(
     "SA1",
     Number(input.ros_index ?? average(dimensions.map((d) => d.rawScore))),
   );
+
+  const aiContent = payload.ai_content;
+  const coreTraits =
+    aiContent?.traits?.length
+      ? aiContent.traits.map((trait) => ({
+          icon: trait.icon,
+          title: trait.title,
+          body: trait.body,
+          highlight: trait.highlight,
+          source_dimension: trait.source_dimension,
+          evidence: trait.evidence,
+        }))
+      : buildCoreTraits(payload, profile, attachment, dimensions, greyZone);
+  const insights = aiContent?.insights?.length
+    ? aiContent.insights
+    : buildInsights(attachment, dimensions, profile, greyZone);
+
+  const baselineRaw = profile?.radar_baseline ?? {};
+  const radarBaseline = dimensions.map((d) => ({
+    key: d.key,
+    label: d.label,
+    value: normalizeDimensionScore(
+      d.key,
+      Number(baselineRaw[d.key as SelfDimensionCode] ?? Math.round(d.rawScore * 0.82)),
+    ),
+  }));
 
   return {
     archetype: {
@@ -294,30 +366,24 @@ export function mapAttemptToSelfResult(input: AttemptResultInput): SelfResult {
     },
     overallScore,
     dimensions,
+    radarBaseline,
     matches: buildMatches(attachment),
-    insights: buildInsights(attachment, dimensions, profile, greyZone),
-    behaviors: buildBehaviors(attachment),
-    coreTraits: buildCoreTraits(payload, profile, attachment, dimensions, greyZone),
+    insights,
+    behaviors: buildBehaviors(attachment, payload),
+    coreTraits,
     character: {
       emoji: CHARACTER_EMOJI[name] ?? "🪞",
       name,
       pinyin: `${name} · ${attachment}`,
-      archetypeLine: profile.tagline ?? "在红楼梦的世界里，你也有对应的人格原型。",
+      archetypeLine:
+        payload.static_copy?.archetype_line ??
+        profile.tagline ??
+        "在红楼梦的世界里，你也有对应的人格原型。",
       quote: profile.description ?? "这不是固定标签，而是理解你关系模式的一扇窗。",
-      reasons: buildCharacterReasons(name, attachment, dimensions, profile),
+      reasons: buildCharacterReasons(name, attachment, dimensions, profile, payload),
     },
-    lockedTeasers: [
-      {
-        id: "ros",
-        title: "SET · 02 / ROS — 这段关系的画像",
-        hint: "用 SELF 的底片叠加 ROS，看你和那个人之间真正发生了什么。",
-      },
-      {
-        id: "mate",
-        title: "SET · 03 / MATE — 你的择偶坐标",
-        hint: "三套数据合成终极画像，解锁实时更新的人格档案。",
-      },
-    ],
+    aiContent,
+    growthPathText: aiContent?.growth_path,
   };
 }
 

@@ -1,0 +1,486 @@
+/** Canvas helpers for ROS result share exports (heartbeat + prescription). */
+
+import type { RosCoupleResult, RosSingleResult } from "@/data/rosTypes";
+
+export function normalizeHeartbeatY(score: number) {
+  return 0.1 + (Math.max(0, Math.min(100, score)) / 100) * 0.8;
+}
+
+export function buildHeartbeatGeometry(scores: Record<string, number>, rk: number, w: number, h: number) {
+  const points = [
+    { x: w * 0.1, y: h * (1 - normalizeHeartbeatY(scores.at ?? 0)), label: "AT", val: scores.at },
+    { x: w * 0.3, y: h * (1 - normalizeHeartbeatY(scores.in ?? 0)), label: "IN", val: scores.in },
+    { x: w * 0.5, y: h * (1 - normalizeHeartbeatY(scores.co ?? 0)), label: "CO", val: scores.co },
+    { x: w * 0.7, y: h * (1 - normalizeHeartbeatY(scores.ev ?? 0)), label: "EV", val: scores.ev },
+    {
+      x: w * 0.9,
+      y: h * (1 - normalizeHeartbeatY(100 - rk)),
+      label: "RK",
+      val: rk,
+      rkInverted: true,
+    },
+  ];
+  let d = `M ${points[0].x} ${points[0].y}`;
+  for (let i = 0; i < points.length - 1; i++) {
+    const cx = (points[i].x + points[i + 1].x) / 2;
+    d += ` C ${cx} ${points[i].y}, ${cx} ${points[i + 1].y}, ${points[i + 1].x} ${points[i + 1].y}`;
+  }
+  return { d, points, rkRisk: rk > 60 };
+}
+
+function wrapText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  maxWidth: number,
+  lineHeight: number,
+) {
+  const paragraphs = text.split("\n");
+  let cy = y;
+  for (const para of paragraphs) {
+    const chars = [...para];
+    let line = "";
+    for (const ch of chars) {
+      const test = line + ch;
+      if (ctx.measureText(test).width > maxWidth && line) {
+        ctx.fillText(line, x, cy);
+        line = ch;
+        cy += lineHeight;
+      } else {
+        line = test;
+      }
+    }
+    if (line) {
+      ctx.fillText(line, x, cy);
+      cy += lineHeight;
+    }
+  }
+  return cy;
+}
+
+function strokeDashedRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) {
+  ctx.save();
+  ctx.setLineDash([8, 6]);
+  ctx.strokeStyle = "rgba(165, 168, 255, 0.45)";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(x, y, w, h);
+  ctx.restore();
+}
+
+export function drawHeartbeatShareCard(canvas: HTMLCanvasElement, result: RosSingleResult) {
+  const W = 900;
+  const H = 520;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+
+  canvas.width = W;
+  canvas.height = H;
+
+  ctx.fillStyle = "#0c0e11";
+  ctx.fillRect(0, 0, W, H);
+
+  const bg = ctx.createLinearGradient(0, 0, W, H);
+  bg.addColorStop(0, "#141828");
+  bg.addColorStop(1, "#0c0e11");
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.fillStyle = "rgba(165, 168, 255, 0.85)";
+  ctx.font = "600 22px ui-monospace, monospace";
+  ctx.fillText("MIRROR · 关系画像", 48, 52);
+
+  ctx.fillStyle = "rgba(255,255,255,0.45)";
+  ctx.font = "400 18px ui-monospace, monospace";
+  ctx.fillText("SET · 02 / ROS", 48, 82);
+
+  const resonance = result.resonance?.score ?? 0;
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "700 48px Georgia, 'Noto Serif SC', serif";
+  ctx.fillText(`${result.type.name}`, 48, 140);
+
+  ctx.fillStyle = "rgba(165, 168, 255, 0.9)";
+  ctx.font = "500 28px Inter, sans-serif";
+  ctx.fillText(`共鸣 ${resonance} · ${result.resonance?.tier ?? ""}`, 48, 178);
+
+  const chartX = 48;
+  const chartY = 210;
+  const chartW = W - 96;
+  const chartH = 180;
+  const scoreMap = Object.fromEntries(result.dims.map((d) => [d.key, d.value]));
+  const rk = scoreMap.rk ?? 0;
+  const { d, points } = buildHeartbeatGeometry(scoreMap, rk, chartW, chartH);
+
+  ctx.save();
+  ctx.translate(chartX, chartY);
+
+  const lineGrad = ctx.createLinearGradient(0, 0, chartW, 0);
+  lineGrad.addColorStop(0, "#6366f1");
+  lineGrad.addColorStop(1, "#f0a5d0");
+
+  const path = new Path2D(d);
+  ctx.strokeStyle = lineGrad;
+  ctx.lineWidth = 4;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.stroke(path);
+
+  points.forEach((p) => {
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 5, 0, Math.PI * 2);
+    ctx.fillStyle = "#a5a8ff";
+    ctx.fill();
+  });
+
+  ctx.fillStyle = "rgba(255,255,255,0.55)";
+  ctx.font = "500 16px ui-monospace, monospace";
+  points.forEach((p) => {
+    const display =
+      p.label === "RK"
+        ? rk <= 30
+          ? "低"
+          : rk <= 50
+            ? "中"
+            : "高"
+        : String(Math.round(Number(p.val) || 0));
+    ctx.textAlign = "center";
+    ctx.fillText(p.label, p.x, chartH + 28);
+    ctx.fillText(display, p.x, chartH + 48);
+  });
+
+  ctx.restore();
+
+  ctx.textAlign = "left";
+  ctx.fillStyle = "rgba(255,255,255,0.5)";
+  ctx.font = "400 20px Inter, sans-serif";
+  ctx.fillText("这段关系的心跳 · 每段关系都有自己的节律", 48, H - 48);
+
+  ctx.fillStyle = "rgba(165, 168, 255, 0.4)";
+  ctx.font = "500 16px ui-monospace, monospace";
+  ctx.textAlign = "right";
+  ctx.fillText("mirror.app", W - 48, H - 48);
+}
+
+export function drawPrescriptionShareCard(canvas: HTMLCanvasElement, result: RosSingleResult) {
+  const W = 800;
+  const H = 960;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+
+  canvas.width = W;
+  canvas.height = H;
+  ctx.fillStyle = "#0c0e11";
+  ctx.fillRect(0, 0, W, H);
+
+  const pad = 56;
+  strokeDashedRect(ctx, pad, pad, W - pad * 2, H - pad * 2);
+
+  ctx.fillStyle = "rgba(165, 168, 255, 0.75)";
+  ctx.font = "500 20px ui-monospace, monospace";
+  ctx.fillText("MIRROR · ROS", pad + 24, pad + 40);
+
+  ctx.fillStyle = "#a5a8ff";
+  ctx.font = "700 72px Georgia, serif";
+  ctx.fillText("Rx", pad + 24, pad + 120);
+
+  ctx.fillStyle = "rgba(255,255,255,0.75)";
+  ctx.font = "500 28px Inter, sans-serif";
+  ctx.fillText("你们的关系处方", pad + 120, pad + 110);
+
+  ctx.strokeStyle = "rgba(255,255,255,0.12)";
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath();
+  ctx.moveTo(pad + 24, pad + 150);
+  ctx.lineTo(W - pad - 24, pad + 150);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  const rx = result.prescription;
+  let y = pad + 200;
+
+  ctx.fillStyle = "rgba(255,255,255,0.45)";
+  ctx.font = "500 22px ui-monospace, monospace";
+  ctx.fillText("主诉", pad + 24, y);
+  ctx.fillStyle = "rgba(255,255,255,0.92)";
+  ctx.font = "400 26px ui-monospace, monospace";
+  y = wrapText(ctx, rx?.chiefComplaint ?? "联结感", pad + 100, y, W - pad - 130, 34) + 24;
+
+  ctx.fillStyle = "rgba(255,255,255,0.45)";
+  ctx.font = "500 22px ui-monospace, monospace";
+  ctx.fillText("建议", pad + 24, y);
+  ctx.fillStyle = "rgba(255,255,255,0.92)";
+  ctx.font = "400 26px ui-monospace, monospace";
+  y = wrapText(ctx, (rx?.rx ?? "").replace(/\n/g, " "), pad + 100, y, W - pad - 130, 34) + 40;
+
+  ctx.strokeStyle = "rgba(255,255,255,0.12)";
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath();
+  ctx.moveTo(pad + 24, y);
+  ctx.lineTo(W - pad - 24, y);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  y += 36;
+  ctx.fillStyle = "rgba(255,255,255,0.45)";
+  ctx.font = "500 22px ui-monospace, monospace";
+  ctx.fillText("复诊", pad + 24, y);
+  ctx.fillStyle = "rgba(255,255,255,0.92)";
+  ctx.textAlign = "right";
+  ctx.fillText(rx?.followUp ?? "三个月后", W - pad - 24, y);
+  ctx.textAlign = "left";
+
+  ctx.fillStyle = "rgba(255,255,255,0.4)";
+  ctx.font = "400 20px Inter, sans-serif";
+  wrapText(ctx, rx?.warmup ?? "", pad + 24, H - pad - 100, W - pad * 2, 28);
+
+  ctx.fillStyle = "rgba(165, 168, 255, 0.35)";
+  ctx.font = "500 16px ui-monospace, monospace";
+  ctx.fillText(`${result.type.name} · 共鸣 ${result.resonance?.score ?? ""}`, pad + 24, H - pad - 36);
+}
+
+export function downloadCanvas(canvas: HTMLCanvasElement, filename: string) {
+  const url = canvas.toDataURL("image/png");
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+}
+
+export async function copyCanvasToClipboard(canvas: HTMLCanvasElement): Promise<boolean> {
+  try {
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
+    if (!blob) return false;
+    await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function drawRosSummaryShareCard(canvas: HTMLCanvasElement, result: RosSingleResult) {
+  const W = 1080;
+  const H = 1440;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+
+  canvas.width = W;
+  canvas.height = H;
+  const bg = ctx.createLinearGradient(0, 0, W, H);
+  bg.addColorStop(0, "#141828");
+  bg.addColorStop(0.45, "#10131a");
+  bg.addColorStop(1, "#0c0e11");
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  strokeDashedRect(ctx, 48, 48, W - 96, H - 96);
+
+  ctx.fillStyle = "rgba(165, 168, 255, 0.7)";
+  ctx.font = "500 28px ui-monospace, monospace";
+  ctx.fillText("MIRROR · 关系画像", 96, 120);
+
+  ctx.fillStyle = result.weather?.label === "晴天" ? "#fcd34d" : "#c2c4ff";
+  ctx.font = "600 36px Inter, sans-serif";
+  ctx.fillText(`关系天气 · ${result.weather?.label ?? "多云转晴"}`, 96, 200);
+
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "700 80px Georgia, 'Noto Serif SC', serif";
+  ctx.fillText(String(result.resonance?.score ?? ""), 96, 320);
+  ctx.fillStyle = "rgba(255,255,255,0.45)";
+  ctx.font = "400 32px Inter, sans-serif";
+  ctx.fillText("/100", 96 + ctx.measureText(String(result.resonance?.score ?? "")).width + 12, 320);
+
+  ctx.fillStyle = "#a5a8ff";
+  ctx.font = "500 40px Inter, sans-serif";
+  ctx.fillText(result.resonance?.tier ?? "", 96, 380);
+
+  ctx.fillStyle = "#f0f0f5";
+  ctx.font = "700 56px Georgia, serif";
+  ctx.fillText(result.type.name, 96, 480);
+
+  ctx.fillStyle = "rgba(255,255,255,0.65)";
+  ctx.font = "400 30px Inter, sans-serif";
+  wrapText(ctx, result.type.one_liner, 96, 540, W - 192, 40);
+
+  const topDim = [...result.dims].filter((d) => d.key !== "rk").sort((a, b) => b.value - a.value)[0];
+  if (topDim) {
+    ctx.fillStyle = "rgba(200, 195, 230, 0.75)";
+    ctx.font = "500 28px Inter, sans-serif";
+    ctx.fillText(`高光维度 · ${topDim.label}`, 96, 720);
+    ctx.fillStyle = "rgba(255,255,255,0.85)";
+    ctx.font = "700 48px ui-monospace, monospace";
+    ctx.fillText(String(topDim.value), 96, 780);
+  }
+
+  ctx.fillStyle = "rgba(180, 170, 220, 0.55)";
+  ctx.font = "400 26px Inter, sans-serif";
+  ctx.fillText(`# 关系画像 # ROS # ${result.code}`, 96, 920);
+
+  ctx.fillStyle = "rgba(160, 150, 200, 0.55)";
+  ctx.fillText("mirror.app", 96, H - 96);
+}
+
+function coupleScoreMaps(result: RosCoupleResult) {
+  const you: Record<string, number> = {};
+  const ta: Record<string, number> = {};
+  for (const d of result.dims) {
+    you[d.key] = d.key === "rk" ? Math.max(0, 100 - d.you) : d.you;
+    ta[d.key] = d.key === "rk" ? Math.max(0, 100 - d.ta) : d.ta;
+  }
+  const youRk = result.dims.find((d) => d.key === "rk")?.you ?? 0;
+  const taRk = result.dims.find((d) => d.key === "rk")?.ta ?? 0;
+  return { you, ta, youRk, taRk };
+}
+
+export function drawDualHeartbeatShareCard(canvas: HTMLCanvasElement, result: RosCoupleResult) {
+  const W = 900;
+  const H = 560;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+
+  canvas.width = W;
+  canvas.height = H;
+  ctx.fillStyle = "#0c0e11";
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.fillStyle = "rgba(165, 168, 255, 0.85)";
+  ctx.font = "600 22px ui-monospace, monospace";
+  ctx.fillText("MIRROR · 双人心跳", 48, 52);
+
+  ctx.fillStyle = "rgba(255,255,255,0.45)";
+  ctx.font = "400 18px ui-monospace, monospace";
+  ctx.fillText(`契合 ${result.resonance.score} · ${result.resonance.tier}`, 48, 82);
+
+  const { you, ta, youRk, taRk } = coupleScoreMaps(result);
+  const chartW = W - 96;
+  const chartH = 160;
+  const youGeo = buildHeartbeatGeometry(you, youRk, chartW, chartH);
+  const taGeo = buildHeartbeatGeometry(ta, taRk, chartW, chartH);
+
+  ctx.save();
+  ctx.translate(48, 120);
+
+  const youGrad = ctx.createLinearGradient(0, 0, chartW, 0);
+  youGrad.addColorStop(0, "#6366f1");
+  youGrad.addColorStop(1, "#a5a8ff");
+  ctx.strokeStyle = youGrad;
+  ctx.lineWidth = 4;
+  ctx.lineCap = "round";
+  ctx.stroke(new Path2D(youGeo.d));
+
+  ctx.strokeStyle = "rgba(240,165,208,0.85)";
+  ctx.setLineDash([10, 6]);
+  ctx.lineWidth = 3;
+  ctx.stroke(new Path2D(taGeo.d));
+  ctx.setLineDash([]);
+
+  ctx.fillStyle = "rgba(255,255,255,0.55)";
+  ctx.font = "500 16px ui-monospace, monospace";
+  youGeo.points.forEach((p) => {
+    ctx.textAlign = "center";
+    ctx.fillText(p.label, p.x, chartH + 32);
+  });
+
+  ctx.restore();
+
+  ctx.textAlign = "left";
+  ctx.fillStyle = "rgba(255,255,255,0.5)";
+  ctx.font = "400 20px Inter, sans-serif";
+  ctx.fillText("实线 · 你 ｜ 虚线 · 对方", 48, H - 48);
+  ctx.textAlign = "right";
+  ctx.fillStyle = "rgba(165, 168, 255, 0.4)";
+  ctx.font = "500 16px ui-monospace, monospace";
+  ctx.fillText("mirror.app", W - 48, H - 48);
+}
+
+export function drawCouplePrescriptionShareCard(canvas: HTMLCanvasElement, result: RosCoupleResult) {
+  const W = 800;
+  const H = 960;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+
+  canvas.width = W;
+  canvas.height = H;
+  ctx.fillStyle = "#0c0e11";
+  ctx.fillRect(0, 0, W, H);
+
+  const pad = 56;
+  strokeDashedRect(ctx, pad, pad, W - pad * 2, H - pad * 2);
+
+  ctx.fillStyle = "rgba(165, 168, 255, 0.75)";
+  ctx.font = "500 20px ui-monospace, monospace";
+  ctx.fillText("MIRROR · ROS · 双人", pad + 24, pad + 40);
+
+  ctx.fillStyle = "#a5a8ff";
+  ctx.font = "700 72px Georgia, serif";
+  ctx.fillText("Rx", pad + 24, pad + 120);
+
+  const rx = result.prescription;
+  let y = pad + 200;
+  ctx.fillStyle = "rgba(255,255,255,0.45)";
+  ctx.font = "500 22px ui-monospace, monospace";
+  ctx.fillText("主诉", pad + 24, y);
+  ctx.fillStyle = "rgba(255,255,255,0.92)";
+  ctx.font = "400 26px ui-monospace, monospace";
+  y = wrapText(ctx, rx.chiefComplaint, pad + 100, y, W - pad - 130, 34) + 24;
+
+  ctx.fillStyle = "rgba(255,255,255,0.45)";
+  ctx.fillText("建议", pad + 24, y);
+  ctx.fillStyle = "rgba(255,255,255,0.92)";
+  y = wrapText(ctx, rx.rx.replace(/\n/g, " "), pad + 100, y, W - pad - 130, 34) + 40;
+
+  ctx.fillStyle = "rgba(255,255,255,0.45)";
+  ctx.fillText("复诊", pad + 24, y);
+  ctx.fillStyle = "rgba(255,255,255,0.92)";
+  ctx.textAlign = "right";
+  ctx.fillText(rx.followUp, W - pad - 24, y);
+}
+
+export function drawRosCoupleSummaryShareCard(canvas: HTMLCanvasElement, result: RosCoupleResult) {
+  const W = 1080;
+  const H = 1440;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+
+  canvas.width = W;
+  canvas.height = H;
+  const bg = ctx.createLinearGradient(0, 0, W, H);
+  bg.addColorStop(0, "#141828");
+  bg.addColorStop(1, "#0c0e11");
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  strokeDashedRect(ctx, 48, 48, W - 96, H - 96);
+
+  ctx.fillStyle = "rgba(165, 168, 255, 0.7)";
+  ctx.font = "500 28px ui-monospace, monospace";
+  ctx.fillText("MIRROR · 双人关系报告", 96, 120);
+
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "700 80px Georgia, serif";
+  ctx.fillText(String(result.resonance.score), 96, 280);
+  ctx.fillStyle = "#a5a8ff";
+  ctx.font = "500 40px Inter, sans-serif";
+  ctx.fillText(result.resonance.tier, 96, 340);
+
+  ctx.fillStyle = "#f0f0f5";
+  ctx.font = "700 52px Georgia, serif";
+  ctx.fillText(result.type.name, 96, 430);
+
+  const gap = result.perceptionGap;
+  if (gap) {
+    ctx.fillStyle = "rgba(255,255,255,0.65)";
+    ctx.font = "400 28px Inter, sans-serif";
+    wrapText(ctx, `感知差值 ${gap.value} · ${gap.label}`, 96, 500, W - 192, 36);
+  }
+
+  if (result.bond?.name) {
+    ctx.fillStyle = "rgba(200, 195, 230, 0.75)";
+    ctx.font = "500 28px Inter, sans-serif";
+    ctx.fillText(`依恋碰撞 · ${result.bond.name}`, 96, 620);
+  }
+
+  ctx.fillStyle = "rgba(180, 170, 220, 0.55)";
+  ctx.font = "400 26px Inter, sans-serif";
+  ctx.fillText(`# 双人报告 # ${result.code}`, 96, 920);
+  ctx.fillText("mirror.app", 96, H - 96);
+}

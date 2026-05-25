@@ -12,7 +12,7 @@ export function formatApiErrorMessage(err: unknown): string {
 /** Optional hint for common deployment / auth misconfiguration. */
 export function getApiErrorHint(message: string): string | null {
   if (message.includes("VITE_LOVECOMPASS_API_BASE_URL")) {
-    return "前端需配置 VITE_LOVECOMPASS_API_BASE_URL，指向后端 Vercel 域名（无尾部斜杠）。";
+    return "前端需配置 VITE_LOVECOMPASS_API_BASE_URL，指向后端 Vercel 域名（无尾部斜杠）。若内地访问困难，请部署镜像并配置 VITE_LOVECOMPASS_API_MIRROR_URL，见 docs/CHINA_MIRROR.md。";
   }
   if (/401|需要登录|登录已过期|登录令牌|未登录|无效或过期的登录令牌/.test(message)) {
     return "此功能需要登录。请先返回登录页重新登录；若仍失败，请确认后端已配置 SUPABASE_URL（用于 JWKS 校验用户令牌）。";

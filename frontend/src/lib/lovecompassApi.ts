@@ -1,5 +1,6 @@
 import type { AnswerDraft, TestQuestionsResponse } from "@/lib/questionTypes";
 import { formatApiErrorMessage } from "@/lib/apiErrors";
+import { fetchWithMirrorFallback, getEndpointProfile } from "@/lib/mirrorEndpoints";
 import { getRequiredAccessToken } from "@/lib/supabaseSession";
 
 export type ChatContext = {
@@ -196,6 +197,10 @@ export type UserPortrait = {
 const API_BASE =
   (import.meta.env.VITE_LOVECOMPASS_API_BASE_URL as string | undefined)?.replace(/\/$/, "") ?? "";
 
+export function getApiEndpointProfile() {
+  return getEndpointProfile();
+}
+
 async function parseJsonResponse<T>(res: Response): Promise<T> {
   const payload = await res.json().catch(() => null);
   if (!res.ok) {
@@ -217,7 +222,7 @@ async function parseJsonResponse<T>(res: Response): Promise<T> {
 }
 
 async function requestJson<T>(path: string, init?: RequestInit, authRequired = false): Promise<T> {
-  if (!API_BASE) {
+  if (!API_BASE && !import.meta.env.VITE_LOVECOMPASS_API_MIRROR_URL) {
     throw new Error("未配置 VITE_LOVECOMPASS_API_BASE_URL");
   }
 
@@ -239,7 +244,7 @@ async function requestJson<T>(path: string, init?: RequestInit, authRequired = f
 
   let res: Response;
   try {
-    res = await fetch(`${API_BASE}${path}`, {
+    res = await fetchWithMirrorFallback(path, {
       ...init,
       headers,
     });
@@ -292,6 +297,15 @@ export const lovecompassApi = {
     requestJson<{ report: AttemptReport }>(
       `/attempts/${encodeURIComponent(attemptId)}/report${refresh ? "?refresh=true" : ""}`,
       { method: "POST" },
+      true,
+    ),
+  submitSceneFeedback: (
+    attemptId: string,
+    data: { scene: string; resonated: boolean; note?: string },
+  ) =>
+    requestJson<{ ok: boolean; count: number }>(
+      `/attempts/${encodeURIComponent(attemptId)}/scene-feedback`,
+      { method: "POST", body: JSON.stringify(data) },
       true,
     ),
   getAttemptHistory: (limit = 20) =>
@@ -348,12 +362,36 @@ export const lovecompassApi = {
       attemptId: string;
       single: Record<string, unknown>;
       gender?: string;
+      relationCode?: string;
+      partnerStatus?: string;
+      coupleUnlocked?: boolean;
+      invitePath?: string;
     }>(`/mate/attempts/${encodeURIComponent(attemptId)}/single`, undefined, true),
+  previewMateRelationCode: (code: string) =>
+    requestJson<{
+      ok: boolean;
+      code: string;
+      productSet?: string;
+      status: string;
+      suiteTier?: "lite" | "full";
+      suiteSlug?: string | null;
+      preview: Record<string, unknown>;
+      invitePath: string;
+      coupleUnlocked: boolean;
+    }>(`/mate/codes/${encodeURIComponent(code.trim().toUpperCase())}`, undefined, true),
+  getMateCoupleReport: (code: string) =>
+    requestJson<{ ok: boolean; code: string; couple: Record<string, unknown> }>(
+      `/mate/couple/${encodeURIComponent(code.trim().toUpperCase())}`,
+      undefined,
+      true,
+    ),
   previewRelationCode: (code: string) =>
     requestJson<{
       ok: boolean;
       code: string;
       status: string;
+      suiteTier?: "lite" | "full";
+      suiteSlug?: string | null;
       preview: Record<string, unknown>;
       invitePath: string;
       coupleUnlocked: boolean;

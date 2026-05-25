@@ -14,6 +14,80 @@ export type MateIdentityCard = {
   assets: MateAssetCard[];
 };
 
+export type MateModuleAccordion = {
+  code: string;
+  dimension: string;
+  display: string;
+  visual: string;
+  tag: string;
+  subBadges: string[];
+  answerEvidence: string;
+  marketMapping: string;
+};
+
+export type MateReverseCard = {
+  front: { title: string; subtitle: string; content: string; tip: string };
+  back: { title: string; subtitle: string; content: string; mechanism?: string; cost?: string; shareTip?: string };
+};
+
+export type MateObserveSlice = {
+  slice: string;
+  title: string;
+  correctTraits: string;
+  missingTraits: string;
+};
+
+export type MateRehearseEpisode = {
+  name: string;
+  time: string;
+  desc: string;
+  plot: string;
+  partnerPsychology: string;
+  warning: string;
+  suggestion: string;
+  comfortIndex: string;
+};
+
+export type MateSimulator = {
+  title: string;
+  slogan: string;
+  diagnosis: string;
+  slider: { name: string; boostPercent: number; method: string };
+  dynamicText: string;
+  baselineDisplay: number;
+};
+
+export type MateAdviceV4 = { goodNews: string; warning: string };
+
+export type MateMatchZone = {
+  sliderTitle: string;
+  zones: string[];
+  userZone: string;
+  targetPortrait: string;
+  matchingReason: string;
+  meetScene: string;
+  riskPortrait: string;
+};
+
+export type MateLensGridItem = { title: string; desc: string };
+
+export type MateProfileEngine = {
+  main_type: string;
+  sub_type: string;
+  trait_atoms: string[];
+  behavior_atoms: string[];
+  relationship_atoms: string[];
+  scene_atoms: string[];
+};
+
+export type MateIdentityDossier = MateIdentityCard & {
+  subTitle?: string;
+  quadrantResult?: string;
+  quadrantDesc?: string;
+  slogan?: string;
+  badges?: Array<{ name: string; result: string }>;
+};
+
 export type MateMarketCoordinate = {
   axisX: number;
   axisY: number;
@@ -89,12 +163,19 @@ export type MateModule = {
   score?: number;
 };
 
+export type MateAiContent = {
+  mode?: "deterministic" | "ai" | "cached";
+  cached?: boolean;
+  status?: "pending" | "ready";
+  generated_at?: string;
+};
+
 export type MateResult = {
   attemptId: string;
   gender: "female" | "male";
   positionName: string;
   quadrant: string;
-  identityCard: MateIdentityCard;
+  identityCard: MateIdentityDossier;
   marketCoordinate: MateMarketCoordinate;
   matchmakerRecords: MateMatchmakerRecord[];
   loveTimeline: MateTimelineNode[];
@@ -106,17 +187,31 @@ export type MateResult = {
   deepArchive: MateDeepArchive;
   socialQuotes: string[];
   modules: MateModule[];
+  /** V4.1 engine fields */
+  profileEngine?: MateProfileEngine;
+  moduleAccordions?: MateModuleAccordion[];
+  reverse?: MateReverseCard;
+  observeSlices?: MateObserveSlice[];
+  rehearseEpisodes?: MateRehearseEpisode[];
+  simulator?: MateSimulator;
+  adviceV4?: MateAdviceV4;
+  matchZone?: MateMatchZone;
+  lensGrid?: MateLensGridItem[];
+  footerMarquee?: { marquee: string[]; intervalMs: number };
+  aiContent?: MateAiContent;
 };
 
 export const MATE_NAV_SECTIONS = [
-  { id: "identity", label: "档案" },
-  { id: "modules", label: "模块" },
-  { id: "coordinate", label: "坐标" },
-  { id: "observe", label: "观察" },
-  { id: "rehearse", label: "预演" },
-  { id: "advice", label: "建议" },
-  { id: "match", label: "匹配" },
-  { id: "lens", label: "分析" },
+  { id: "identity", label: "档案", icon: "📍" },
+  { id: "modules", label: "雷达", icon: "🔬" },
+  { id: "simulator", label: "模拟", icon: "⚙️" },
+  { id: "coordinate", label: "坐标", icon: "📍" },
+  { id: "reverse", label: "镜像", icon: "🪞" },
+  { id: "observe", label: "观察", icon: "👁" },
+  { id: "rehearse", label: "预演", icon: "🎬" },
+  { id: "advice", label: "建议", icon: "📋" },
+  { id: "match", label: "匹配", icon: "💡" },
+  { id: "lens", label: "透视", icon: "🔭" },
 ] as const;
 
-export type MateNavId = (typeof MATE_NAV_SECTIONS)[number]["id"];
+export type MateNavId = (typeof MATE_NAV_SECTIONS)[number]["id"] | "simulator" | "reverse";

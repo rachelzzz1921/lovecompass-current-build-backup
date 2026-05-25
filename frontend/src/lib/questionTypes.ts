@@ -39,6 +39,12 @@ export type ApiQuestion = {
   required?: boolean;
   ui: QuestionUi;
   options: QuestionOption[];
+  /** SA1 / AT / FS1 / PRE — drives progress section chips. */
+  dimensionCode?: string;
+  /** When set, question stays at this position in the pinned prefix. */
+  pinOrder?: number | null;
+  scoringSensitive?: string | null;
+  foundationPinned?: boolean;
 };
 
 export type AnswerPayload =

@@ -1,6 +1,16 @@
-import type { ApiQuestion, QuestionOption } from "@/lib/questionTypes";
+import type { ApiQuestion } from "@/lib/questionTypes";
 
 const SEED_PREFIX = "presentation-seed:";
+
+/** MATE appearance calibration — must stay with the anchor slider (see mate_scoring.py). */
+const APPEARANCE_CALIBRATION_IDS = new Set([
+  "FS1-A-F-02",
+  "FS1-A-F-03",
+  "FS1-B-F-12",
+  "MS4-A-M-50",
+  "MS4-A-M-52",
+  "MS4-A-M-53",
+]);
 
 function mulberry32(seed: number): () => number {
   let state = seed >>> 0;
@@ -49,7 +59,7 @@ function rngForSuite(suiteSlug: string): () => number {
 
 const OPTION_SHUFFLE_KINDS = new Set<ApiQuestion["kind"]>(["choice", "binary", "card", "mood"]);
 
-function withStorageIndex(options: QuestionOption[]): QuestionOption[] {
+function withStorageIndex(options: ApiQuestion["options"]): ApiQuestion["options"] {
   return options.map((opt, storageIndex) => ({ ...opt, storageIndex }));
 }
 
@@ -72,14 +82,39 @@ function shuffleRankItems(question: ApiQuestion, rng: () => number): ApiQuestion
   };
 }
 
-/** Randomize question and option order for display; DB order and option keys stay unchanged. */
+export function isPinnedQuestion(question: ApiQuestion): boolean {
+  if (question.dimensionCode === "PRE") return true;
+  if (question.pinOrder != null) return true;
+  if (question.scoringSensitive === "appearance") return true;
+  if (APPEARANCE_CALIBRATION_IDS.has(question.externalId)) return true;
+  if (question.foundationPinned) return true;
+  return false;
+}
+
+function pinnedSortKey(question: ApiQuestion): number {
+  return question.pinOrder ?? question.order;
+}
+
+/**
+ * Randomize question and option order for display.
+ * Foundational / calibration items stay at the front in canonical order; DB keys unchanged.
+ */
 export function prepareQuestionsForPresentation(
   questions: ApiQuestion[],
   suiteSlug: string,
 ): ApiQuestion[] {
   const sorted = [...questions].sort((a, b) => a.order - b.order);
+  const pinned: ApiQuestion[] = [];
+  const shuffleable: ApiQuestion[] = [];
+  for (const question of sorted) {
+    if (isPinnedQuestion(question)) pinned.push(question);
+    else shuffleable.push(question);
+  }
+  pinned.sort((a, b) => pinnedSortKey(a) - pinnedSortKey(b));
+
   const rng = rngForSuite(suiteSlug);
-  return fisherYates(sorted, rng).map((question) =>
+  const shuffledBody = fisherYates(shuffleable, rng);
+  return [...pinned, ...shuffledBody].map((question) =>
     shuffleRankItems(shuffleOptions(question, rng), rng),
   );
 }

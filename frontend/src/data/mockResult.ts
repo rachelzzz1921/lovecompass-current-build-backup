@@ -9,11 +9,34 @@ export type Dimension = {
   coreQuestion?: string;
 };
 export type MatchType = { code: string; name: string; pct: number; tagline: string; top?: boolean };
-export type Insight = { kind: "strength" | "watch" | "match" | "growth"; title: string; body: string };
 
 export type Behavior = { scene: string; title: string; body: string };
 
-export type CoreTrait = { icon: "shield" | "key" | "eye"; title: string; body: string; highlight?: boolean };
+export type TraitEvidence = {
+  question_id: string;
+  question_short: string;
+  chosen_label: string;
+};
+
+export type CoreTrait = {
+  icon: "shield" | "key" | "eye";
+  title: string;
+  body: string;
+  highlight?: boolean;
+  source_dimension?: string;
+  evidence?: TraitEvidence[];
+};
+
+export type Insight = { kind: "strength" | "watch" | "match" | "growth"; title: string; body: string };
+
+export type AiContentBlock = {
+  traits?: CoreTrait[];
+  insights?: Insight[];
+  growth_path?: string;
+  status?: "pending" | "ready" | "failed";
+  mode?: string;
+  generated_at?: string;
+};
 
 export type CharacterReveal = {
   emoji: string;
@@ -22,6 +45,12 @@ export type CharacterReveal = {
   archetypeLine: string;
   quote: string;
   reasons: Array<{ title: string; body: string; highlight?: boolean }>;
+};
+
+export type RadarBaselinePoint = {
+  key: string;
+  label: string;
+  value: number;
 };
 
 export type SelfResult = {
@@ -34,12 +63,15 @@ export type SelfResult = {
   };
   overallScore: number;
   dimensions: Dimension[];
+  /** 该红楼类型的平均画像（双轨雷达外轨） */
+  radarBaseline?: RadarBaselinePoint[];
   matches: MatchType[];
   insights: Insight[];
   behaviors: Behavior[];
   coreTraits: CoreTrait[];
   character: CharacterReveal;
-  lockedTeasers: Array<{ id: "ros" | "mate"; title: string; hint: string }>;
+  aiContent?: AiContentBlock;
+  growthPathText?: string;
 };
 
 export const MOCK_SELF_RESULT: SelfResult = {
@@ -144,8 +176,4 @@ export const MOCK_SELF_RESULT: SelfResult = {
       },
     ],
   },
-  lockedTeasers: [
-    { id: "ros", title: "SET · 02 / ROS — 这段关系的画像", hint: "用 SELF 的底片叠加 ROS，看你和那个人之间真正发生了什么。" },
-    { id: "mate", title: "SET · 03 / MATE — 你的择偶坐标", hint: "三套数据合成终极画像，解锁实时更新的人格档案。" },
-  ],
 };

@@ -203,6 +203,30 @@ def _evidence_from_self(result_payload: dict[str, Any]) -> list[str]:
     return out[:4]
 
 
+def _resolve_module_scores(
+    payload: dict[str, Any],
+    module_scores: dict[str, float] | None,
+) -> dict[str, float]:
+    if module_scores:
+        return {str(k): float(v) for k, v in module_scores.items()}
+    out: dict[str, float] = {}
+    for code in ("FS1", "FS2", "FS3", "FS4", "FS5", "MS1", "MS2", "MS3", "MS4", "MS5"):
+        if payload.get(code) is not None:
+            try:
+                out[code] = float(payload[code])
+            except (TypeError, ValueError):
+                continue
+    dims = payload.get("dimension_scores")
+    if isinstance(dims, dict):
+        for code, value in dims.items():
+            if code not in out:
+                try:
+                    out[str(code)] = float(value)
+                except (TypeError, ValueError):
+                    continue
+    return out
+
+
 def assemble_mate_context(
     result_payload: dict[str, Any],
     *,
@@ -213,6 +237,7 @@ def assemble_mate_context(
     gender: str = "female",
 ) -> AssembledAIContext:
     payload = result_payload if isinstance(result_payload, dict) else {}
+    scores = _resolve_module_scores(payload, module_scores)
     profile_engine = payload.get("profileEngine") or {}
     if not isinstance(profile_engine, dict):
         profile_engine = {}
@@ -235,7 +260,7 @@ def assemble_mate_context(
 
     evidence = _evidence_from_profile_engine(profile_engine)
     display = _display_summary_lines(payload, "MATE", gender=gender)
-    traits = scores_to_user_traits(module_scores, product_set="MATE", gender=gender)
+    traits = scores_to_user_traits(scores or module_scores, product_set="MATE", gender=gender)
 
     pair_atoms: dict[str, list[str]] = {}
     if pair_context:
@@ -509,5 +534,5 @@ def format_assembled_context_block(context: AssembledAIContext) -> str:
 
 def attach_assembled_context_to_payload(result_payload: dict[str, Any], context: AssembledAIContext) -> dict[str, Any]:
     payload = dict(result_payload)
-    payload["assembledAiContext"] = context.to_prompt_dict()
+    payload["assembledAiContext"] = context.to_model_safe_prompt_dict()
     return payload

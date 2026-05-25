@@ -3,7 +3,7 @@
  */
 import { Button } from "@/components/ui/button";
 import { Dices } from "lucide-react";
-import { DEV_RANDOM_FILL_ENABLED } from "@/lib/dev/devRandomFill";
+import { isDevRandomFillEnabled } from "@/lib/dev/devRandomFill";
 
 type Props = {
   disabled?: boolean;
@@ -11,7 +11,7 @@ type Props = {
 };
 
 export function DevRandomFillButton({ disabled, onClick }: Props) {
-  if (!DEV_RANDOM_FILL_ENABLED) return null;
+  if (!isDevRandomFillEnabled()) return null;
 
   return (
     <Button

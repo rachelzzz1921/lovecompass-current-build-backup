@@ -8,8 +8,16 @@
 
 import type { AnswerPayload, ApiQuestion } from "@/lib/questionTypes";
 
-export const DEV_RANDOM_FILL_ENABLED =
-  import.meta.env.DEV || import.meta.env.VITE_DEV_RANDOM_FILL === "true";
+export function isDevRandomFillEnabled(): boolean {
+  if (import.meta.env.DEV || import.meta.env.VITE_DEV_RANDOM_FILL === "true") return true;
+  if (typeof window !== "undefined") {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("devFill") === "1") return true;
+  }
+  return false;
+}
+
+export const DEV_RANDOM_FILL_ENABLED = isDevRandomFillEnabled();
 
 function randInt(min: number, max: number) {
   return min + Math.floor(Math.random() * (max - min + 1));

@@ -150,6 +150,15 @@ function TestRun() {
       .then((res) => {
         if (cancelled) return;
         const presented = prepareQuestionsForPresentation(res.questions, suiteSlug);
+        if (!presented.length) {
+          setError(
+            res.suite?.totalQuestions
+              ? `「${res.suite.name}」题目尚未导入（预期 ${res.suite.totalQuestions} 题）。请切换完整版，或联系管理员完成题库导入。`
+              : "题库暂无可用题目，请返回重新选择版本。",
+          );
+          setQuestions([]);
+          return;
+        }
         setQuestions(presented);
         if (presented[0]) setQuestionStartedAt((prev) => ({ ...prev, [presented[0].id]: Date.now() }));
       })

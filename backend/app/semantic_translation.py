@@ -13,7 +13,7 @@ from app.chat_prompt_layers import score_band_label
 DICT_DIR = Path(__file__).resolve().parents[1] / "data" / "semantic_dictionary"
 
 INTERNAL_CODE_RE = re.compile(
-    r"\b(?:FS[1-5]|MS[1-5]|SA[1-6]|P[1-6]|AT|IN|CO|EV|RK|AS|SF)(?:_[A-Z0-9]+)?\b",
+    r"(?<![A-Za-z0-9_])(?:FS[1-5]|MS[1-5]|SA[1-6]|P[1-6]|AT|IN|CO|EV|RK|AS|SF)(?:_[A-Z0-9]+)?(?![A-Za-z0-9_])",
     re.IGNORECASE,
 )
 
@@ -258,7 +258,7 @@ def contains_forbidden(text: str) -> bool:
     upper = text.upper()
     for term in forbidden_terms():
         if len(term) <= 3 and term.isupper() and term.isalpha():
-            if re.search(rf"\b{re.escape(term.upper())}\b", upper):
+            if re.search(_code_pattern(term), upper, flags=re.IGNORECASE):
                 return True
         elif term.lower() in text.lower():
             return True
@@ -266,6 +266,10 @@ def contains_forbidden(text: str) -> bool:
         if pattern.search(text):
             return True
     return bool(INTERNAL_CODE_RE.search(text))
+
+
+def _code_pattern(code: str) -> str:
+    return rf"(?<![A-Za-z0-9_]){re.escape(code)}(?![A-Za-z0-9_])"
 
 
 def sanitize_text(text: str) -> str:
@@ -276,11 +280,11 @@ def sanitize_text(text: str) -> str:
     replace_map = semantic_replace_map()
     for key in sorted(replace_map.keys(), key=len, reverse=True):
         value = replace_map[key]
-        output = re.sub(rf"\b{re.escape(key)}\b", value, output, flags=re.IGNORECASE)
+        output = re.sub(_code_pattern(key), value, output, flags=re.IGNORECASE)
     output = INTERNAL_CODE_RE.sub("", output)
     for term in forbidden_terms():
         if len(term) <= 3 and term.isupper():
-            output = re.sub(rf"\b{re.escape(term)}\b", "", output, flags=re.IGNORECASE)
+            output = re.sub(_code_pattern(term), "", output, flags=re.IGNORECASE)
     output = re.sub(r"\s{2,}", " ", output)
     output = re.sub(r"[，。；]\s*[，。；]", "，", output)
     return output.strip()
@@ -302,7 +306,7 @@ def scan_violations(text: str) -> list[str]:
         violations.extend(INTERNAL_CODE_RE.findall(text))
     upper = text.upper()
     for term in forbidden_terms():
-        if len(term) <= 4 and term.isupper() and re.search(rf"\b{re.escape(term.upper())}\b", upper):
+        if len(term) <= 4 and term.isupper() and re.search(_code_pattern(term), upper, flags=re.IGNORECASE):
             violations.append(term)
     for pattern in forbidden_patterns():
         match = pattern.search(text)

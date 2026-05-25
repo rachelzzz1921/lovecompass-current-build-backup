@@ -61,13 +61,14 @@ def _mid_answers(questions: list[dict]) -> dict[str, dict]:
 def test_mate_context_has_atoms_not_raw_scores() -> None:
     bank = _load_bank("female")
     questions = _sample_questions(bank)
-    payload = summarize_mate_scores(
+    scored = summarize_mate_scores(
         questions,
         _mid_answers(questions),
         {"scoring_formula": bank.get("scoring_formula") or {}, "type_rules": {}},
         gender="female",
-    )["result_payload"]
-    ctx = assemble_mate_context(payload, gender="female")
+    )
+    payload = scored["result_payload"]
+    ctx = assemble_mate_context(payload, module_scores=scored["dimension_scores"], gender="female")
     block = ctx.to_compact_block()
     safe = json.dumps(ctx.to_model_safe_prompt_dict(), ensure_ascii=False)
     assert ctx.profile_atoms.get("trait_atoms"), "expected trait atoms"

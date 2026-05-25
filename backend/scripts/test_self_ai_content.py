@@ -47,6 +47,7 @@ def main() -> None:
     ai = build_self_ai_content(result_payload=payload, dimension_scores=scores, use_ai=False)
     assert ai["status"] == "ready"
     assert ai["mode"] == "deterministic"
+    assert ai.get("assembled_context")
     assert len(ai["insights"]) == 4
     assert ai["growth_path"]
 

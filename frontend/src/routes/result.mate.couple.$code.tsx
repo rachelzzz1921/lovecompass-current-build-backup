@@ -2,45 +2,42 @@ import { createFileRoute, Link, useParams } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import type { RosCoupleResult } from "@/data/rosTypes";
+import type { MateCoupleResult } from "@/data/mateCoupleTypes";
+import { MateCoupleResultView } from "@/components/mate/MateCoupleResultView";
 import { ApiErrorPanel } from "@/components/ApiErrorPanel";
-import { RosCoupleResultView } from "@/components/RosCoupleResultView";
 import { formatApiErrorMessage } from "@/lib/apiErrors";
-import { mapApiCouplePayload } from "@/lib/mapRosCoupleResult";
+import { mapApiMateCouplePayload } from "@/lib/mapMateCoupleResult";
 import { lovecompassApi } from "@/lib/lovecompassApi";
 import { AuthChecking, useRequireAuth } from "@/lib/requireAuth";
 
-export const Route = createFileRoute("/result/ros/couple/$code")({
+export const Route = createFileRoute("/result/mate/couple/$code")({
   ssr: false,
   head: () => ({
     meta: [
-      { title: "你们的双人报告 · MIRROR" },
-      { name: "description", content: "ROS 双人报告 · 契合指数、感知差值、依恋碰撞、AI 处方签。" },
+      { title: "婚恋适配双人报告 · MIRROR" },
+      { name: "description", content: "MATE 双人婚恋适配 · P1-P6 模块拆解与红娘建议。" },
     ],
   }),
-  component: CouplePage,
+  component: MateCouplePage,
 });
 
-function CouplePage() {
-  const { code } = useParams({ from: "/result/ros/couple/$code" });
+function MateCouplePage() {
+  const { code } = useParams({ from: "/result/mate/couple/$code" });
   const { pending: authPending } = useRequireAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [waitingPartner, setWaitingPartner] = useState(false);
-  const [r, setR] = useState<RosCoupleResult | null>(null);
-  const [initiatorAttemptId, setInitiatorAttemptId] = useState<string | undefined>();
+  const [result, setResult] = useState<MateCoupleResult | null>(null);
 
   useEffect(() => {
     if (authPending) return;
     let cancelled = false;
     setLoading(true);
     lovecompassApi
-      .getRosCoupleReport(code)
+      .getMateCoupleReport(code)
       .then((res) => {
         if (cancelled) return;
-        setR(mapApiCouplePayload(res.couple));
-        const participants = res.couple.participants as { initiatorAttemptId?: string } | undefined;
-        setInitiatorAttemptId(participants?.initiatorAttemptId || undefined);
+        setResult(mapApiMateCouplePayload(res.couple));
       })
       .catch((e) => {
         if (cancelled) return;
@@ -64,36 +61,27 @@ function CouplePage() {
 
   if (waitingPartner) {
     return (
-      <main className="relative min-h-screen flex items-center justify-center px-6" style={{ background: "#0c0e11" }}>
+      <main className="relative min-h-screen flex items-center justify-center px-6" style={{ background: "#100a0d" }}>
         <div className="max-w-md text-center space-y-4">
-          <Heart className="h-10 w-10 mx-auto text-[#a5a8ff]" />
+          <Heart className="h-10 w-10 mx-auto text-[#fb7185]" />
           <h1 className="font-display text-2xl text-white">等待 TA 完成测评</h1>
           <p className="text-sm text-white/65 leading-relaxed">
             你的部分已经就绪。双人报告会在 TA 用关系码{" "}
-            <span className="font-mono text-[#c2c4ff]">{code}</span> 完成 ROS 60 题后自动解锁。
+            <span className="font-mono text-[#f9a8d4]">{code}</span> 完成 MATE 测评后自动解锁。
           </p>
-          <Link to="/ros/invite/$code" params={{ code }}>
+          <Link to="/mate/invite/$code" params={{ code }}>
             <Button className="rounded-full mt-2">查看邀请页</Button>
           </Link>
-          <div>
-            <Link to="/" className="text-xs text-white/45 hover:text-white/70">
-              返回首页
-            </Link>
-          </div>
         </div>
       </main>
     );
   }
 
-  if (error || !r) {
+  if (error || !result) {
     return (
-      <ApiErrorPanel
-        title="双人报告加载失败"
-        message={error ?? "尚未解锁"}
-        backTo={{ to: "/", label: "返回首页" }}
-      />
+      <ApiErrorPanel title="双人报告加载失败" message={error ?? "未找到结果"} backTo={{ to: "/", label: "返回首页" }} />
     );
   }
 
-  return <RosCoupleResultView result={r} initiatorAttemptId={initiatorAttemptId} />;
+  return <MateCoupleResultView result={result} />;
 }

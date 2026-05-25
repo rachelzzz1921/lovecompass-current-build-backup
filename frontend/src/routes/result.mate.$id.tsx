@@ -5,11 +5,27 @@ import { ArrowLeft, Bot, ChevronDown, ChevronLeft, ChevronRight, RefreshCw, Shar
 import { toast } from "sonner";
 import type { MateLensCard, MateNavId, MateResult, MateTimelineNode } from "@/data/mateTypes";
 import { MATE_NAV_SECTIONS } from "@/data/mateTypes";
+import {
+  MateAdviceBubbles,
+  MateFooterMarquee,
+  MateIdentityDossier,
+  MateLensGridPanel,
+  MateMatchTemperature,
+  MateModuleAccordionPanel,
+  MateObserveCarousel,
+  MateParamSimulator,
+  MateRehearseNetflix,
+  MateReverseFlipCard,
+} from "@/components/mate/MateV4Sections";
 import { RadarChart } from "@/components/RadarChart";
 import { AiReportSection } from "@/components/AiReportSection";
+import { SuiteUpgradeBanner } from "@/components/SuiteUpgradeBanner";
+import { LiteResultNotice } from "@/components/LiteResultNotice";
+import { SuiteCrossSell } from "@/components/SuiteCrossSell";
+import { inferSuiteTier } from "@/lib/suiteTier";
 import { ApiErrorPanel } from "@/components/ApiErrorPanel";
 import { formatApiErrorMessage } from "@/lib/apiErrors";
-import { mapApiSingleToMateResult } from "@/lib/mapMateResult";
+import { mapApiSingleToMateResult, mapAttemptToMateResult } from "@/lib/mapMateResult";
 import { lovecompassApi } from "@/lib/lovecompassApi";
 import { AuthChecking, useRequireAuth } from "@/lib/requireAuth";
 import { chatRouteSearch } from "@/lib/chatRouteSearch";
@@ -39,6 +55,10 @@ function MateResultRoute() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<MateResult | null>(null);
+  const [suiteSlug, setSuiteSlug] = useState<string | null>(null);
+  const [relationCode, setRelationCode] = useState<string | null>(null);
+  const [coupleUnlocked, setCoupleUnlocked] = useState(false);
+  const [accuracyNote, setAccuracyNote] = useState<string | null>(null);
 
   useEffect(() => {
     if (authPending) return;
@@ -49,17 +69,66 @@ function MateResultRoute() {
       .then((res) => {
         if (cancelled) return;
         setResult(mapApiSingleToMateResult(id, res.single));
+        setRelationCode(res.relationCode || null);
+        setCoupleUnlocked(Boolean(res.coupleUnlocked));
+        const single = res.single as Record<string, unknown>;
+        setAccuracyNote(typeof single.accuracyNote === "string" ? single.accuracyNote : null);
       })
-      .catch((e) => {
-        if (!cancelled) setError(formatApiErrorMessage(e));
+      .catch(async (primaryError) => {
+        if (cancelled) return;
+        try {
+          const fallback = await lovecompassApi.getAttemptResult(id);
+          const mapped = mapAttemptToMateResult(
+            id,
+            (fallback.attempt ?? {}) as Record<string, unknown>,
+          );
+          if (mapped) {
+            setResult(mapped);
+            setSuiteSlug(String(fallback.attempt?.test_id ?? ""));
+            return;
+          }
+        } catch {
+          // fall through to primary error
+        }
+        setError(formatApiErrorMessage(primaryError));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
+    lovecompassApi
+      .getAttemptResult(id)
+      .then((res) => {
+        if (!cancelled) setSuiteSlug(String(res.attempt?.test_id ?? ""));
+      })
+      .catch(() => undefined);
     return () => {
       cancelled = true;
     };
   }, [authPending, id]);
+
+  // 后台 AI 升级完成后静默刷新
+  useEffect(() => {
+    if (!result) return;
+    const mode = result.aiContent?.mode;
+    if (mode && mode !== "deterministic") return;
+    let ignore = false;
+    const timer = window.setTimeout(() => {
+      lovecompassApi
+        .getMateSingleResult(id)
+        .then((res) => {
+          if (ignore) return;
+          const next = mapApiSingleToMateResult(id, res.single);
+          if (next.aiContent?.mode && next.aiContent.mode !== mode) {
+            setResult(next);
+          }
+        })
+        .catch(() => undefined);
+    }, 8000);
+    return () => {
+      ignore = true;
+      window.clearTimeout(timer);
+    };
+  }, [id, result]);
 
   if (authPending || loading) return <AuthChecking />;
   if (error || !result) {
@@ -68,10 +137,33 @@ function MateResultRoute() {
     );
   }
 
-  return <MateResultView result={result} />;
+  return (
+    <MateResultView
+      result={result}
+      attemptId={id}
+      suiteSlug={suiteSlug}
+      relationCode={relationCode}
+      coupleUnlocked={coupleUnlocked}
+      accuracyNote={accuracyNote}
+    />
+  );
 }
 
-function MateResultView({ result }: { result: MateResult }) {
+function MateResultView({
+  result,
+  attemptId,
+  suiteSlug,
+  relationCode,
+  coupleUnlocked,
+  accuracyNote,
+}: {
+  result: MateResult;
+  attemptId: string;
+  suiteSlug: string | null;
+  relationCode: string | null;
+  coupleUnlocked: boolean;
+  accuracyNote: string | null;
+}) {
   const [activeNav, setActiveNav] = useState<MateNavId>("identity");
   const [recordIdx, setRecordIdx] = useState(0);
   const [expandedDay, setExpandedDay] = useState<number | null>(null);
@@ -139,16 +231,18 @@ function MateResultView({ result }: { result: MateResult }) {
       </header>
 
       <div className="max-w-[480px] mx-auto px-4 space-y-4">
+        <LiteResultNotice productId="mate" suiteSlug={suiteSlug} accuracyNote={accuracyNote} />
         {/* Module grid preview */}
         <section className="grid grid-cols-2 gap-2 pt-1">
           {[
             { id: "coordinate" as MateNavId, title: "坐标站", sub: "市场定位" },
-            { id: "modules" as MateNavId, title: "模块雷达", sub: "FS/MS" },
-            { id: "observe" as MateNavId, title: "观察室", sub: "红娘记录" },
-            { id: "rehearse" as MateNavId, title: "恋爱预演", sub: "时间轴" },
-            { id: "advice" as MateNavId, title: "市场建议", sub: "世俗实用" },
-            { id: "match" as MateNavId, title: "匹配区间", sub: "上/下限" },
-            { id: "lens" as MateNavId, title: "透视镜", sub: "AI 分析" },
+            { id: "modules" as MateNavId, title: "模块雷达", sub: "五维拆解" },
+            { id: "simulator" as MateNavId, title: "参数模拟", sub: "档案重组" },
+            { id: "reverse" as MateNavId, title: "镜像反转", sub: "误读解密" },
+            { id: "observe" as MateNavId, title: "观察室", sub: "目击者视角" },
+            { id: "rehearse" as MateNavId, title: "恋爱预演", sub: "关系剧集" },
+            { id: "advice" as MateNavId, title: "市场建议", sub: "红娘大实话" },
+            { id: "match" as MateNavId, title: "匹配区间", sub: "温度带" },
           ].map((card, i) => (
             <button
               key={`${card.title}-${i}`}
@@ -163,9 +257,12 @@ function MateResultView({ result }: { result: MateResult }) {
           ))}
         </section>
 
-        {/* Identity card */}
+        {/* Identity dossier */}
         <section id="mate-identity" className="scroll-mt-28">
-          <SectionLabel>ARCHIVE · 身份卡</SectionLabel>
+          <SectionLabel>ARCHIVE · 身份定位卡</SectionLabel>
+          {result.profileEngine ? (
+            <MateIdentityDossier result={result} />
+          ) : (
           <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
@@ -190,7 +287,8 @@ function MateResultView({ result }: { result: MateResult }) {
             <p className="text-sm text-white/75 mt-5 leading-relaxed">{result.identityCard.tagline}</p>
             <p className="text-xs text-white/45 mt-3 italic">{result.identityCard.subtitle}</p>
           </motion.div>
-
+          )}
+          {!result.profileEngine && (
           <div className="grid grid-cols-3 gap-2 mt-3">
             {result.identityCard.assets.map((asset) => (
               <div
@@ -206,6 +304,7 @@ function MateResultView({ result }: { result: MateResult }) {
               </div>
             ))}
           </div>
+          )}
         </section>
 
         {/* Module radar */}
@@ -232,7 +331,20 @@ function MateResultView({ result }: { result: MateResult }) {
                   </div>
                 ))}
               </div>
+              {result.moduleAccordions?.length ? (
+                <div className="mt-4 pt-4 border-t border-white/8">
+                  <MateModuleAccordionPanel result={result} />
+                </div>
+              ) : null}
             </div>
+          </section>
+        )}
+
+        {/* Param simulator */}
+        {result.simulator && (
+          <section id="mate-simulator" className="scroll-mt-28">
+            <SectionLabel>SIM · 参数模拟器</SectionLabel>
+            <MateParamSimulator result={result} />
           </section>
         )}
 
@@ -278,10 +390,19 @@ function MateResultView({ result }: { result: MateResult }) {
           </div>
         </section>
 
-        {/* Matchmaker records */}
+        {result.reverse && (
+          <section id="mate-reverse" className="scroll-mt-28">
+            <SectionLabel>MIRROR · 镜像反转</SectionLabel>
+            <MateReverseFlipCard result={result} />
+          </section>
+        )}
+
+        {/* Matchmaker records / observe */}
         <section id="mate-observe" className="scroll-mt-28">
           <SectionLabel>MATCHMAKER · 观察室</SectionLabel>
-          {record && (
+          {result.observeSlices?.length ? (
+            <MateObserveCarousel result={result} />
+          ) : record ? (
             <div
               className="rounded-2xl p-5 min-h-[220px] relative"
               style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}
@@ -352,12 +473,15 @@ function MateResultView({ result }: { result: MateResult }) {
                 </button>
               </div>
             </div>
-          )}
+          ) : null}
         </section>
 
-        {/* Love timeline */}
+        {/* Love timeline / rehearse */}
         <section id="mate-rehearse" className="scroll-mt-28">
           <SectionLabel>REHEARSAL · 恋爱预演</SectionLabel>
+          {result.rehearseEpisodes?.length ? (
+            <MateRehearseNetflix result={result} />
+          ) : (
           <div
             className="rounded-2xl p-4"
             style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}
@@ -385,11 +509,15 @@ function MateResultView({ result }: { result: MateResult }) {
               </div>
             </div>
           </div>
+          )}
         </section>
 
         {/* Upper + sweet + lower match */}
         <section id="mate-match" className="scroll-mt-28 space-y-3">
           <SectionLabel>MATCH · 匹配区间</SectionLabel>
+          {result.matchZone ? (
+            <MateMatchTemperature result={result} />
+          ) : null}
           <TraitCard profile={result.upperMatch} tone="upper" />
           <SweetSpotCard spot={result.sweetSpot} />
           <TraitCard profile={result.lowerMatch} tone="lower" />
@@ -398,6 +526,9 @@ function MateResultView({ result }: { result: MateResult }) {
         {/* Secular advice */}
         <section id="mate-advice" className="scroll-mt-28">
           <SectionLabel>REAL · 红娘不会明说的话</SectionLabel>
+          {result.adviceV4 ? (
+            <MateAdviceBubbles result={result} />
+          ) : (
           <div className="space-y-2">
             {result.secularAdvice.map((card, i) => (
               <div
@@ -442,11 +573,15 @@ function MateResultView({ result }: { result: MateResult }) {
               </div>
             ))}
           </div>
+          )}
         </section>
 
         {/* AI lens */}
         <section id="mate-lens" className="scroll-mt-28">
           <SectionLabel>LENS · AI透视镜</SectionLabel>
+          {result.lensGrid?.length ? (
+            <MateLensGridPanel result={result} />
+          ) : (
           <div className="grid grid-cols-3 gap-2">
             {result.aiLens.map((card) => (
               <LensTile
@@ -457,10 +592,54 @@ function MateResultView({ result }: { result: MateResult }) {
               />
             ))}
           </div>
+          )}
         </section>
 
         {/* AI report */}
-        <AiReportSection attemptId={id} title="AI · 择偶深度报告" />
+        <AiReportSection attemptId={attemptId} title="AI · 择偶深度报告" />
+
+        {suiteSlug && inferSuiteTier(suiteSlug) === "lite" ? (
+          <SuiteUpgradeBanner productId="mate" suiteSlug={suiteSlug} attemptId={attemptId} />
+        ) : null}
+
+        {relationCode ? (
+          <section className="rounded-2xl p-4 space-y-3" style={{ background: ROSE.chip, border: `1px solid ${ROSE.chipBorder}` }}>
+            <SectionLabel>PAIR · 双人婚恋适配</SectionLabel>
+            <p className="text-sm text-white/75 leading-relaxed">
+              {coupleUnlocked
+                ? "TA 已完成测评，你们的 MATE 双人报告已解锁。"
+                : "把关系码发给 TA，完成测评后双方可免费解锁 P1–P6 婚恋适配报告。"}
+            </p>
+            <div className="font-mono text-lg tracking-[0.2em] text-white">{relationCode}</div>
+            <div className="grid grid-cols-2 gap-2">
+              <Link
+                to={coupleUnlocked ? "/result/mate/couple/$code" : "/mate/invite/$code"}
+                params={{ code: relationCode }}
+                className="flex items-center justify-center h-10 rounded-xl text-sm text-white/90"
+                style={{ background: "rgba(255,255,255,0.08)" }}
+              >
+                {coupleUnlocked ? "查看双人报告" : "邀请 TA"}
+              </Link>
+              <button
+                type="button"
+                onClick={() => {
+                  void navigator.clipboard.writeText(relationCode);
+                  toast.success("关系码已复制");
+                }}
+                className="flex items-center justify-center h-10 rounded-xl text-sm text-white/80"
+                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
+              >
+                复制关系码
+              </button>
+            </div>
+          </section>
+        ) : null}
+
+        <SuiteCrossSell exclude="mate" variant="dark" />
+
+        {result.footerMarquee?.marquee?.length ? (
+          <MateFooterMarquee result={result} />
+        ) : null}
 
         {/* CTAs */}
         <div className="grid grid-cols-2 gap-3 pt-2">

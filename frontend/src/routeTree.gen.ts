@@ -28,7 +28,9 @@ import { Route as TestsIdRunRouteImport } from './routes/tests.$id.run'
 import { Route as RosInviteCodeRouteImport } from './routes/ros.invite.$code'
 import { Route as ResultRosIdRouteImport } from './routes/result.ros.$id'
 import { Route as ResultMateIdRouteImport } from './routes/result.mate.$id'
+import { Route as MateInviteCodeRouteImport } from './routes/mate.invite.$code'
 import { Route as ResultRosCoupleCodeRouteImport } from './routes/result.ros.couple.$code'
+import { Route as ResultMateCoupleCodeRouteImport } from './routes/result.mate.couple.$code'
 
 const HistoryRoute = HistoryRouteImport.update({
   id: '/history',
@@ -125,9 +127,19 @@ const ResultMateIdRoute = ResultMateIdRouteImport.update({
   path: '/result/mate/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MateInviteCodeRoute = MateInviteCodeRouteImport.update({
+  id: '/mate/invite/$code',
+  path: '/mate/invite/$code',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ResultRosCoupleCodeRoute = ResultRosCoupleCodeRouteImport.update({
   id: '/result/ros/couple/$code',
   path: '/result/ros/couple/$code',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResultMateCoupleCodeRoute = ResultMateCoupleCodeRouteImport.update({
+  id: '/result/mate/couple/$code',
+  path: '/result/mate/couple/$code',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -147,10 +159,12 @@ export interface FileRoutesByFullPath {
   '/ros/start': typeof RosStartRoute
   '/tests/$id': typeof TestsIdRouteWithChildren
   '/admin/': typeof AdminIndexRoute
+  '/mate/invite/$code': typeof MateInviteCodeRoute
   '/result/mate/$id': typeof ResultMateIdRoute
   '/result/ros/$id': typeof ResultRosIdRoute
   '/ros/invite/$code': typeof RosInviteCodeRoute
   '/tests/$id/run': typeof TestsIdRunRoute
+  '/result/mate/couple/$code': typeof ResultMateCoupleCodeRoute
   '/result/ros/couple/$code': typeof ResultRosCoupleCodeRoute
 }
 export interface FileRoutesByTo {
@@ -168,10 +182,12 @@ export interface FileRoutesByTo {
   '/ros/start': typeof RosStartRoute
   '/tests/$id': typeof TestsIdRouteWithChildren
   '/admin': typeof AdminIndexRoute
+  '/mate/invite/$code': typeof MateInviteCodeRoute
   '/result/mate/$id': typeof ResultMateIdRoute
   '/result/ros/$id': typeof ResultRosIdRoute
   '/ros/invite/$code': typeof RosInviteCodeRoute
   '/tests/$id/run': typeof TestsIdRunRoute
+  '/result/mate/couple/$code': typeof ResultMateCoupleCodeRoute
   '/result/ros/couple/$code': typeof ResultRosCoupleCodeRoute
 }
 export interface FileRoutesById {
@@ -191,10 +207,12 @@ export interface FileRoutesById {
   '/ros/start': typeof RosStartRoute
   '/tests/$id': typeof TestsIdRouteWithChildren
   '/admin/': typeof AdminIndexRoute
+  '/mate/invite/$code': typeof MateInviteCodeRoute
   '/result/mate/$id': typeof ResultMateIdRoute
   '/result/ros/$id': typeof ResultRosIdRoute
   '/ros/invite/$code': typeof RosInviteCodeRoute
   '/tests/$id/run': typeof TestsIdRunRoute
+  '/result/mate/couple/$code': typeof ResultMateCoupleCodeRoute
   '/result/ros/couple/$code': typeof ResultRosCoupleCodeRoute
 }
 export interface FileRouteTypes {
@@ -215,10 +233,12 @@ export interface FileRouteTypes {
     | '/ros/start'
     | '/tests/$id'
     | '/admin/'
+    | '/mate/invite/$code'
     | '/result/mate/$id'
     | '/result/ros/$id'
     | '/ros/invite/$code'
     | '/tests/$id/run'
+    | '/result/mate/couple/$code'
     | '/result/ros/couple/$code'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -236,10 +256,12 @@ export interface FileRouteTypes {
     | '/ros/start'
     | '/tests/$id'
     | '/admin'
+    | '/mate/invite/$code'
     | '/result/mate/$id'
     | '/result/ros/$id'
     | '/ros/invite/$code'
     | '/tests/$id/run'
+    | '/result/mate/couple/$code'
     | '/result/ros/couple/$code'
   id:
     | '__root__'
@@ -258,10 +280,12 @@ export interface FileRouteTypes {
     | '/ros/start'
     | '/tests/$id'
     | '/admin/'
+    | '/mate/invite/$code'
     | '/result/mate/$id'
     | '/result/ros/$id'
     | '/ros/invite/$code'
     | '/tests/$id/run'
+    | '/result/mate/couple/$code'
     | '/result/ros/couple/$code'
   fileRoutesById: FileRoutesById
 }
@@ -276,9 +300,11 @@ export interface RootRouteChildren {
   ResultAttemptIdRoute: typeof ResultAttemptIdRoute
   RosStartRoute: typeof RosStartRoute
   TestsIdRoute: typeof TestsIdRouteWithChildren
+  MateInviteCodeRoute: typeof MateInviteCodeRoute
   ResultMateIdRoute: typeof ResultMateIdRoute
   ResultRosIdRoute: typeof ResultRosIdRoute
   RosInviteCodeRoute: typeof RosInviteCodeRoute
+  ResultMateCoupleCodeRoute: typeof ResultMateCoupleCodeRoute
   ResultRosCoupleCodeRoute: typeof ResultRosCoupleCodeRoute
 }
 
@@ -417,11 +443,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResultMateIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/mate/invite/$code': {
+      id: '/mate/invite/$code'
+      path: '/mate/invite/$code'
+      fullPath: '/mate/invite/$code'
+      preLoaderRoute: typeof MateInviteCodeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/result/ros/couple/$code': {
       id: '/result/ros/couple/$code'
       path: '/result/ros/couple/$code'
       fullPath: '/result/ros/couple/$code'
       preLoaderRoute: typeof ResultRosCoupleCodeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/result/mate/couple/$code': {
+      id: '/result/mate/couple/$code'
+      path: '/result/mate/couple/$code'
+      fullPath: '/result/mate/couple/$code'
+      preLoaderRoute: typeof ResultMateCoupleCodeRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -475,9 +515,11 @@ const rootRouteChildren: RootRouteChildren = {
   ResultAttemptIdRoute: ResultAttemptIdRoute,
   RosStartRoute: RosStartRoute,
   TestsIdRoute: TestsIdRouteWithChildren,
+  MateInviteCodeRoute: MateInviteCodeRoute,
   ResultMateIdRoute: ResultMateIdRoute,
   ResultRosIdRoute: ResultRosIdRoute,
   RosInviteCodeRoute: RosInviteCodeRoute,
+  ResultMateCoupleCodeRoute: ResultMateCoupleCodeRoute,
   ResultRosCoupleCodeRoute: ResultRosCoupleCodeRoute,
 }
 export const routeTree = rootRouteImport

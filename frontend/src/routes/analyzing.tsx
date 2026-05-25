@@ -3,7 +3,7 @@ import { AuthChecking, useRequireAuth } from "@/lib/requireAuth";
 import { lovecompassApi } from "@/lib/lovecompassApi";
 import {
   detectProductSetFromAttempt,
-  parseBackendNextPath,
+  resolvePostAnalyzingRoute,
   resultRouteForProductSet,
   safeResultRouteFromAttempt,
   type ProductSet,
@@ -212,7 +212,11 @@ function AnalyzingPage() {
       await new Promise((resolve) => setTimeout(resolve, 380));
       if (cancelled) return;
 
-      const explicit = parseBackendNextPath(to ?? submitNext ?? undefined);
+      const explicit = resolvePostAnalyzingRoute({
+        next: to ?? submitNext ?? undefined,
+        attemptId: resolvedAttemptId,
+        productSet: resolvedProductSet ?? searchProductSet ?? null,
+      });
       if (explicit) {
         void nav(explicit);
         return;

@@ -1,6 +1,9 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { motion, AnimatePresence } from "framer-motion";
-import { PRODUCTS, type Product } from "@/data/products";
+import { PRODUCTS } from "@/data/products";
+import { ATTACHMENT_BY_CHARACTER } from "@/data/selfSuiteSpec";
+import { productStartLabel, productEntryPath } from "@/lib/productRoutes";
+import { productMarketing } from "@/lib/productTheme";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -23,12 +26,6 @@ export const Route = createFileRoute("/")({
   ] }),
   component: Home,
 });
-
-const ACCENT: Record<Product["accent"], { ring: string; text: string; glow: string; chip: string }> = {
-  violet: { ring: "from-[oklch(0.68_0.18_285)] to-[oklch(0.50_0.20_285)]", text: "text-gradient-violet", glow: "hover:glow-violet", chip: "chip-violet" },
-  cyan: { ring: "from-[oklch(0.82_0.14_200)] to-[oklch(0.55_0.16_200)]", text: "text-gradient-cyan", glow: "hover:glow-cyan", chip: "chip-cyan" },
-  rose: { ring: "from-[oklch(0.72_0.18_360)] to-[oklch(0.55_0.20_355)]", text: "text-gradient-violet", glow: "hover:glow-violet", chip: "chip-violet" },
-};
 
 function Home() {
   const { user } = useAuth();
@@ -224,8 +221,10 @@ function Home() {
 
         <div className="grid md:grid-cols-3 gap-5">
           {PRODUCTS.map((p, i) => {
-            const a = ACCENT[p.accent];
+            const m = productMarketing(p.id);
             const isComingSoon = p.status === "coming-soon";
+            const isPaid = p.status === "locked";
+            const ctaLabel = productStartLabel(p.id, p.status);
             return (
               <motion.div
                 key={p.id}
@@ -234,20 +233,20 @@ function Home() {
                 viewport={{ once: true }}
                 transition={{ duration: 0.6, delay: i * 0.08 }}
               >
-                <div className={`relative bg-glass rounded-2xl p-6 h-full overflow-hidden group transition-all duration-500 hover:-translate-y-1 ${a.glow}`}>
+                <div className={`relative bg-glass rounded-2xl p-6 h-full overflow-hidden group transition-all duration-500 hover:-translate-y-1 ${m.cardGlow}`}>
                   {/* corner accent */}
-                  <div className={`absolute -top-12 -right-12 w-32 h-32 rounded-full bg-gradient-to-br ${a.ring} opacity-20 blur-2xl`} />
+                  <div className={`absolute -top-12 -right-12 w-32 h-32 rounded-full bg-gradient-to-br ${m.ringGradient} opacity-20 blur-2xl`} />
 
                   <div className="relative">
                     <div className="flex items-center justify-between">
                       <span className="font-mono text-[10px] tracking-[0.3em] text-muted-foreground">{p.code}</span>
-                      <span className={`chip font-mono text-[10px]`}>
-                        {!isComingSoon && <Lock className="h-2.5 w-2.5" />}
+                      <span className={`chip font-mono text-[10px] ${m.chipClass}`}>
+                        {isPaid && <Lock className="h-2.5 w-2.5" />}
                         {p.badge}
                       </span>
                     </div>
 
-                    <h3 className={`font-display text-2xl mt-6 ${a.text}`}>{p.title}</h3>
+                    <h3 className={`font-display text-2xl mt-6 ${m.titleClass}`}>{p.title}</h3>
                     <p className="text-sm text-foreground/75 mt-1.5">{p.subtitle}</p>
 
                     <p className="text-[13px] text-foreground/65 leading-relaxed mt-4 min-h-[78px]">
@@ -273,10 +272,10 @@ function Home() {
                     </div>
 
                     <HintButton
-                      onClick={() => nav({ to: "/tests/$id", params: { id: p.id } })}
+                      onClick={() => nav({ to: productEntryPath(p.id) })}
                       blocked={isComingSoon}
                       blockedHint="该测试尚未开放，请关注后续更新"
-                      className="w-full inline-flex items-center justify-center bg-gradient-to-r from-[oklch(0.68_0.18_285)] to-[oklch(0.82_0.14_200)] text-primary-foreground hover:opacity-90 rounded-xl h-10 font-medium text-sm"
+                      className={`w-full inline-flex items-center justify-center bg-gradient-to-r ${m.buttonGradient} text-primary-foreground hover:opacity-90 rounded-xl h-10 font-medium text-sm`}
                     >
                       {isComingSoon ? (
                         <>
@@ -285,7 +284,7 @@ function Home() {
                         </>
                       ) : (
                         <>
-                          兑换后开始 <ArrowRight className="ml-1 h-4 w-4" />
+                          {ctaLabel} <ArrowRight className="ml-1 h-4 w-4" />
                         </>
                       )}
                     </HintButton>
@@ -309,7 +308,7 @@ function Home() {
         <div className="grid md:grid-cols-4 gap-4">
           {[
             { n: "01", icon: Layers, title: "做测试", desc: "从 SELF 起步，逐步完成 ROS 与 MATE。" },
-            { n: "02", icon: Brain, title: "AI 解读", desc: "后台匹配 34 个人格原型，生成画像草稿。" },
+            { n: "02", icon: Brain, title: "AI 解读", desc: "匹配红楼六维人格原型，生成可对话的关系画像。" },
             { n: "03", icon: MessageSquare, title: "与分析师对话", desc: "选择咨询师，把画像变成可问、可深挖的对话。" },
             { n: "04", icon: Repeat, title: "画像进化", desc: "每次对话回写摘要，下一次它比你想得更早。" },
           ].map((s, i) => (
@@ -434,10 +433,10 @@ function ResultPreview() {
 /* ---------------- Example Profiles (horizontal scroll) ---------------- */
 
 const SAMPLES = [
-  { code: "SELF-04", name: "深度连接探索者", en: "Deep Connection Explorer", tag: "情感深度型", hue: 285, depth: 86, comm: 64, line: "稳定 · 好奇 · 忠诚" },
-  { code: "SELF-08", name: "独立思辨者", en: "Independent Thinker", tag: "独立思辨型", hue: 200, depth: 58, comm: 72, line: "自主 · 敏锐 · 冷静" },
-  { code: "SELF-12", name: "温暖连接者", en: "Warm Connector", tag: "温暖连接型", hue: 30, depth: 78, comm: 88, line: "开放 · 慷慨 · 在场" },
-  { code: "SELF-17", name: "好奇浪漫派", en: "Curious Romantic", tag: "好奇浪漫派", hue: 360, depth: 82, comm: 70, line: "俏皮 · 温柔 · 探索" },
+  { code: "SELF · 女版", name: "薛宝钗", en: "Secure · Stable", tag: ATTACHMENT_BY_CHARACTER["薛宝钗"], hue: 285, depth: 86, comm: 64, line: "拎得清 · 不情绪化 · 给安全感" },
+  { code: "SELF · 女版", name: "林黛玉", en: "Anxious · Deep", tag: ATTACHMENT_BY_CHARACTER["林黛玉"], hue: 360, depth: 92, comm: 78, line: "敏感 · 深连接 · 需要被看见" },
+  { code: "SELF · 女版", name: "史湘云", en: "Mixed · Warm", tag: ATTACHMENT_BY_CHARACTER["史湘云"], hue: 200, depth: 74, comm: 82, line: "直率 · 热络 · 边界灵活" },
+  { code: "SELF · 男版", name: "贾探春", en: "Secure · Clear", tag: ATTACHMENT_BY_CHARACTER["贾探春"], hue: 165, depth: 80, comm: 70, line: "清醒 · 有边界 · 不内耗" },
 ];
 
 function ExampleProfiles() {

@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate, useParams } from "@tanstack/react-router";
+import { createFileRoute, redirect, useNavigate, useParams } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { lovecompassApi, type AttemptReport } from "@/lib/lovecompassApi";
 import { ApiErrorPanel } from "@/components/ApiErrorPanel";
@@ -12,7 +12,19 @@ import {
 } from "@/lib/mapAttemptToSelfResult";
 import { dedicatedResultRouteFromAttempt } from "@/lib/resultRoutes";
 
+const PRODUCT_RESULT_SLUGS = {
+  mate: "/tests/mate",
+  ros: "/ros/start",
+  self: "/tests/self",
+} as const;
+
 export const Route = createFileRoute("/result/$attemptId")({
+  beforeLoad: ({ params }) => {
+    const slug = params.attemptId as keyof typeof PRODUCT_RESULT_SLUGS;
+    if (slug in PRODUCT_RESULT_SLUGS) {
+      throw redirect({ to: PRODUCT_RESULT_SLUGS[slug] });
+    }
+  },
   ssr: false,
   head: () => ({
     meta: [
@@ -89,6 +101,31 @@ function ResultPage() {
     };
   }, [attemptId, nav]);
 
+  // Layer C：后台 AI 升级 insights 后静默刷新一次
+  useEffect(() => {
+    if (!data) return;
+    const mode = (data.result_payload as { ai_content?: { mode?: string } } | undefined)?.ai_content?.mode;
+    if (mode && mode !== "deterministic") return;
+    let ignore = false;
+    const timer = window.setTimeout(() => {
+      lovecompassApi
+        .getAttemptResult(attemptId)
+        .then((r) => {
+          if (ignore) return;
+          const next = r.attempt as AttemptResultInput;
+          const nextMode = next.result_payload?.ai_content?.mode;
+          if (nextMode && nextMode !== mode) {
+            setData(next);
+          }
+        })
+        .catch(() => undefined);
+    }, 8000);
+    return () => {
+      ignore = true;
+      window.clearTimeout(timer);
+    };
+  }, [attemptId, data]);
+
   const mapped = useMemo(() => (data ? mapAttemptToSelfResult(data) : null), [data]);
   const rawReportMarkdown =
     report?.content ?? (isPlaceholderReport(data?.ai_report) ? "" : data?.ai_report ?? "");
@@ -121,6 +158,12 @@ function ResultPage() {
     <SelfResultView
       result={mapped}
       attemptId={attemptId}
+      suiteSlug={data.test_id}
+      accuracyNote={
+        typeof (data.result_payload as Record<string, unknown> | undefined)?.accuracyNote === "string"
+          ? String((data.result_payload as Record<string, unknown>).accuracyNote)
+          : null
+      }
       reportMarkdown={reportMarkdown || undefined}
       reportLoading={reportLoading}
       reportError={reportError}

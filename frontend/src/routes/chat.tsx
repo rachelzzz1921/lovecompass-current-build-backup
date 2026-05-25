@@ -21,6 +21,7 @@ import { ArrowLeft, RefreshCw, Send, Sparkles } from "lucide-react";
 const searchSchema = z.object({
   attemptId: z.string().optional(),
   analystId: z.string().optional(),
+  prefill: z.string().optional(),
 });
 
 export const Route = createFileRoute("/chat")({
@@ -40,7 +41,7 @@ type Msg = { role: "user" | "ai"; text: string; ts: number };
 function ChatPage() {
   const nav = useNavigate();
   const { pending: authPending } = useRequireAuth();
-  const { attemptId: attemptIdFromUrl, analystId: analystIdFromUrl } = Route.useSearch();
+  const { attemptId: attemptIdFromUrl, analystId: analystIdFromUrl, prefill: prefillFromUrl } = Route.useSearch();
   const [active, setActive] = useState<Counselor>(() => getCounselor(analystIdFromUrl));
   const [boundAttemptId, setBoundAttemptId] = useState<string | undefined>(attemptIdFromUrl);
   const [chatContext, setChatContext] = useState<ChatContext | null>(null);
@@ -54,6 +55,12 @@ function ChatPage() {
   const [triageHint, setTriageHint] = useState<string | null>(null);
   const [triageLoading, setTriageLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (prefillFromUrl?.trim()) {
+      setInput(prefillFromUrl.trim());
+    }
+  }, [prefillFromUrl]);
 
   useEffect(() => {
     setActive(getCounselor(analystIdFromUrl));

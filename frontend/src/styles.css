@@ -198,6 +198,11 @@
     border-color: oklch(0.82 0.14 200 / 0.5);
     color: oklch(0.88 0.10 200);
   }
+  .chip-rose {
+    background: rgba(244, 114, 182, 0.12);
+    border-color: rgba(244, 114, 182, 0.35);
+    color: #f9a8d4;
+  }
 }
 
 @keyframes pulse-ring {

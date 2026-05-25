@@ -19,26 +19,26 @@ import {
   PrimaryFlowButton,
 } from "@/components/product-flow/ProductFlowWidgets";
 
-export const Route = createFileRoute("/ros/invite/$code")({
+export const Route = createFileRoute("/mate/invite/$code")({
   ssr: false,
   head: () => ({
     meta: [
-      { title: "TA 邀请你做一份关系测评 · MIRROR" },
-      { name: "description", content: "TA 已经做完了 ROS 关系测评，正在等你的视角。" },
+      { title: "TA 邀请你做择偶坐标测评 · MIRROR" },
+      { name: "description", content: "TA 已经做完了 MATE 择偶测评，正在等你的视角。" },
     ],
   }),
-  component: InvitePage,
+  component: MateInvitePage,
 });
 
-const PRODUCT_ID = "ros" as const;
+const PRODUCT_ID = "mate" as const;
 const theme = productTheme(PRODUCT_ID);
 const meta = getProductMeta(PRODUCT_ID);
 
-function InvitePage() {
-  const { code } = useParams({ from: "/ros/invite/$code" });
+function MateInvitePage() {
+  const { code } = useParams({ from: "/mate/invite/$code" });
   const nav = useNavigate();
   const { pending: authPending } = useRequireAuth();
-  const [gender, setGender] = useState<SuiteGender>(() => getStoredGender(PRODUCT_ID) ?? "female");
+  const [gender, setGender] = useState<SuiteGender>(() => getStoredGender(PRODUCT_ID) ?? "male");
   const [suiteTier, setSuiteTier] = useState<SuiteTier>("full");
   const [previewLoading, setPreviewLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -47,7 +47,7 @@ function InvitePage() {
     let cancelled = false;
     void (async () => {
       try {
-        const preview = await lovecompassApi.previewRelationCode(code);
+        const preview = await lovecompassApi.previewMateRelationCode(code);
         if (cancelled) return;
         setSuiteTier(
           preview.suiteTier === "lite" || preview.suiteTier === "full"
@@ -94,7 +94,7 @@ function InvitePage() {
       <ProductFlowHeader
         theme={theme}
         productCode={meta.code}
-        rightLabel="INVITE · ROS"
+        rightLabel="INVITE · MATE"
         back={
           <Link to="/" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition">
             <ArrowLeft className="h-4 w-4" /> 返回首页
@@ -112,8 +112,8 @@ function InvitePage() {
           <ProductFlowHero
             theme={theme}
             kicker="PARTNER INVITE"
-            title="TA 邀请你看看，你们之间到底怎么样"
-            description="等你做完，你们会同时解锁完整的双人报告——这一步，你也是免费的。"
+            title="TA 邀请你一起看清，你们是否适合长期走下去"
+            description="等你做完，你们会同时解锁 MATE 双人婚恋适配报告——这一步，你也是免费的。"
           />
 
           <ProductFlowCard theme={theme} className="space-y-6">
@@ -124,8 +124,8 @@ function InvitePage() {
               </div>
             </div>
 
-            <ProductFlowSection label="选择题库版本">
-              <GenderSelect productId="ros" value={gender} onChange={setGender} />
+            <ProductFlowSection label="选择你的性别版本">
+              <GenderSelect productId="mate" value={gender} onChange={setGender} />
             </ProductFlowSection>
 
             <div className="text-center text-xs text-muted-foreground">

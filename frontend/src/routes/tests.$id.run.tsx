@@ -10,12 +10,17 @@ import { ApiErrorPanel } from "@/components/ApiErrorPanel";
 import { formatApiErrorMessage, getApiErrorHint } from "@/lib/apiErrors";
 import { AuthChecking, safeReturnPath, useRequireAuth } from "@/lib/requireAuth";
 import { hasProductAccess, getPartnerRelationCode } from "@/lib/accessGate";
+import { stashLiteAnswers, isSelfLiteSuite, isLiteSuite } from "@/lib/suiteTier";
 import { lovecompassApi } from "@/lib/lovecompassApi";
 import { getRequiredAccessToken } from "@/lib/supabaseSession";
 import { findProductByRouteId, inferGenderFromSuiteSlug, routeAfterAttemptSubmit, testEntryRouteId, type ProductSet } from "@/lib/resultRoutes";
 import { analyzingProfileForProductId } from "@/lib/analyzingProfiles";
 import { beginPendingAttemptSubmit } from "@/lib/pendingAttemptSubmit";
-import { TEST_RUN_SECTIONS, testRunThemeForProduct } from "@/lib/testRunProfiles";
+import {
+  sectionIndexForQuestion,
+  TEST_RUN_SECTIONS,
+  testRunThemeForProduct,
+} from "@/lib/testRunProfiles";
 import {
   resolveProductId,
   resolveSuiteSlug,
@@ -25,6 +30,9 @@ import {
 } from "@/lib/suiteSlugs";
 import type { AnswerDraft, AnswerPayload, ApiQuestion } from "@/lib/questionTypes";
 import { prepareQuestionsForPresentation } from "@/lib/shufflePresentation";
+// DEV ONLY — 上线前删除 dev/ 目录与本 import
+import { DevRandomFillButton } from "@/components/dev/DevRandomFillButton";
+import { buildRandomAnswers, buildRandomDurations } from "@/lib/dev/devRandomFill";
 
 export const Route = createFileRoute("/tests/$id/run")({
   ssr: false,
@@ -92,7 +100,7 @@ function TestRun() {
       routeId: routeSuiteSlug,
       sessionSuiteSlug: storedSuiteSlug,
     });
-    const partnerCode = productId === "ros" ? getPartnerRelationCode() : null;
+    const partnerCode = getPartnerRelationCode();
     if (partnerCode) {
       setAccessChecked(true);
       return;
@@ -102,13 +110,15 @@ function TestRun() {
       void nav({ to: "/ros/start" });
       return;
     }
-    if (!hasProductAccess(productId, suiteSlug)) {
+    if (!hasProductAccess(productId, suiteSlug) && !isSelfLiteSuite(suiteSlug)) {
       toast.info("请先输入兑换码解锁本题库");
+      const tier = isLiteSuite(suiteSlug) ? ("lite" as const) : ("full" as const);
       void nav({
         to: "/access",
         search: {
           product: productId,
           redirect: `/tests/${productId}`,
+          tier,
         },
       });
       return;
@@ -165,8 +175,14 @@ function TestRun() {
     () => questions.findIndex((item) => !isAnswered(item, answers[item.id])),
     [answers, questions],
   );
-  const sectionIdx =
+  const linearSectionIdx =
     total > 0 ? Math.min(sections.length - 1, Math.floor((idx / total) * sections.length)) : 0;
+  const sectionIdx = sectionIndexForQuestion(
+    productId,
+    q?.dimensionCode,
+    linearSectionIdx,
+    sections.length,
+  );
   const pct = total > 0 ? Math.round((answeredCount / total) * 100) : 0;
   const mm = String(Math.floor(seconds / 60)).padStart(2, "0");
   const ss = String(seconds % 60).padStart(2, "0");
@@ -196,22 +212,30 @@ function TestRun() {
     }
   };
 
-  const finish = async () => {
-    if (finishing || !q) return;
-    if (firstMissingIdx >= 0) {
-      goTo(firstMissingIdx);
-      toast.error(`还有第 ${firstMissingIdx + 1} 题未完成，请先补全答案`);
+  const finish = async (overrides?: {
+    answers?: Record<string, AnswerPayload>;
+    durations?: Record<string, number>;
+  }) => {
+    if (finishing) return;
+    const answerMap = overrides?.answers ?? answers;
+    const durationMap = overrides?.durations ?? durations;
+    const missingIdx = questions.findIndex((item) => !isAnswered(item, answerMap[item.id]));
+    if (missingIdx >= 0) {
+      if (!overrides) {
+        goTo(missingIdx);
+        toast.error(`还有第 ${missingIdx + 1} 题未完成，请先补全答案`);
+      }
       return;
     }
-    markDuration(q.id);
+    if (q) markDuration(q.id);
     try {
       await getRequiredAccessToken();
       const payload: AnswerDraft[] = questions.map((item) => ({
         questionId: item.id,
         externalId: item.externalId,
         kind: item.kind,
-        answerPayload: answers[item.id],
-        durationMs: durations[item.id],
+        answerPayload: answerMap[item.id],
+        durationMs: durationMap[item.id],
       }));
       const productId = resolveProductId(routeSuiteSlug);
       const storedSuiteSlug =
@@ -226,16 +250,17 @@ function TestRun() {
           ? window.sessionStorage.getItem(`redemption:${suiteSlug}`) ||
             window.sessionStorage.getItem(`redemption:${productId}`)
           : null;
-      const partnerRelationCode =
-        productId === "ros" ? getPartnerRelationCode() : null;
-      if (!partnerRelationCode && !redemptionEventId) {
+      const partnerRelationCode = getPartnerRelationCode();
+      const selfLiteFree = isSelfLiteSuite(suiteSlug);
+      if (!partnerRelationCode && !redemptionEventId && !selfLiteFree) {
         toast.error("请先输入兑换码解锁本题库");
         if (productId === "ros") {
           void nav({ to: "/ros/start" });
         } else {
+          const tier = isLiteSuite(suiteSlug) ? ("lite" as const) : ("full" as const);
           void nav({
             to: "/access",
-            search: { product: productId, redirect: `/tests/${productId}` },
+            search: { product: productId, redirect: `/tests/${productId}`, tier },
           });
         }
         return;
@@ -253,9 +278,16 @@ function TestRun() {
         return;
       }
 
+      if (isLiteSuite(suiteSlug)) {
+        const answerMap = Object.fromEntries(
+          questions.map((item) => [item.externalId, answers[item.id]]),
+        );
+        stashLiteAnswers(suiteSlug, answerMap);
+      }
+
       const submitPromise = lovecompassApi.submitAttempt({
         suiteSlug,
-        redemptionEventId,
+        redemptionEventId: selfLiteFree ? null : redemptionEventId,
         partnerRelationCode: null,
         answers: payload,
       });
@@ -273,6 +305,17 @@ function TestRun() {
         });
       }
     }
+  };
+
+  const devRandomFillAndSubmit = () => {
+    if (finishing || !questions.length) return;
+    const randomAnswers = buildRandomAnswers(questions);
+    const randomDurations = buildRandomDurations(questions);
+    setAnswers(randomAnswers);
+    setDurations(randomDurations);
+    setIdx(questions.length - 1);
+    toast.info("DEV：已随机填答全部题目，正在提交…");
+    void finish({ answers: randomAnswers, durations: randomDurations });
   };
 
   if (authPending || !accessChecked) return <AuthChecking />;
@@ -343,11 +386,18 @@ function TestRun() {
           ))}
         </div>
 
-        <div className="flex gap-1 justify-center mb-7">
-          {Array.from({ length: total }).map((_, i) => (
+        <div className="flex gap-2 justify-center mb-7">
+          {sections.map((label, i) => (
             <span
-              key={i}
-              className={`h-[5px] rounded-full transition-all duration-300 ${i < idx ? runTheme.dotPast : i === idx ? runTheme.dotCurrent : "w-1.5 bg-border/70"}`}
+              key={label}
+              title={label}
+              className={`h-[5px] rounded-full transition-all duration-300 ${
+                i < sectionIdx
+                  ? runTheme.dotPast
+                  : i === sectionIdx
+                    ? runTheme.dotCurrent
+                    : "w-1.5 bg-border/70"
+              }`}
             />
           ))}
         </div>
@@ -448,6 +498,8 @@ function TestRun() {
           </AnimatePresence>
         )}
       </div>
+      {/* DEV ONLY — 上线前删除 */}
+      <DevRandomFillButton disabled={finishing || loading} onClick={devRandomFillAndSubmit} />
     </main>
   );
 }

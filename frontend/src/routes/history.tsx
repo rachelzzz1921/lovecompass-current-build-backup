@@ -23,6 +23,10 @@ import {
 } from "@/data/selfSuiteSpec";
 import { formatApiErrorMessage, getApiErrorHint } from "@/lib/apiErrors";
 import { portraitHeadline, portraitIndexLabel, portraitMetaLine } from "@/lib/portraitDisplay";
+import { productStartLink, productNeedsUnlock, productStartLabel } from "@/lib/productRoutes";
+import type { ProductId } from "@/lib/suiteTier";
+import { productFlowSpec } from "@/lib/productRegistry";
+import { productMarketing, progressClass } from "@/lib/productTheme";
 import { AuthChecking, useRequireAuth } from "@/lib/requireAuth";
 
 export const Route = createFileRoute("/history")({
@@ -35,27 +39,6 @@ export const Route = createFileRoute("/history")({
   }),
   component: HistoryPage,
 });
-
-const ACCENT = {
-  self: {
-    chip: "chip-violet",
-    ring: "from-[oklch(0.68_0.18_285)] to-[oklch(0.50_0.20_285)]",
-    text: "text-gradient-violet",
-    bar: "from-[oklch(0.68_0.18_285)] to-[oklch(0.82_0.14_200)]",
-  },
-  ros: {
-    chip: "chip-cyan",
-    ring: "from-[oklch(0.82_0.14_200)] to-[oklch(0.55_0.16_200)]",
-    text: "text-gradient-cyan",
-    bar: "from-[oklch(0.82_0.14_200)] to-[oklch(0.55_0.16_200)]",
-  },
-  mate: {
-    chip: "font-mono",
-    ring: "from-[#f472b6] to-[#fb7185]",
-    text: "text-transparent bg-clip-text bg-gradient-to-r from-[#f9a8d4] to-[#fb7185]",
-    bar: "from-[#f472b6] to-[#fb7185]",
-  },
-} as const;
 
 const TRAIT_ICON: Record<string, string> = {
   shield: "🛡",
@@ -277,11 +260,10 @@ function HistoryPage() {
               先完成第一套 SELF 测试
             </h2>
             <p className="text-sm text-muted-foreground mt-2">
-              完成兑换码验证与答题后，测试结果会自动推送到个人信息中心。
+              完成第一套 SELF 测试后，结果会自动推送到个人信息中心。
             </p>
             <Link
-              to="/access"
-              search={{ product: "self" }}
+              to="/tests/self"
               className="inline-flex mt-5 items-center gap-1.5 px-5 h-10 rounded-full bg-gradient-to-r from-[oklch(0.68_0.18_285)] to-[oklch(0.82_0.14_200)] text-primary-foreground text-sm"
             >
               开始 SELF 测试 <ArrowRight className="h-4 w-4" />
@@ -423,7 +405,8 @@ function OverviewHero({
 }
 
 function ProductSuiteCard({ product, index }: { product: PortraitProduct; index: number }) {
-  const accent = ACCENT[product.id];
+  const accent = productMarketing(product.id as ProductId);
+  const spec = productFlowSpec(product.id as ProductId);
   const completed = product.status === "completed";
   const latest = product.latest;
 
@@ -435,18 +418,7 @@ function ProductSuiteCard({ product, index }: { product: PortraitProduct; index:
       className={`bg-glass rounded-2xl p-5 h-full flex flex-col ${completed ? "" : "opacity-80 border border-dashed border-border/60"}`}
     >
       <div className="flex items-start justify-between gap-2">
-        <span
-          className={`chip ${accent.chip} font-mono text-[10px]`}
-          style={
-            product.id === "mate"
-              ? {
-                  background: "rgba(244,114,182,0.12)",
-                  color: "#f9a8d4",
-                  border: "1px solid rgba(244,114,182,0.35)",
-                }
-              : undefined
-          }
-        >
+        <span className={`chip ${accent.chipClass} font-mono text-[10px]`}>
           {product.code}
         </span>
         {completed ? (
@@ -455,7 +427,7 @@ function ProductSuiteCard({ product, index }: { product: PortraitProduct; index:
           <Lock className="h-3.5 w-3.5 text-muted-foreground" />
         )}
       </div>
-      <h3 className={`font-display text-lg mt-3 ${accent.text}`}>{product.title}</h3>
+      <h3 className={`font-display text-lg mt-3 ${accent.titleClass}`}>{product.title}</h3>
       <p className="text-xs text-muted-foreground mt-1">{product.subtitle}</p>
 
       {completed && latest ? (
@@ -480,13 +452,7 @@ function ProductSuiteCard({ product, index }: { product: PortraitProduct; index:
           )}
         </div>
       ) : (
-        <p className="text-xs text-muted-foreground mt-4 flex-1">
-          {product.id === "self"
-            ? "完成基础测试后，画像档案开始沉淀"
-            : product.id === "ros"
-              ? "需要具体恋情对象；完成后叠加在 SELF 底片上"
-              : "补全择偶坐标，解锁终极人格档案"}
-        </p>
+        <p className="text-xs text-muted-foreground mt-4 flex-1">{spec.incompleteHint}</p>
       )}
 
       <div className="mt-4 pt-3 border-t border-border/40">
@@ -498,17 +464,43 @@ function ProductSuiteCard({ product, index }: { product: PortraitProduct; index:
             查看报告 <ArrowRight className="h-3 w-3" />
           </Link>
         ) : (
-          <Link
-            to={product.id === "ros" ? "/ros/start" : "/access"}
-            search={product.id === "ros" ? undefined : { product: product.id }}
-            className="text-xs font-mono tracking-wider flex items-center gap-1.5 text-foreground/80 hover:text-foreground"
-          >
-            <Lock className="h-3 w-3" /> 解锁测试
-          </Link>
+          (() => {
+            const link = productStartLink(product.id as ProductId);
+            const needsUnlock = productNeedsUnlock(product.id as ProductId);
+            const label = productStartLabel(product.id as ProductId, product.id === "self" ? "free" : "locked");
+            return (
+              <Link
+                to={link.to}
+                search={link.search}
+                className="text-xs font-mono tracking-wider flex items-center gap-1.5 text-foreground/80 hover:text-foreground"
+              >
+                {needsUnlock ? <Lock className="h-3 w-3" /> : null}
+                {label} <ArrowRight className="h-3 w-3" />
+              </Link>
+            );
+          })()
         )}
       </div>
     </motion.div>
   );
+}
+
+function portraitNextStep(portrait: UserPortrait): { to: string; search?: { product: ProductId }; label: string } {
+  const byId = Object.fromEntries(portrait.products.map((p) => [p.id, p]));
+  const selfDone = Boolean(byId.self?.latest?.attemptId);
+  const rosDone = Boolean(byId.ros?.latest?.attemptId);
+  const mateDone = Boolean(byId.mate?.latest?.attemptId);
+
+  if (!selfDone) return { to: "/tests/self", label: "开始 SELF" };
+  if (!rosDone) {
+    const link = productStartLink("ros");
+    return { ...link, label: productNeedsUnlock("ros") ? "解锁 ROS" : "继续 ROS" };
+  }
+  if (!mateDone) {
+    const link = productStartLink("mate");
+    return { ...link, label: productNeedsUnlock("mate") ? "解锁 MATE" : "继续 MATE" };
+  }
+  return { to: "/chat", label: "和分析师聊" };
 }
 
 function ActivityStrip({
@@ -518,6 +510,7 @@ function ActivityStrip({
   portrait: UserPortrait;
   primaryAttemptId: string | null;
 }) {
+  const next = portraitNextStep(portrait);
   return (
     <div className="mt-8 bg-glass-strong rounded-3xl p-6 md:p-7">
       <div className="flex flex-col md:flex-row md:items-center gap-5 justify-between">
@@ -533,11 +526,11 @@ function ActivityStrip({
         </div>
         <div className="flex flex-wrap gap-2 shrink-0">
           <Link
-            to="/access"
-            search={{ product: portrait.completeness.percent >= 40 ? "ros" : "self" }}
+            to={next.to}
+            search={next.to === "/chat" ? chatRouteSearch(primaryAttemptId) : next.search}
             className="inline-flex items-center gap-1.5 px-5 h-10 rounded-full bg-gradient-to-r from-[oklch(0.68_0.18_285)] to-[oklch(0.82_0.14_200)] text-primary-foreground text-sm"
           >
-            {portrait.completeness.percent >= 40 ? "继续 ROS" : "开始 SELF"}
+            {next.label}
             <ArrowRight className="h-4 w-4" />
           </Link>
           <Link
@@ -584,12 +577,12 @@ function TimelineSection({ portrait }: { portrait: UserPortrait }) {
 
       <div className="space-y-10">
         {grouped.map(({ set, items, product }) => {
-          const productId = (product?.id ?? set.toLowerCase()) as keyof typeof ACCENT;
-          const accent = ACCENT[productId] ?? ACCENT.self;
+          const productId = (product?.id ?? set.toLowerCase()) as ProductId;
+          const accent = productMarketing(productId);
           return (
             <div key={set}>
               <div className="flex items-center gap-2 mb-4">
-                <span className={`chip ${accent.chip} font-mono`}>{product?.code ?? set}</span>
+                <span className={`chip ${accent.chipClass} font-mono`}>{product?.code ?? set}</span>
                 <span className="text-sm text-muted-foreground">{product?.title}</span>
               </div>
               {items.length === 0 ? (
@@ -607,7 +600,7 @@ function TimelineSection({ portrait }: { portrait: UserPortrait }) {
                       className="relative"
                     >
                       <span
-                        className={`absolute -left-[26px] md:-left-[34px] top-5 w-3 h-3 rounded-full bg-gradient-to-br ${accent.ring}`}
+                        className={`absolute -left-[26px] md:-left-[34px] top-5 w-3 h-3 rounded-full bg-gradient-to-br ${accent.ringGradient}`}
                       />
                       <Link
                         {...resultRouteForProductSet(set, item.attemptId)}
@@ -626,7 +619,7 @@ function TimelineSection({ portrait }: { portrait: UserPortrait }) {
                                   </span>
                                 )}
                               </div>
-                              <h3 className={`font-display text-xl mt-2 ${accent.text}`}>
+                              <h3 className={`font-display text-xl mt-2 ${accent.titleClass}`}>
                                 {portraitHeadline(item, set)}
                               </h3>
                               {item.tagline && (

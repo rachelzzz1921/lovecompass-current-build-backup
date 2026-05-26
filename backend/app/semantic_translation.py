@@ -272,6 +272,56 @@ def _code_pattern(code: str) -> str:
     return rf"(?<![A-Za-z0-9_]){re.escape(code)}(?![A-Za-z0-9_])"
 
 
+_SKIP_SANITIZE_KEYS = frozenset(
+    {
+        "code",
+        "key",
+        "id",
+        "kind",
+        "icon",
+        "type",
+        "model",
+        "engine",
+        "productSet",
+        "suiteTier",
+        "fullSuiteSlug",
+        "externalId",
+        "pattern_key",
+        "model_key",
+        "model_version",
+        "archetype_code",
+        "attachment_type",
+        "suiteSlug",
+        "attemptId",
+        "gender",
+        "direction",
+        "question_type",
+        "dimension_code",
+        "external_question_id",
+        "source_dimension",
+        "storageIndex",
+        "pinOrder",
+        "scoringSensitive",
+        "relationshipType",
+        "relationshipStage",
+        "timeTag",
+        "positionType",
+        "quadrant",
+        "spark",
+        "status",
+        "mode",
+        "tag",
+        "optionKey",
+        "pinyin",
+        "profileEngine",
+        "computedLayers",
+        "trait_atoms",
+        "scene_atoms",
+        "behavior_atoms",
+    }
+)
+
+
 def sanitize_text(text: str) -> str:
     """Output Guard — semantic replace, then strip remaining internal tokens."""
     if not text:
@@ -291,13 +341,31 @@ def sanitize_text(text: str) -> str:
 
 
 def sanitize_deep(value: Any) -> Any:
+    return sanitize_user_facing_deep(value)
+
+
+def sanitize_user_facing_deep(value: Any, *, parent_key: str | None = None) -> Any:
     if isinstance(value, str):
+        if parent_key and parent_key in _SKIP_SANITIZE_KEYS:
+            return value
         return sanitize_text(value)
     if isinstance(value, list):
-        return [sanitize_deep(item) for item in value]
+        return [sanitize_user_facing_deep(item, parent_key=parent_key) for item in value]
     if isinstance(value, dict):
-        return {str(k): sanitize_deep(v) for k, v in value.items()}
+        return {
+            str(k): sanitize_user_facing_deep(v, parent_key=str(k))
+            for k, v in value.items()
+        }
     return value
+
+
+def sanitize_user_facing_payload(payload: dict[str, Any] | None) -> dict[str, Any]:
+    if not isinstance(payload, dict):
+        return {}
+    safe = sanitize_user_facing_deep(payload)
+    if isinstance(safe, dict):
+        return safe
+    return dict(payload)
 
 
 def scan_violations(text: str) -> list[str]:

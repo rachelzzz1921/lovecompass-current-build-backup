@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -594,6 +595,27 @@ def enhance_self_ai_for_attempt(
             ai_content=ai_content,
         )
     return payload
+
+
+def enhance_self_ai_background(attempt_id: str) -> None:
+    """Background upgrade: deterministic → AI + pattern cache."""
+    if os.getenv("AI_PROVIDER", "mock").strip().lower() != "zhipu":
+        return
+    try:
+        from app.db import get_conn
+        from psycopg.types.json import Jsonb
+
+        with get_conn() as conn:
+            updated = enhance_self_ai_for_attempt(conn, attempt_id, use_ai=True, force=False)
+            if not updated:
+                return
+            conn.execute(
+                "UPDATE public.test_attempts SET result_payload = %s WHERE id = %s",
+                (Jsonb(updated), attempt_id),
+            )
+            conn.commit()
+    except Exception:
+        return
 
 
 def attach_self_ai_content_to_payload(

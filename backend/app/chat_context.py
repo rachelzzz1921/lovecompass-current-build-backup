@@ -102,6 +102,62 @@ def resolve_attempt(conn: Any, user_id: str, attempt_id: str | None) -> dict[str
     return fetch_latest_attempt_row(conn, user_id)
 
 
+def resolve_attempt_or_latest(conn: Any, user_id: str, attempt_id: str | None) -> dict[str, Any] | None:
+    """Best-effort attempt lookup for chat — never raises when unbound."""
+    if attempt_id:
+        try:
+            uuid.UUID(attempt_id)
+        except ValueError:
+            return fetch_latest_attempt_row(conn, user_id)
+        return fetch_attempt_row(conn, attempt_id, user_id) or fetch_latest_attempt_row(conn, user_id)
+    return fetch_latest_attempt_row(conn, user_id)
+
+
+def load_chat_session_messages(
+    conn: Any,
+    user_id: str,
+    analyst_slug: str | None,
+    attempt_id: str | None,
+    *,
+    limit: int = 40,
+) -> tuple[str | None, list[dict[str, str]]]:
+    """Return existing chat session id and recent messages for analyst/attempt binding."""
+    analyst = resolve_analyst_row(conn, analyst_slug)
+    analyst_id = analyst.get("id")
+    if not analyst_id:
+        return None, []
+
+    bound_attempt_id: str | None = None
+    if attempt_id:
+        try:
+            uuid.UUID(attempt_id)
+            bound_attempt_id = attempt_id
+        except ValueError:
+            bound_attempt_id = None
+    else:
+        latest = fetch_latest_attempt_row(conn, user_id)
+        bound_attempt_id = str(latest["id"]) if latest else None
+
+    existing = conn.execute(
+        """
+        SELECT id
+        FROM public.chat_sessions
+        WHERE user_id = %s
+          AND analyst_id = %s
+          AND attempt_id IS NOT DISTINCT FROM %s
+          AND is_archived = false
+        ORDER BY updated_at DESC
+        LIMIT 1
+        """,
+        (user_id, analyst_id, bound_attempt_id),
+    ).fetchone()
+    if not existing:
+        return None, []
+
+    session_id = str(existing["id"])
+    return session_id, load_recent_messages(conn, session_id, limit=limit)
+
+
 def summarize_context(attempt: dict[str, Any]) -> dict[str, Any]:
     summary = summarize_suite_context(attempt)
     summary["hasAiReport"] = not looks_like_placeholder_report(attempt.get("ai_report"))

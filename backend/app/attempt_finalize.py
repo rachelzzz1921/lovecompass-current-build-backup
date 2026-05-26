@@ -18,7 +18,13 @@ from app.mate_router import (
 )
 from app.mate_router import attempt_snapshot as mate_attempt_snapshot
 from app.mate_scoring import is_mate_suite
-from app.ros_couple_ai_content import enhance_ros_couple_session_background
+
+try:
+    from app.ros_couple_ai_content import enhance_ros_couple_session_background
+except ImportError:
+    def enhance_ros_couple_session_background(_session_id: str) -> None:
+        return None
+
 from app.ros_ai_content import attach_ros_ai_content_to_payload, enhance_ros_ai_for_attempt
 from app.ros_couple import attempt_snapshot as ros_attempt_snapshot
 from app.ros_router import create_relation_session, link_partner_to_session, merge_and_store_couple_report

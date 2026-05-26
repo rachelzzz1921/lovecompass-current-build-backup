@@ -23,7 +23,9 @@ import { Route as ResultAttemptIdRouteImport } from './routes/result.$attemptId'
 import { Route as ExamplesIdRouteImport } from './routes/examples.$id'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
+import { Route as AdminMonitorRouteImport } from './routes/admin/monitor'
 import { Route as AdminCodesRouteImport } from './routes/admin/codes'
+import { Route as AdminAttemptsRouteImport } from './routes/admin/attempts'
 import { Route as AdminAnalystsRouteImport } from './routes/admin/analysts'
 import { Route as TestsIdRunRouteImport } from './routes/tests.$id.run'
 import { Route as RosInviteCodeRouteImport } from './routes/ros.invite.$code'
@@ -104,9 +106,19 @@ const AdminUsersRoute = AdminUsersRouteImport.update({
   path: '/users',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminMonitorRoute = AdminMonitorRouteImport.update({
+  id: '/monitor',
+  path: '/monitor',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminCodesRoute = AdminCodesRouteImport.update({
   id: '/codes',
   path: '/codes',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminAttemptsRoute = AdminAttemptsRouteImport.update({
+  id: '/attempts',
+  path: '/attempts',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminAnalystsRoute = AdminAnalystsRouteImport.update({
@@ -165,7 +177,9 @@ export interface FileRoutesByFullPath {
   '/chat': typeof ChatRoute
   '/history': typeof HistoryRoute
   '/admin/analysts': typeof AdminAnalystsRoute
+  '/admin/attempts': typeof AdminAttemptsRoute
   '/admin/codes': typeof AdminCodesRoute
+  '/admin/monitor': typeof AdminMonitorRoute
   '/admin/users': typeof AdminUsersRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/examples/$id': typeof ExamplesIdRoute
@@ -190,7 +204,9 @@ export interface FileRoutesByTo {
   '/chat': typeof ChatRoute
   '/history': typeof HistoryRoute
   '/admin/analysts': typeof AdminAnalystsRoute
+  '/admin/attempts': typeof AdminAttemptsRoute
   '/admin/codes': typeof AdminCodesRoute
+  '/admin/monitor': typeof AdminMonitorRoute
   '/admin/users': typeof AdminUsersRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/examples/$id': typeof ExamplesIdRoute
@@ -217,7 +233,9 @@ export interface FileRoutesById {
   '/chat': typeof ChatRoute
   '/history': typeof HistoryRoute
   '/admin/analysts': typeof AdminAnalystsRoute
+  '/admin/attempts': typeof AdminAttemptsRoute
   '/admin/codes': typeof AdminCodesRoute
+  '/admin/monitor': typeof AdminMonitorRoute
   '/admin/users': typeof AdminUsersRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/examples/$id': typeof ExamplesIdRoute
@@ -245,7 +263,9 @@ export interface FileRouteTypes {
     | '/chat'
     | '/history'
     | '/admin/analysts'
+    | '/admin/attempts'
     | '/admin/codes'
+    | '/admin/monitor'
     | '/admin/users'
     | '/auth/callback'
     | '/examples/$id'
@@ -270,7 +290,9 @@ export interface FileRouteTypes {
     | '/chat'
     | '/history'
     | '/admin/analysts'
+    | '/admin/attempts'
     | '/admin/codes'
+    | '/admin/monitor'
     | '/admin/users'
     | '/auth/callback'
     | '/examples/$id'
@@ -296,7 +318,9 @@ export interface FileRouteTypes {
     | '/chat'
     | '/history'
     | '/admin/analysts'
+    | '/admin/attempts'
     | '/admin/codes'
+    | '/admin/monitor'
     | '/admin/users'
     | '/auth/callback'
     | '/examples/$id'
@@ -435,11 +459,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminUsersRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/monitor': {
+      id: '/admin/monitor'
+      path: '/monitor'
+      fullPath: '/admin/monitor'
+      preLoaderRoute: typeof AdminMonitorRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/codes': {
       id: '/admin/codes'
       path: '/codes'
       fullPath: '/admin/codes'
       preLoaderRoute: typeof AdminCodesRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/attempts': {
+      id: '/admin/attempts'
+      path: '/attempts'
+      fullPath: '/admin/attempts'
+      preLoaderRoute: typeof AdminAttemptsRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/analysts': {
@@ -510,14 +548,18 @@ declare module '@tanstack/react-router' {
 
 interface AdminRouteChildren {
   AdminAnalystsRoute: typeof AdminAnalystsRoute
+  AdminAttemptsRoute: typeof AdminAttemptsRoute
   AdminCodesRoute: typeof AdminCodesRoute
+  AdminMonitorRoute: typeof AdminMonitorRoute
   AdminUsersRoute: typeof AdminUsersRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminAnalystsRoute: AdminAnalystsRoute,
+  AdminAttemptsRoute: AdminAttemptsRoute,
   AdminCodesRoute: AdminCodesRoute,
+  AdminMonitorRoute: AdminMonitorRoute,
   AdminUsersRoute: AdminUsersRoute,
   AdminIndexRoute: AdminIndexRoute,
 }

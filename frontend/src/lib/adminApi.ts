@@ -57,6 +57,52 @@ export type AdminStats = {
     suite_slug?: string;
     code?: string;
   }>;
+  inProgressAttempts?: number;
+  todayCompletedAttempts?: number;
+};
+
+export type AdminLiveMonitor = {
+  generatedAt: string;
+  stats: {
+    users?: number;
+    completed_attempts?: number;
+    in_progress_attempts?: number;
+    redemption_events?: number;
+    chat_sessions?: number;
+    ros_couples_completed?: number;
+    mate_couples_completed?: number;
+    ros_couples_waiting?: number;
+    mate_couples_waiting?: number;
+  };
+  recentAttempts: AdminAttemptRow[];
+  rosCoupleSessions: AdminCoupleSessionRow[];
+  mateCoupleSessions: AdminCoupleSessionRow[];
+  recentRedemptions: Array<{ redeemed_at?: string; email?: string; suite_slug?: string; code?: string }>;
+};
+
+export type AdminAttemptRow = {
+  id: string;
+  user_id?: string;
+  status?: string;
+  archetype_code?: string | null;
+  ros_index?: number | null;
+  relation_code?: string | null;
+  partner_relation_code?: string | null;
+  created_at?: string;
+  completed_at?: string | null;
+  email?: string | null;
+  suite_slug?: string | null;
+  suite_name?: string | null;
+};
+
+export type AdminCoupleSessionRow = {
+  id: string;
+  code: string;
+  status?: string;
+  created_at?: string;
+  completed_at?: string | null;
+  initiator_email?: string | null;
+  partner_email?: string | null;
 };
 
 export type RedemptionCodeRow = {
@@ -102,6 +148,8 @@ export type AdminAnalystRow = {
 export const adminApi = {
   me: () => adminRequest<{ ok: boolean; user: AdminUser }>("/admin/me"),
   stats: () => adminRequest<AdminStats>("/admin/stats"),
+  liveMonitor: (limit = 25) =>
+    adminRequest<AdminLiveMonitor>(`/admin/monitor/live?limit=${limit}`),
   suites: () =>
     adminRequest<{
       suites: Array<{
@@ -161,6 +209,15 @@ export const adminApi = {
   },
   userDetail: (userId: string) =>
     adminRequest<{ user: AdminUserRow; attempts: unknown[]; redemptions: unknown[] }>(`/admin/users/${userId}`),
+  listAttempts: (params?: { userId?: string; suiteSlug?: string; limit?: number; offset?: number }) => {
+    const search = new URLSearchParams();
+    if (params?.userId) search.set("userId", params.userId);
+    if (params?.suiteSlug) search.set("suiteSlug", params.suiteSlug);
+    if (params?.limit != null) search.set("limit", String(params.limit));
+    if (params?.offset != null) search.set("offset", String(params.offset));
+    const qs = search.toString();
+    return adminRequest<{ total: number; attempts: AdminAttemptRow[] }>(`/admin/attempts${qs ? `?${qs}` : ""}`);
+  },
   listAnalysts: () => adminRequest<{ analysts: AdminAnalystRow[] }>("/admin/analysts"),
   analystDetail: (slug: string) =>
     adminRequest<{

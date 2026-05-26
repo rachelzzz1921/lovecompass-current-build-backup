@@ -1,5 +1,5 @@
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, Ticket, Users, Bot, ArrowLeft } from "lucide-react";
+import { LayoutDashboard, Ticket, Users, Bot, ArrowLeft, Radio, ClipboardList } from "lucide-react";
 import { AdminGate, useRequireAdmin } from "@/lib/requireAdmin";
 
 export const Route = createFileRoute("/admin")({
@@ -12,6 +12,8 @@ export const Route = createFileRoute("/admin")({
 
 const NAV = [
   { to: "/admin", label: "概览", icon: LayoutDashboard, exact: true },
+  { to: "/admin/monitor", label: "实时监控", icon: Radio },
+  { to: "/admin/attempts", label: "测评记录", icon: ClipboardList },
   { to: "/admin/codes", label: "兑换码", icon: Ticket },
   { to: "/admin/users", label: "用户", icon: Users },
   { to: "/admin/analysts", label: "AI 顾问", icon: Bot },

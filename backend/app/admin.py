@@ -180,10 +180,22 @@ def admin_stats(admin_user_id: AdminUser):
             LIMIT 10
             """
         ).fetchall()
+        in_progress = conn.execute(
+            "SELECT COUNT(*)::int AS c FROM public.test_attempts WHERE status = 'in_progress'"
+        ).fetchone()["c"]
+        today_completed = conn.execute(
+            """
+            SELECT COUNT(*)::int AS c
+            FROM public.test_attempts
+            WHERE status = 'completed' AND completed_at >= date_trunc('day', now() AT TIME ZONE 'Asia/Shanghai')
+            """
+        ).fetchone()["c"]
     return {
         "stats": _jsonable(dict(row or {})),
         "attemptsBySuite": [_jsonable(dict(item)) for item in by_suite],
         "recentRedemptions": [_jsonable(dict(item)) for item in recent_events],
+        "inProgressAttempts": in_progress,
+        "todayCompletedAttempts": today_completed,
     }
 
 
@@ -620,6 +632,105 @@ def admin_attempts(
         "limit": safe_limit,
         "offset": safe_offset,
         "attempts": [_jsonable(dict(row)) for row in rows],
+    }
+
+
+@router.get("/monitor/live")
+def admin_monitor_live(admin_user_id: AdminUser, limit: int = 25):
+    """实时运营快照：最近测评、双人关系码、进行中的作答。"""
+    del admin_user_id
+    safe_limit = _clamp_limit(limit, default=25, maximum=50)
+    with get_conn() as conn:
+        stats_row = conn.execute(
+            """
+            SELECT
+              (SELECT COUNT(*)::int FROM public.profiles) AS users,
+              (SELECT COUNT(*)::int FROM public.test_attempts WHERE status = 'completed') AS completed_attempts,
+              (SELECT COUNT(*)::int FROM public.test_attempts WHERE status = 'in_progress') AS in_progress_attempts,
+              (SELECT COUNT(*)::int FROM public.redemption_events) AS redemption_events,
+              (SELECT COUNT(*)::int FROM public.chat_sessions) AS chat_sessions,
+              (SELECT COUNT(*)::int FROM public.ros_relation_sessions WHERE status = 'completed') AS ros_couples_completed,
+              (SELECT COUNT(*)::int FROM public.mate_relation_sessions WHERE status = 'completed') AS mate_couples_completed,
+              (SELECT COUNT(*)::int FROM public.ros_relation_sessions WHERE status = 'waiting_partner') AS ros_couples_waiting,
+              (SELECT COUNT(*)::int FROM public.mate_relation_sessions WHERE status = 'waiting_partner') AS mate_couples_waiting
+            """
+        ).fetchone()
+        recent_attempts = conn.execute(
+            """
+            SELECT
+              ta.id,
+              ta.status,
+              ta.relation_code,
+              ta.partner_relation_code,
+              ta.created_at,
+              ta.completed_at,
+              p.email,
+              ts.slug AS suite_slug,
+              ts.name AS suite_name
+            FROM public.test_attempts ta
+            LEFT JOIN public.profiles p ON p.id = ta.user_id
+            LEFT JOIN public.test_suites ts ON ts.id = ta.suite_id
+            ORDER BY COALESCE(ta.completed_at, ta.created_at) DESC
+            LIMIT %s
+            """,
+            (safe_limit,),
+        ).fetchall()
+        ros_sessions = conn.execute(
+            """
+            SELECT
+              rs.id,
+              rs.code,
+              rs.status,
+              rs.created_at,
+              rs.completed_at,
+              pi.email AS initiator_email,
+              pp.email AS partner_email
+            FROM public.ros_relation_sessions rs
+            LEFT JOIN public.profiles pi ON pi.id = rs.initiator_user_id
+            LEFT JOIN public.profiles pp ON pp.id = rs.partner_user_id
+            ORDER BY COALESCE(rs.completed_at, rs.updated_at, rs.created_at) DESC
+            LIMIT %s
+            """,
+            (safe_limit,),
+        ).fetchall()
+        mate_sessions = conn.execute(
+            """
+            SELECT
+              ms.id,
+              ms.code,
+              ms.status,
+              ms.created_at,
+              ms.completed_at,
+              pi.email AS initiator_email,
+              pp.email AS partner_email
+            FROM public.mate_relation_sessions ms
+            LEFT JOIN public.profiles pi ON pi.id = ms.initiator_user_id
+            LEFT JOIN public.profiles pp ON pp.id = ms.partner_user_id
+            ORDER BY COALESCE(ms.completed_at, ms.updated_at, ms.created_at) DESC
+            LIMIT %s
+            """,
+            (safe_limit,),
+        ).fetchall()
+        recent_redemptions = conn.execute(
+            """
+            SELECT re.redeemed_at, p.email, ts.slug AS suite_slug, rc.code
+            FROM public.redemption_events re
+            JOIN public.profiles p ON p.id = re.user_id
+            JOIN public.test_suites ts ON ts.id = re.suite_id
+            JOIN public.redemption_codes rc ON rc.id = re.redemption_code_id
+            ORDER BY re.redeemed_at DESC
+            LIMIT 10
+            """
+        ).fetchall()
+    from datetime import datetime, timezone
+
+    return {
+        "generatedAt": datetime.now(timezone.utc).isoformat(),
+        "stats": _jsonable(dict(stats_row or {})),
+        "recentAttempts": [_jsonable(dict(row)) for row in recent_attempts],
+        "rosCoupleSessions": [_jsonable(dict(row)) for row in ros_sessions],
+        "mateCoupleSessions": [_jsonable(dict(row)) for row in mate_sessions],
+        "recentRedemptions": [_jsonable(dict(row)) for row in recent_redemptions],
     }
 
 

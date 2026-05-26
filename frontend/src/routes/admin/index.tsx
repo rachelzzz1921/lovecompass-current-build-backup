@@ -1,9 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { adminApi, type AdminStats } from "@/lib/adminApi";
+import { RefreshCw } from "lucide-react";
+import { adminApi } from "@/lib/adminApi";
+import { useAdminLivePoll } from "@/lib/useAdminLivePoll";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { formatApiErrorMessage } from "@/lib/apiErrors";
+import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/admin/")({
   component: AdminDashboard,
@@ -30,34 +31,40 @@ function formatTime(value?: string) {
 }
 
 function AdminDashboard() {
-  const [data, setData] = useState<AdminStats | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data, error, loading, lastUpdated, refresh } = useAdminLivePoll(() => adminApi.stats(), 30_000);
 
-  useEffect(() => {
-    void adminApi
-      .stats()
-      .then(setData)
-      .catch((err) => setError(formatApiErrorMessage(err)))
-      .finally(() => setLoading(false));
-  }, []);
-
-  if (loading) return <p className="text-sm text-muted-foreground">加载概览…</p>;
-  if (error) return <p className="text-sm text-destructive">{error}</p>;
+  if (loading && !data) return <p className="text-sm text-muted-foreground">加载概览…</p>;
+  if (error && !data) return <p className="text-sm text-destructive">{error}</p>;
   if (!data) return null;
 
   const s = data.stats;
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">运营概览</h1>
-        <p className="mt-1 text-sm text-muted-foreground">LoveCompass / MIRROR 后台数据快照</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">运营概览</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            LoveCompass / MIRROR 后台数据 · 30 秒自动刷新
+            {lastUpdated ? ` · ${formatTime(lastUpdated.toISOString())}` : ""}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={refresh}>
+            <RefreshCw className="h-4 w-4 mr-1" />
+            刷新
+          </Button>
+          <Button asChild size="sm">
+            <Link to="/admin/monitor">打开实时监控</Link>
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <StatCard label="注册用户" value={s.users ?? 0} />
         <StatCard label="完成测试" value={s.completed_attempts ?? 0} />
+        <StatCard label="今日完成" value={data.todayCompletedAttempts ?? 0} />
+        <StatCard label="进行中" value={data.inProgressAttempts ?? 0} />
         <StatCard label="兑换次数" value={s.redemption_events ?? 0} />
         <StatCard label="有效兑换码" value={s.active_codes ?? 0} />
         <StatCard label="AI 报告" value={s.ai_reports ?? 0} />

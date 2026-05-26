@@ -46,12 +46,13 @@ VITE_LOVECOMPASS_API_BASE_URL=http://localhost:8000
 | GET | `/admin/redemption/events` | 兑换记录 |
 | GET | `/admin/users` | 用户列表 |
 | GET | `/admin/users/{id}` | 用户详情 + 测试/兑换 |
+| GET | `/admin/monitor/live` | 实时快照（测评/双人关系码/兑换，15s 轮询用） |
 | GET | `/admin/attempts` | 测试记录列表 |
 | GET | `/admin/analysts` | AI 顾问列表 |
 | GET | `/admin/analysts/{slug}` | 顾问详情 |
 | PATCH | `/admin/analysts/{slug}` | 更新顾问配置 |
 
-前端管理页：`/admin`（概览）、`/admin/codes`、`/admin/users`、`/admin/analysts`。
+前端管理页：`/admin`（概览）、`/admin/monitor`（实时监控）、`/admin/attempts`（测评记录）、`/admin/codes`、`/admin/users`、`/admin/analysts`。
 
 开通管理员：在 Supabase SQL Editor 执行 `UPDATE public.profiles SET role = 'admin' WHERE email = '你的邮箱';`
 

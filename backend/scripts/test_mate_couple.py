@@ -89,7 +89,7 @@ def test_mate_couple_payload_shape() -> None:
     assert 0 <= score <= 100
     assert all(mod.get("score") is not None for mod in modules.values())
 
-    payload = build_couple_payload(code="ROS-TEST-0001", initiator=initiator, partner=partner)
+    payload = build_couple_payload(code="MATE-TEST-0001", initiator=initiator, partner=partner)
     assert payload["model"] == "MATE_PAIR_V4"
     assert payload["verdict"]["score"] == score
     assert payload["verdict"]["title"]
@@ -98,8 +98,43 @@ def test_mate_couple_payload_shape() -> None:
     assert isinstance(payload["rhythm"], list)
     assert payload["conclusion"]["summary"]
     assert payload["ai_context"]["pair_atoms"]
+    assert payload["modules"]["P4"]["score"] is not None
+
+
+def test_p4_pending_without_planning_data() -> None:
+    male = {
+        "gender": "male",
+        "scores": {"MS1": 70, "MS2": 68, "MS3": 72, "MS4": 66, "MS5": 40},
+        "fields": {},
+        "derived": {},
+        "context": {},
+    }
+    female = {
+        "gender": "female",
+        "scores": {"FS1": 70, "FS2": 75, "FS3": 68, "FS4": 65, "FS5": 35},
+        "fields": {},
+        "derived": {},
+        "context": {},
+    }
+    modules = {
+        "P1": compute_P1(male, female),
+        "P2": compute_P2(male, female),
+        "P3": compute_P3(male, female),
+        "P4": compute_P4(male, female),
+        "P5": compute_P5(male, female),
+    }
+    modules["P6"] = compute_P6(male, female, modules["P1"], modules["P2"], modules["P5"])
+
+    assert modules["P4"]["score"] is None
+    assert modules["P4"]["pending"] is True
+    assert modules["P4"]["level"] == "待评估"
+
+    with_p4 = dict(modules)
+    with_p4["P4"] = {"score": 70.0, "level": "中", "atoms": ["长期稳定"], "pending": False}
+    assert aggregate_score(with_p4) != aggregate_score(modules)
 
 
 if __name__ == "__main__":
     test_mate_couple_payload_shape()
+    test_p4_pending_without_planning_data()
     print("mate couple tests passed")

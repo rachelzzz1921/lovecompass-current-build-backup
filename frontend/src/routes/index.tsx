@@ -320,13 +320,15 @@ function Home() {
   const nav = useNavigate();
   const isMobile = useIsMobile();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [activeSection, setActiveSection] = useState<HomeSectionId>(parseHomeSectionHash);
-  const [showSwipeHint, setShowSwipeHint] = useState(
-    () => typeof window !== "undefined" && !window.sessionStorage.getItem(HOME_SWIPE_HINT_KEY),
-  );
+  const [activeSection, setActiveSection] = useState<HomeSectionId>("products");
+  const [showSwipeHint, setShowSwipeHint] = useState(false);
   const touchStartRef = useRef<{ x: number; y: number; target: EventTarget | null } | null>(null);
 
   useEffect(() => {
+    setActiveSection(parseHomeSectionHash());
+    if (!window.sessionStorage.getItem(HOME_SWIPE_HINT_KEY)) {
+      setShowSwipeHint(true);
+    }
     const onHash = () => setActiveSection(parseHomeSectionHash());
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
@@ -714,7 +716,7 @@ const PREVIEW_ITEMS: PreviewItem[] = [
       { title: "关系天气 + 类型", desc: "如难舍难分、温水同行…配合 9 阶段曲线定位当前位置" },
       { title: "五维透视镜", desc: "吸引基础、互动质量、兼容程度、关系走向、风险信号——每层可展开子维度、答题证据与问诊追问" },
       { title: "心跳线 + 盲区", desc: "五维合成的关系节律图；AI 点出容易忽视的感知差" },
-      { title: "双人报告", desc: "邀请对方作答，解锁感知差、碰撞点与共同行动建议" },
+      { title: "双人报告（完整版）", desc: "双方均用完整版作答后，可邀请对方解锁感知差、碰撞点与共同行动建议" },
     ],
   },
   {

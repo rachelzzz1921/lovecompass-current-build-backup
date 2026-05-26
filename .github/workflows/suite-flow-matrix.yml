@@ -57,6 +57,14 @@ jobs:
           python-version: "3.12"
       - name: Install dependencies
         run: pip install -r requirements.txt
+      - name: Universal redemption unit tests
+        run: |
+          python scripts/test_universal_redemption.py
+          python scripts/test_suite_tier.py
+      - name: Universal code verify matrix (production API)
+        env:
+          LOVECOMPASS_API_BASE: https://lovecompass-api-backend.vercel.app
+        run: python scripts/test_universal_all_suites.py
       - name: Validate all suite flows (production API)
         env:
           LOVECOMPASS_API_BASE: https://lovecompass-api-backend.vercel.app

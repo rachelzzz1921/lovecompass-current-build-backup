@@ -1,3 +1,4 @@
+import { assertPartnerCodeNotLite } from "@/lib/coupleReport";
 import { markPartnerMateAccess, markPartnerRosAccess, markProductAccess, getRedemptionEventId, hasRedeemableSuiteAccess } from "@/lib/accessGate";
 import { lovecompassApi } from "@/lib/lovecompassApi";
 import {
@@ -97,6 +98,17 @@ export async function resolveRelationCodeTier(code: string, productId: ProductId
     productId === "mate"
       ? await lovecompassApi.previewMateRelationCode(normalizeRedemptionCode(code))
       : await lovecompassApi.previewRelationCode(normalizeRedemptionCode(code));
+  const tier = resolvePreviewSuiteTier(preview);
+  if (productId === "mate" || productId === "ros") {
+    assertPartnerCodeNotLite(tier);
+  }
+  return tier;
+}
+
+function resolvePreviewSuiteTier(preview: {
+  suiteTier?: SuiteTier;
+  suiteSlug?: string | null;
+}): SuiteTier {
   if (preview.suiteTier === "lite" || preview.suiteTier === "full") return preview.suiteTier;
   if (preview.suiteSlug?.includes("_lite")) return "lite";
   return "full";
@@ -118,12 +130,8 @@ export async function unlockProductForRun(input: {
       productId === "mate"
         ? await lovecompassApi.previewMateRelationCode(normalized)
         : await lovecompassApi.previewRelationCode(normalized);
-    const matchedTier: SuiteTier =
-      preview.suiteTier === "lite" || preview.suiteTier === "full"
-        ? preview.suiteTier
-        : preview.suiteSlug?.includes("_lite")
-          ? "lite"
-          : "full";
+    const matchedTier = resolvePreviewSuiteTier(preview);
+    assertPartnerCodeNotLite(matchedTier);
     const suiteSlug = resolveSuiteSlugForTier(productId, gender, matchedTier);
     if (productId === "mate") markPartnerMateAccess(normalized, suiteSlug);
     else markPartnerRosAccess(normalized, suiteSlug);
@@ -146,7 +154,7 @@ export async function unlockProductForRun(input: {
   }
 
   const res = await lovecompassApi.verifyRedemption({
-    code: unlock.code.trim(),
+    code: normalizeRedemptionCode(unlock.code),
     product: productId,
     suiteSlug,
     gender,

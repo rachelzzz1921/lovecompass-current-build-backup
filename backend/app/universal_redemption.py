@@ -11,7 +11,7 @@ UNIVERSAL_CODE = os.getenv("LOVECOMPASS_UNIVERSAL_CODE", "MIRROR-ALL-ACCESS").st
 SHADOW_CODE_PREFIX = "__UNIVERSAL__"
 SHADOW_BATCH_NAME = "UNIVERSAL-SHADOW"
 
-from app.suite_tier import ALL_KNOWN_SUITE_SLUGS, resolve_suite_slug_for_request
+from app.suite_tier import ALL_KNOWN_SUITE_SLUGS, full_suite_slug, resolve_suite_slug_for_request
 
 
 def normalize_input_code(code: str) -> str:
@@ -33,8 +33,14 @@ def shadow_code_for_suite(suite_slug: str) -> str:
     return f"{SHADOW_CODE_PREFIX}{suite_slug}"
 
 
+def shadow_base_slug(suite_slug: str) -> str:
+    """Shadow redemption rows live on full suites (migration step 13)."""
+    return full_suite_slug(suite_slug)
+
+
 def ensure_shadow_redemption_code(conn: Any, suite_slug: str) -> dict[str, Any]:
-    shadow = shadow_code_for_suite(suite_slug)
+    base_slug = shadow_base_slug(suite_slug)
+    shadow = shadow_code_for_suite(base_slug)
     row = conn.execute(
         """
         SELECT rc.id AS code_id, rc.suite_id, ts.slug
@@ -49,7 +55,7 @@ def ensure_shadow_redemption_code(conn: Any, suite_slug: str) -> dict[str, Any]:
 
     suite = conn.execute(
         "SELECT id FROM public.test_suites WHERE slug = %s AND is_active = true",
-        (suite_slug,),
+        (base_slug,),
     ).fetchone()
     if not suite:
         raise HTTPException(status_code=404, detail="测试套件不存在")
@@ -63,7 +69,7 @@ def ensure_shadow_redemption_code(conn: Any, suite_slug: str) -> dict[str, Any]:
         ON CONFLICT DO NOTHING
         RETURNING id
         """,
-        (SHADOW_BATCH_NAME, suite["id"], Jsonb({"universal": True, "suiteSlug": suite_slug})),
+        (SHADOW_BATCH_NAME, suite["id"], Jsonb({"universal": True, "suiteSlug": base_slug})),
     ).fetchone()
     if not batch:
         batch = conn.execute(
@@ -90,7 +96,7 @@ def ensure_shadow_redemption_code(conn: Any, suite_slug: str) -> dict[str, Any]:
             batch["id"],
             suite["id"],
             shadow,
-            Jsonb({"universal": True, "suiteSlug": suite_slug}),
+            Jsonb({"universal": True, "suiteSlug": base_slug}),
         ),
     )
     row = conn.execute(

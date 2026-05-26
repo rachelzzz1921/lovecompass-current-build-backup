@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import urllib.error
 import urllib.request
@@ -11,6 +12,8 @@ from typing import Any, Protocol
 from app.semantic_translation import guard_ai_json, guard_ai_output
 
 ChatMessage = dict[str, str]
+
+logger = logging.getLogger(__name__)
 
 REPORT_SYSTEM_PROMPT = (
     "你是 LoveCompass 婚恋分析引擎的表达层。后端已完成全部计算；"
@@ -110,7 +113,7 @@ class ZhipuAIAdapter:
 
     api_key: str
     base_url: str = "https://open.bigmodel.cn/api/paas/v4"
-    model: str = "glm-4-flash"
+    model: str = "glm-4.5-air"
     timeout_seconds: int = 45
 
     def generate(self, prompt: str, *, json_mode: bool = False) -> str:
@@ -180,6 +183,12 @@ class ZhipuAIAdapter:
 
     def _post_json(self, payload: dict[str, Any]) -> dict[str, Any]:
         url = self.base_url.rstrip("/") + "/chat/completions"
+        logger.info(
+            "zhipu chat/completions model=%s stream=%s json_mode=%s",
+            payload.get("model"),
+            payload.get("stream"),
+            bool(payload.get("response_format")),
+        )
         req = urllib.request.Request(
             url,
             data=json.dumps(payload).encode("utf-8"),
@@ -208,6 +217,6 @@ def get_ai_adapter() -> AIAdapter:
         return ZhipuAIAdapter(
             api_key=api_key,
             base_url=os.getenv("ZHIPU_BASE_URL", "https://open.bigmodel.cn/api/paas/v4"),
-            model=os.getenv("ZHIPU_MODEL", "glm-4-flash"),
+            model=os.getenv("ZHIPU_MODEL", "glm-4.5-air"),
         )
     return MockAIAdapter()

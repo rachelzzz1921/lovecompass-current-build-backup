@@ -62,7 +62,7 @@ from app.ros_ai_content import (
 )
 from app.mate_ai_content import attach_mate_ai_content_to_payload, enhance_mate_ai_for_attempt
 from app.profile_center import rebuild_and_cache_portrait
-from app.attempt_finalize import finalize_attempt_background
+from app.attempt_finalize import finalize_attempt_background, hydrate_attempt_for_read, kick_finalize_if_needed
 from app.report_utils import looks_like_placeholder_report
 from app.semantic_translation import guard_ai_output, sanitize_user_facing_payload, FORBIDDEN_RULES_MARKDOWN
 from app.ros_router import router as ros_router
@@ -385,6 +385,10 @@ def health(
                 "jwksProbe": probe_jwks(),
                 "corsVercelPreviews": _cors_allow_vercel_previews(),
                 "demoUserFallback": fallback in {"1", "true", "yes"},
+                "aiProvider": (os.getenv("AI_PROVIDER", "mock") or "mock").strip().lower(),
+                "aiEnhancementEnabled": (os.getenv("AI_PROVIDER", "mock") or "mock").strip().lower() == "zhipu",
+                "zhipuModel": (os.getenv("ZHIPU_MODEL", "glm-4.5-air") or "glm-4.5-air").strip(),
+                "zhipuKeyConfigured": bool((os.getenv("ZHIPU_API_KEY") or "").strip()),
             },
         }
     if not db:
@@ -660,6 +664,7 @@ def submit_attempt(data: AttemptIn, background_tasks: BackgroundTasks, user_id: 
                 gender=suite["gender"],
                 result_profiles=mate_profiles,
                 skip_enrich=True,
+                suite_slug=str(suite["slug"] or ""),
             )
             archetype = None
         else:
@@ -760,61 +765,13 @@ def get_attempt_result(
         if not attempt:
             raise HTTPException(status_code=404, detail="画像结果不存在")
         if attempt.get("status") == "in_progress":
-            attempt = dict(attempt)
-            attempt["result_payload"] = attempt.get("result_payload") or {}
-            return {"attempt": {k: (str(v) if k == "id" else v) for k, v in attempt.items()}}
-        result_payload = attempt.get("result_payload") or {}
-        if not isinstance(result_payload, dict):
-            result_payload = {}
-        suite_slug = str(attempt.get("test_id") or "")
-        if is_ros_suite(suite_slug):
-            existing_ai = result_payload.get("ai_content")
-            if not ros_ai_content_ready(existing_ai):
-                result_payload = attach_ros_ai_content_to_payload(
-                    conn,
-                    attempt_id,
-                    result_payload,
-                    attempt.get("dimension_scores"),
-                    use_ai=False,
-                    gender=str(attempt.get("archetype_gender") or "female"),
-                )
-            if (result_payload.get("ai_content") or {}).get("mode") == "deterministic":
-                background_tasks.add_task(enhance_ros_ai_background, attempt_id)
-        elif is_mate_suite(suite_slug):
-            result_payload = attach_mate_ai_content_to_payload(
-                conn,
-                attempt_id,
-                result_payload,
-                attempt.get("dimension_scores"),
-                use_ai=False,
-                gender=str(attempt.get("archetype_gender") or "female"),
-            )
-            # 读路径只合并 insights/缓存叙事，不回写 DB（finalize / background AI 负责持久化）
-            attempt = dict(attempt)
-            attempt["result_payload"] = sanitize_user_facing_payload(result_payload)
-            return {"attempt": {k: (str(v) if k == "id" else v) for k, v in attempt.items()}}
-        elif not is_mate_suite(suite_slug):
-            if not result_payload.get("core_traits"):
-                result_payload = attach_core_traits_to_payload(
-                    conn,
-                    attempt_id,
-                    result_payload,
-                    attempt.get("dimension_scores"),
-                )
-            result_payload = attach_self_ai_content_to_payload(
-                conn,
-                attempt_id,
-                result_payload,
-                attempt.get("dimension_scores"),
-                use_ai=False,
-                gender=str(attempt.get("archetype_gender") or "female"),
-            )
-            if (result_payload.get("ai_content") or {}).get("mode") == "deterministic":
-                background_tasks.add_task(enhance_self_ai_background, attempt_id)
-        attempt = dict(attempt)
-        attempt["result_payload"] = sanitize_user_facing_payload(result_payload)
-        if attempt.get("ai_report"):
-            attempt["ai_report"] = guard_ai_output(str(attempt["ai_report"]))
+            kick_finalize_if_needed(background_tasks, str(attempt_id), user_id)
+        attempt = hydrate_attempt_for_read(
+            conn,
+            attempt_id,
+            dict(attempt),
+            background_tasks=background_tasks,
+        )
     return {"attempt": {k: (str(v) if k == "id" else v) for k, v in attempt.items()}}
 
 
@@ -913,7 +870,7 @@ def generate_attempt_report(attempt_id: str, refresh: bool = False, user_id: str
 
         prompt, prompt_payload, prompt_version = build_suite_report_prompt(dict(attempt))
         provider = os.getenv("AI_PROVIDER", "mock").strip().lower() or "mock"
-        model_name = os.getenv("ZHIPU_MODEL", "mock") if provider == "zhipu" else "mock"
+        model_name = os.getenv("ZHIPU_MODEL", "glm-4.5-air") if provider == "zhipu" else "mock"
         generation_mode = "ai_adapter"
         error_message = None
         try:

@@ -79,8 +79,8 @@ export function formatAnalyzingWaitMessage(opts: {
   const total = totalStageDuration(stageDurations);
   const tailMs = Math.max(0, elapsedMs - total);
   if (tailMs > 45_000) {
-    return "已超过 45 秒，若仍无结果请检查网络；也可返回测试页重新提交";
+    return "已超过 45 秒，结果页会先展示已有内容；若仍空白请检查网络或从历史记录进入";
   }
-  if (tailMs > 20_000) return longWaitHint;
+  if (tailMs > 15_000) return longWaitHint;
   return "结果还在生成，完成后会直接进入，无需再等等待页";
 }

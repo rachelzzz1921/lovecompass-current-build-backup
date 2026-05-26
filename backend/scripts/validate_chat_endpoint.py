@@ -61,6 +61,7 @@ def main() -> None:
     print({
         "aiProvider": provider,
         "zhipuKeyConfigured": has_zhipu_key,
+        "zhipuModel": os.getenv("ZHIPU_MODEL", "glm-4.5-air"),
         "attemptId": attempt_id,
         "conversationId": data.get("conversationId"),
         "messagePrefix": message[:80],

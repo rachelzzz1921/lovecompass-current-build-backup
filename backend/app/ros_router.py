@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import re
 import uuid
 from typing import Annotated, Any
@@ -357,6 +358,11 @@ def get_ros_single_result(
         if not is_ros_suite(attempt.get("suite_slug")):
             raise HTTPException(status_code=400, detail="该记录不是 ROS 关系测评")
 
+        if attempt.get("status") == "in_progress":
+            from app.attempt_finalize import finalize_attempt_background
+
+            background_tasks.add_task(finalize_attempt_background, attempt_id, user_id)
+
         payload = attempt.get("result_payload") or {}
         if isinstance(payload, dict):
             existing_ai = payload.get("ai_content")
@@ -373,7 +379,11 @@ def get_ros_single_result(
         session = _fetch_session_by_code(conn, code) if code else None
 
     single = payload if isinstance(payload, dict) else {}
-    if isinstance(single, dict) and (single.get("ai_content") or {}).get("mode") == "deterministic":
+    if (
+        isinstance(single, dict)
+        and (single.get("ai_content") or {}).get("mode") == "deterministic"
+        and os.getenv("AI_PROVIDER", "mock").strip().lower() == "zhipu"
+    ):
         background_tasks.add_task(enhance_ros_ai_background, attempt_id)
     if isinstance(single, dict) and single.get("layers") and not single.get("layerDetails"):
         layer_scores = {

@@ -50,6 +50,16 @@ export type EndpointProfile = {
   label: string;
 };
 
+/** SSR / 首屏 hydration 用的稳定默认值，不读浏览器 API。 */
+export function getSsrEndpointProfile(): EndpointProfile {
+  return {
+    mode: "primary",
+    apiBase: PRIMARY_API ?? MIRROR_API ?? "",
+    supabaseUrl: PRIMARY_SUPABASE ?? MIRROR_SUPABASE ?? "",
+    label: "国际线路",
+  };
+}
+
 function readPreferMirrorStorage(): boolean | null {
   if (typeof window === "undefined") return null;
   const raw = localStorage.getItem(STORAGE_KEY);

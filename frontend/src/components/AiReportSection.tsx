@@ -21,6 +21,7 @@ export function AiReportSection({
 }: Props) {
   const [report, setReport] = useState<AttemptReport | null>(null);
   const [loading, setLoading] = useState(false);
+  const [softPending, setSoftPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -35,15 +36,24 @@ export function AiReportSection({
       return;
     }
     setLoading(true);
+    setSoftPending(false);
     setError(null);
-    void fetchAttemptReportIfNeeded(attemptId, initialReport).then(({ report: next, error: err }) => {
+    const softTimer = window.setTimeout(() => {
+      if (!ignore) setSoftPending(true);
+    }, 12_000);
+    void fetchAttemptReportIfNeeded(attemptId, initialReport, {
+      maxWaitMs: 50_000,
+      finalizeWaitMs: 25_000,
+    }).then(({ report: next, error: err }) => {
       if (ignore) return;
       setReport(next);
       setError(err);
       setLoading(false);
+      setSoftPending(false);
     });
     return () => {
       ignore = true;
+      window.clearTimeout(softTimer);
     };
   }, [attemptId, initialReport]);
 
@@ -64,7 +74,8 @@ export function AiReportSection({
       <div className={panelClass}>
         {loading && (
           <p className={`text-sm ${mutedClass} flex items-center gap-2`}>
-            <Sparkles className="h-4 w-4 animate-pulse" /> AI 正在生成深度解读…
+            <Sparkles className="h-4 w-4 animate-pulse" />
+            {softPending ? "深度报告仍在后台排队，可先阅读上方结果" : "正在加载深度解读…"}
           </p>
         )}
         {!loading && error && (

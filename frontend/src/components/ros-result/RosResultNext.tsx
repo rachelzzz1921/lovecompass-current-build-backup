@@ -1,12 +1,12 @@
 import { Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
 import { Star, AlertCircle, Lightbulb, ArrowRight, Copy, Link2, Bot, Share2 } from "lucide-react";
-import { useRef } from "react";
-import { toast } from "sonner";
-import type { RosSingleResult } from "@/data/rosTypes";
+import { useEffect, useRef, useState } from "react";
 import { useLongPress } from "@/hooks/useLongPress";
 import { chatRouteSearch } from "@/lib/chatRouteSearch";
 import type { ExampleSubject } from "@/lib/exampleSubjectCopy";
+import { coupleReportEligible } from "@/lib/coupleReport";
+import { CoupleReportUnavailableNotice } from "@/components/CoupleReportUnavailableNotice";
 import {
   copyCanvasToClipboard,
   drawPrescriptionShareCard,
@@ -106,6 +106,7 @@ export function RosResultNext({
   result,
   attemptId,
   coupleUnlocked,
+  suiteSlug,
   onShare,
   exampleMode = false,
   exampleSubject,
@@ -114,11 +115,13 @@ export function RosResultNext({
   result: RosSingleResult;
   attemptId: string;
   coupleUnlocked: boolean;
+  suiteSlug?: string | null;
   onShare: () => void;
   exampleMode?: boolean;
   exampleSubject?: ExampleSubject;
   examplePartner?: string;
 }) {
+  const canCoupleReport = coupleReportEligible("ros", suiteSlug);
   const inviteUrl = typeof window !== "undefined"
     ? `${window.location.origin}/ros/invite/${result.code}`
     : `/ros/invite/${result.code}`;
@@ -126,7 +129,17 @@ export function RosResultNext({
   const copy = (text: string, msg: string) =>
     navigator.clipboard.writeText(text).then(() => toast.success(msg)).catch(() => toast.error("复制失败"));
 
-  const aiPending = result.aiContent?.mode === "deterministic";
+  const [aiEnhanceEnabled, setAiEnhanceEnabled] = useState(false);
+
+  useEffect(() => {
+    void fetchAiEnhancementEnabled().then(setAiEnhanceEnabled);
+  }, []);
+
+  const aiPending = showAiEnhancementPending(
+    result.aiContent,
+    result.insights.length,
+    aiEnhanceEnabled,
+  );
 
   return (
     <section className="space-y-7">
@@ -135,7 +148,7 @@ export function RosResultNext({
           <div className="text-[10px] tracking-[0.3em] font-mono text-white/40">NEXT · AI 分析师摘要</div>
           <span className="text-[9px] font-mono px-1.5 py-0.5 rounded text-white/45 border border-white/10">BASIC</span>
           {aiPending ? (
-            <span className="text-[9px] text-white/35 ml-auto animate-pulse">分析师正在整理…</span>
+            <span className="text-[9px] text-white/35 ml-auto animate-pulse">{aiEnhancementPendingLabel()}</span>
           ) : null}
         </div>
         <div className="space-y-4">
@@ -179,6 +192,7 @@ export function RosResultNext({
 
       {!exampleMode ? (
         <>
+      {canCoupleReport ? (
       <div className="rounded-2xl p-5"
         style={{ border: "1.5px dashed rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.02)" }}>
         <div className="text-[10px] tracking-[0.3em] font-mono text-white/40">邀请对方来做</div>
@@ -209,6 +223,9 @@ export function RosResultNext({
           </div>
         )}
       </div>
+      ) : (
+        <CoupleReportUnavailableNotice productId="ros" />
+      )}
 
       <div className="grid grid-cols-2 gap-3">
         <Link

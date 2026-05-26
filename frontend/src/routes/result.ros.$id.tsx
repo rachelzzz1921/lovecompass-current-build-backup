@@ -5,6 +5,7 @@ import { ApiErrorPanel } from "@/components/ApiErrorPanel";
 import { RosResultView } from "@/components/RosResultView";
 import { formatApiErrorMessage } from "@/lib/apiErrors";
 import { mapApiSingleToRosResult } from "@/lib/mapRosResult";
+import { fetchAiEnhancementEnabled } from "@/lib/aiCapabilities";
 import { lovecompassApi } from "@/lib/lovecompassApi";
 import { AuthChecking, useRequireAuth } from "@/lib/requireAuth";
 import { peekResultPrefetch, takeResultPrefetch } from "@/lib/resultPrefetchCache";
@@ -83,33 +84,39 @@ function RosResultPage() {
     };
   }, [authPending, authed, id]);
 
-  // 首屏用 POST 快照；缺 ai_content 时在后台补全，Zhipu 升级后静默刷新
+  // 首屏用 POST 快照；仅在后端启用智谱时在后台补全 AI 升级
   useEffect(() => {
     if (!r) return;
     const mode = r.aiContent?.mode;
     if (mode && mode !== "deterministic" && r.aiContent?.layer_expansion) return;
     let ignore = false;
-    const delayMs = r.aiContent?.layer_expansion ? 8000 : 400;
-    const timer = window.setTimeout(() => {
-      lovecompassApi
-        .getRosSingleResult(id)
-        .then((res) => {
-          if (ignore) return;
-          const next = mapApiSingleToRosResult(res.single, res.relationCode || "");
-          const upgraded = next.aiContent?.mode && next.aiContent.mode !== mode;
-          const enriched = !r.aiContent?.layer_expansion && Boolean(next.aiContent?.layer_expansion);
-          if (upgraded || enriched) {
-            setR(next);
-            if (res.relationCode) {
-              setCoupleUnlocked(Boolean(res.coupleUnlocked));
+    let timer: number | undefined;
+
+    void fetchAiEnhancementEnabled().then((enabled) => {
+      if (!enabled || ignore) return;
+      const delayMs = r.aiContent?.layer_expansion ? 10_000 : 400;
+      timer = window.setTimeout(() => {
+        lovecompassApi
+          .getRosSingleResult(id)
+          .then((res) => {
+            if (ignore) return;
+            const next = mapApiSingleToRosResult(res.single, res.relationCode || "");
+            const upgraded = next.aiContent?.mode && next.aiContent.mode !== mode;
+            const enriched = !r.aiContent?.layer_expansion && Boolean(next.aiContent?.layer_expansion);
+            if (upgraded || enriched) {
+              setR(next);
+              if (res.relationCode) {
+                setCoupleUnlocked(Boolean(res.coupleUnlocked));
+              }
             }
-          }
-        })
-        .catch(() => undefined);
-    }, delayMs);
+          })
+          .catch(() => undefined);
+      }, delayMs);
+    });
+
     return () => {
       ignore = true;
-      window.clearTimeout(timer);
+      if (timer) window.clearTimeout(timer);
     };
   }, [id, r]);
 

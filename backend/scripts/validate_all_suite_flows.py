@@ -44,9 +44,9 @@ PASSWORD = os.getenv("INITIATOR_PASSWORD", "LoveCompassTest2026!")
 UNIVERSAL_CODE = os.getenv("LOVECOMPASS_UNIVERSAL_CODE", "MIRROR-ALL-ACCESS")
 
 FLOW_CASES: list[dict[str, Any]] = [
-    # SELF
-    {"product": "self", "suite": "s01_self_female_lite", "code": None, "gender": "female", "tier": "lite"},
-    {"product": "self", "suite": "s01_self_male_lite", "code": None, "gender": "male", "tier": "lite"},
+    # SELF — universal code must unlock every slug (lite is also free without code)
+    {"product": "self", "suite": "s01_self_female_lite", "code": UNIVERSAL_CODE, "gender": "female", "tier": "lite"},
+    {"product": "self", "suite": "s01_self_male_lite", "code": UNIVERSAL_CODE, "gender": "male", "tier": "lite"},
     {"product": "self", "suite": "s01_self_female", "code": UNIVERSAL_CODE, "gender": "female", "tier": "full"},
     {"product": "self", "suite": "s01_self_male", "code": UNIVERSAL_CODE, "gender": "male", "tier": "full"},
     # ROS

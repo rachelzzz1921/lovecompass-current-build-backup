@@ -30,7 +30,7 @@ export function SelfActThreeInsight({
   attemptId,
   reportMarkdown,
   reportLoading = false,
-  reportError = null,
+  reportError: _reportError = null,
   showDeepReport = true,
   exampleSubject,
   onRequestDeepReport,
@@ -57,14 +57,9 @@ export function SelfActThreeInsight({
           </span>
         </div>
 
-        {reportLoading ? (
+        {reportLoading && result.insights.length < 3 ? (
           <div className="mb-4 rounded-xl border border-[oklch(0.82_0.14_200/0.25)] bg-[oklch(0.50_0.16_200/0.08)] px-4 py-3 text-sm text-foreground/75 animate-pulse">
-            分析师正在整理你的报告…
-          </div>
-        ) : null}
-        {reportError ? (
-          <div className="mb-4 rounded-xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-foreground/75">
-            深度报告暂未生成：{reportError}
+            正在加载分析摘要…
           </div>
         ) : null}
 
@@ -78,6 +73,13 @@ export function SelfActThreeInsight({
           <article className="mt-6 pt-6 border-t border-border/40 prose prose-invert max-w-none break-words prose-headings:font-display prose-headings:text-gradient-violet prose-p:text-foreground/85 prose-li:text-foreground/85">
             <ReactMarkdown>{displayReportMarkdown}</ReactMarkdown>
           </article>
+        ) : showDeepReport && !exampleSubject && !displayReportMarkdown && reportLoading ? (
+          <div className="mt-6 pt-6 border-t border-border/40 text-center">
+            <p className="text-[13px] text-muted-foreground flex items-center justify-center gap-2">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              深度报告在后台生成，可先阅读上方摘要
+            </p>
+          </div>
         ) : showDeepReport && !exampleSubject && !displayReportMarkdown && !reportLoading ? (
           <div className="mt-6 pt-6 border-t border-border/40 text-center">
             <p className="text-[13px] text-muted-foreground mb-3">完整深度报告可在后台继续生成</p>

@@ -14,7 +14,9 @@ import { MateFooterMarquee } from "@/components/mate/MateV4Sections";
 import { MateResultContent } from "@/components/mate/MateResultContent";
 import { MateResultShell } from "@/components/mate/MateResultShell";
 import { MATE_RESULT_SECTIONS } from "@/lib/readingSections";
+import { CoupleReportUnavailableNotice } from "@/components/CoupleReportUnavailableNotice";
 import { chatRouteSearch } from "@/lib/chatRouteSearch";
+import { coupleReportEligible } from "@/lib/coupleReport";
 import { inferSuiteTier } from "@/lib/suiteTier";
 import { mateLayout } from "@/lib/mateLayout";
 import { drawMateSummaryShareCard } from "@/lib/share/templates/drawMateSummaryShareCard";
@@ -43,6 +45,8 @@ export function MateResultView({
     [result],
   );
 
+  const canCoupleReport = coupleReportEligible("mate", suiteSlug);
+
   return (
     <MateResultShell>
       <LiteResultNotice productId="mate" suiteSlug={suiteSlug} accuracyNote={accuracyNote} />
@@ -53,7 +57,7 @@ export function MateResultView({
         <SuiteUpgradeBanner productId="mate" suiteSlug={suiteSlug} attemptId={attemptId} />
       ) : null}
 
-      {relationCode && suiteSlug && inferSuiteTier(suiteSlug) !== "lite" ? (
+      {relationCode && canCoupleReport ? (
         <section className={`${mateLayout.chapter} ${mateLayout.highlight}`}>
           <p className={mateLayout.monoLabel}>双人婚恋适配</p>
           {!pairSupplementComplete ? (
@@ -99,12 +103,9 @@ export function MateResultView({
             </>
           )}
         </section>
-      ) : relationCode && suiteSlug && inferSuiteTier(suiteSlug) === "lite" ? (
+      ) : relationCode && suiteSlug && !canCoupleReport ? (
         <section className={`${mateLayout.chapter} ${mateLayout.highlight}`}>
-          <p className={mateLayout.monoLabel}>双人婚恋适配</p>
-          <p className={mateLayout.proseSm}>
-            快速版不支持 MATE 双人匹配。升级完整版后可填写补充题并邀请 TA。
-          </p>
+          <CoupleReportUnavailableNotice productId="mate" surface="light" />
         </section>
       ) : null}
 

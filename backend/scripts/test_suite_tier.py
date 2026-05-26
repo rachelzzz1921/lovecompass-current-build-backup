@@ -1,3 +1,10 @@
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 from app.suite_tier import (
     resolve_redemption_target_slug,
     resolve_suite_slug_for_request,
@@ -27,3 +34,10 @@ def test_redemption_target_prefers_requested_lite():
         gender="female",
     )
     assert slug == "s02_ros_female_lite"
+
+
+if __name__ == "__main__":
+    test_lite_slug_resolution()
+    test_redemption_compatibility()
+    test_redemption_target_prefers_requested_lite()
+    print("ok")

@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { Sparkles } from "lucide-react";
 import { inferSuiteTier, tierMeta, type ProductId } from "@/lib/suiteTier";
+import { liteResultUpgradeTeaser, type CoupleProductId } from "@/lib/coupleReport";
 import { productTheme } from "@/lib/productTheme";
 
 type Props = {
@@ -19,7 +20,13 @@ export function LiteResultNotice({ productId, suiteSlug, accuracyNote, className
   const full = tierMeta(productId, "full");
   const note =
     accuracyNote ||
-    `快速版 ${lite.questions} 题，结果精度约 70–75%；完整版 ${full.questions} 题可提升至约 95%。`;
+    (() => {
+      const base = `快速版 ${lite.questions} 题，结果精度约 70–75%；完整版 ${full.questions} 题可提升至约 95%。`;
+      if (productId === "ros" || productId === "mate") {
+        return `${base} ${liteResultUpgradeTeaser(productId as CoupleProductId)}`;
+      }
+      return base;
+    })();
 
   const upgradeTo = productId === "ros" ? "/ros/start" : `/tests/${productId}`;
   const upgradeSearch =

@@ -25,6 +25,8 @@ jobs:
         run: pip install -r requirements.txt
       - name: Run SELF/ROS unit scripts
         run: |
+          python scripts/test_universal_redemption.py
+          python scripts/test_suite_tier.py
           python scripts/test_self_static_copy.py
           python scripts/test_self_ai_content.py
           python scripts/test_core_traits.py

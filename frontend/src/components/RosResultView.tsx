@@ -115,7 +115,7 @@ export function RosResultView({
         </div>
 
         <section id="ros-layers" className="scroll-mt-32">
-          <RosFiveLayers result={result} attemptId={attemptId} inviteCode={result.code} exampleMode={exampleMode} />
+          <RosFiveLayers result={result} attemptId={attemptId} inviteCode={result.code} suiteSlug={suiteSlug} exampleMode={exampleMode} />
         </section>
 
         <div className="h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
@@ -132,6 +132,7 @@ export function RosResultView({
             result={result}
             attemptId={attemptId}
             coupleUnlocked={coupleUnlocked}
+            suiteSlug={suiteSlug}
             onShare={() => setShareOpen(true)}
             exampleMode={exampleMode}
             exampleSubject={exampleSubject}

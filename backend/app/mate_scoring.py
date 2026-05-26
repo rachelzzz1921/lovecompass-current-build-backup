@@ -708,6 +708,7 @@ def summarize_mate_scores(
     result_profiles: dict[str, Any] | None = None,
     relation_code: str | None = None,
     skip_enrich: bool = False,
+    suite_slug: str | None = None,
 ) -> dict[str, Any]:
     type_rules = (scoring_model or {}).get("type_rules") or {}
     scoring_formula = (scoring_model or {}).get("scoring_formula") or {}
@@ -742,8 +743,11 @@ def summarize_mate_scores(
         appearance_label=appearance_label,
     )
 
-    code = relation_code or generate_relation_code()
-    result_payload["relationCode"] = code
+    lite_suite = bool(suite_slug and "_lite" in suite_slug.lower())
+    code: str | None = None
+    if not lite_suite:
+        code = relation_code or generate_relation_code()
+        result_payload["relationCode"] = code
 
     computed_layers = build_mate_precomputed_layers(
         position_name=position_name,

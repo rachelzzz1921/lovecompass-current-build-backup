@@ -3,11 +3,14 @@ import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { ArrowLeft, ArrowRight, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import { CoupleReportUnavailableNotice } from "@/components/CoupleReportUnavailableNotice";
+import { coupleReportUnavailableCopy } from "@/lib/coupleReport";
 import { formatApiErrorMessage } from "@/lib/apiErrors";
 import { unlockProductForRun } from "@/lib/productAccessFlow";
 import { lovecompassApi } from "@/lib/lovecompassApi";
 import { AuthChecking, useRequireAuth } from "@/lib/requireAuth";
 import { getProductMeta, getStoredGender, tierMeta, type SuiteGender, type SuiteTier } from "@/lib/productRegistry";
+import { isLiteCoupleBlockedMessage } from "@/lib/coupleReport";
 import { resetPresentationSeed } from "@/lib/shufflePresentation";
 import { productTheme } from "@/lib/productTheme";
 import {
@@ -42,7 +45,7 @@ function MateInvitePage() {
   const [suiteTier, setSuiteTier] = useState<SuiteTier>("full");
   const [previewLoading, setPreviewLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [liteBlocked, setLiteBlocked] = useState(false);
+  const [coupleBlocked, setCoupleBlocked] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -57,9 +60,15 @@ function MateInvitePage() {
               ? "lite"
               : "full",
         );
-        setLiteBlocked(preview.suiteTier === "lite");
       } catch (e) {
-        if (!cancelled) toast.error(formatApiErrorMessage(e));
+        if (!cancelled) {
+          const msg = formatApiErrorMessage(e);
+          if (isLiteCoupleBlockedMessage(msg)) {
+            setCoupleBlocked(true);
+          } else {
+            toast.error(msg);
+          }
+        }
       } finally {
         if (!cancelled) setPreviewLoading(false);
       }
@@ -115,7 +124,11 @@ function MateInvitePage() {
             theme={theme}
             kicker="PARTNER INVITE"
             title="TA 邀请你一起看清，你们是否适合长期走下去"
-            description="等你做完，你们会同时解锁 MATE 双人婚恋适配报告——这一步，你也是免费的。"
+            description={
+              coupleBlocked
+                ? coupleReportUnavailableCopy("mate")
+                : "等你做完，你们会同时解锁 MATE 双人婚恋适配报告——这一步，你也是免费的。"
+            }
           />
 
           <ProductFlowCard theme={theme} className="space-y-6">
@@ -126,29 +139,37 @@ function MateInvitePage() {
               </div>
             </div>
 
-            <ProductFlowSection label="选择你的性别版本">
-              <GenderSelect productId="mate" value={gender} onChange={setGender} />
-            </ProductFlowSection>
-
-            <div className="text-center text-xs text-muted-foreground">
-              {previewLoading
-                ? "正在读取 TA 的测试版本…"
-                : liteBlocked
-                  ? "TA 使用的是快速版，MATE 双人匹配需完整版。请联系 TA 升级后重新邀请。"
-                  : `与 TA 对齐 · ${tierInfo.label} · ${tierInfo.questions} 题 · 约 ${tierInfo.minutes} 分钟`}
-            </div>
-
-            <PrimaryFlowButton theme={theme} onClick={() => void start()} disabled={submitting || previewLoading || liteBlocked}>
-              {submitting ? (
-                <span className="flex items-center gap-2 font-mono text-sm tracking-[0.15em]">
-                  <Sparkles className="h-4 w-4 animate-pulse-ring" /> 验证中…
-                </span>
+            {coupleBlocked ? (
+              previewLoading ? (
+                <p className="text-center text-xs text-muted-foreground">正在读取 TA 的测试版本…</p>
               ) : (
-                <>
-                  开始我的测评 <ArrowRight className="h-4 w-4 ml-2" />
-                </>
-              )}
-            </PrimaryFlowButton>
+                <CoupleReportUnavailableNotice productId="mate" surface="light" />
+              )
+            ) : (
+              <>
+                <ProductFlowSection label="选择你的性别版本">
+                  <GenderSelect productId="mate" value={gender} onChange={setGender} />
+                </ProductFlowSection>
+
+                <div className="text-center text-xs text-muted-foreground">
+                  {previewLoading
+                    ? "正在读取 TA 的测试版本…"
+                    : `与 TA 对齐 · ${tierInfo.label} · ${tierInfo.questions} 题 · 约 ${tierInfo.minutes} 分钟`}
+                </div>
+
+                <PrimaryFlowButton theme={theme} onClick={() => void start()} disabled={submitting || previewLoading}>
+                  {submitting ? (
+                    <span className="flex items-center gap-2 font-mono text-sm tracking-[0.15em]">
+                      <Sparkles className="h-4 w-4 animate-pulse-ring" /> 验证中…
+                    </span>
+                  ) : (
+                    <>
+                      开始我的测评 <ArrowRight className="h-4 w-4 ml-2" />
+                    </>
+                  )}
+                </PrimaryFlowButton>
+              </>
+            )}
           </ProductFlowCard>
         </motion.div>
       </section>

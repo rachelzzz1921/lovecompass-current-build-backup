@@ -47,7 +47,6 @@ import {
   RedemptionCodeInput,
   TierSelect,
 } from "@/components/product-flow/ProductFlowWidgets";
-
 const PRODUCT_ID = "ros" as const;
 
 export const Route = createFileRoute("/ros/start")({

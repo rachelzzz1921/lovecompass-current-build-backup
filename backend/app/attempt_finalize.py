@@ -16,9 +16,17 @@ from app.mate_ai_content import attach_mate_ai_content_to_payload, enhance_mate_
 from app.mate_router import (
     create_relation_session as create_mate_relation_session,
     link_partner_to_session as link_mate_partner_to_session,
+    merge_and_store_couple_report as merge_mate_couple_report,
 )
 from app.mate_router import attempt_snapshot as mate_attempt_snapshot
+from app.suite_tier import is_lite_suite_slug
 from app.mate_scoring import is_mate_suite
+
+try:
+    from app.mate_couple_ai_content import enhance_mate_couple_session_background
+except ImportError:
+    def enhance_mate_couple_session_background(_session_id: str) -> None:
+        return None
 
 try:
     from app.ros_couple_ai_content import enhance_ros_couple_session_background
@@ -26,11 +34,118 @@ except ImportError:
     def enhance_ros_couple_session_background(_session_id: str) -> None:
         return None
 
-from app.ros_ai_content import attach_ros_ai_content_to_payload, enhance_ros_ai_for_attempt
+from app.ros_ai_content import (
+    attach_ros_ai_content_to_payload,
+    enhance_ros_ai_background,
+    enhance_ros_ai_for_attempt,
+    ros_ai_content_ready,
+)
 from app.ros_couple import attempt_snapshot as ros_attempt_snapshot
 from app.ros_router import create_relation_session, link_partner_to_session, merge_and_store_couple_report
 from app.ros_scoring import is_ros_suite
-from app.self_ai_content import attach_self_ai_content_to_payload, enhance_self_ai_for_attempt
+from app.self_ai_content import (
+    attach_self_ai_content_to_payload,
+    enhance_self_ai_background,
+    enhance_self_ai_for_attempt,
+)
+from app.semantic_translation import guard_ai_output, sanitize_user_facing_payload
+
+FINALIZE_STALE_MINUTES = 2
+
+
+def _ai_enhance_enabled() -> bool:
+    return os.getenv("AI_PROVIDER", "mock").strip().lower() == "zhipu"
+
+
+def _claim_finalize_slot(conn: Any, attempt_id: str) -> bool:
+    row = conn.execute(
+        """
+        UPDATE public.test_attempts
+        SET result_payload = COALESCE(result_payload, '{}'::jsonb)
+            || jsonb_build_object('_finalize_started_at', to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'))
+        WHERE id = %s::uuid
+          AND status = 'in_progress'
+          AND (
+            COALESCE(result_payload, '{}'::jsonb)->>'_finalize_started_at' IS NULL
+            OR (
+              (COALESCE(result_payload, '{}'::jsonb)->>'_finalize_started_at')::timestamptz
+              < now() - make_interval(mins => %s)
+            )
+          )
+        RETURNING id
+        """,
+        (attempt_id, FINALIZE_STALE_MINUTES),
+    ).fetchone()
+    return bool(row)
+
+
+def kick_finalize_if_needed(background_tasks: Any, attempt_id: str, user_id: str) -> None:
+    background_tasks.add_task(finalize_attempt_background, attempt_id, user_id)
+
+
+def hydrate_attempt_for_read(
+    conn: Any,
+    attempt_id: str,
+    attempt: dict[str, Any],
+    *,
+    background_tasks: Any | None = None,
+) -> dict[str, Any]:
+    """Attach display-ready insights for read path (in_progress or completed)."""
+    row = dict(attempt)
+    result_payload = row.get("result_payload") or {}
+    if not isinstance(result_payload, dict):
+        result_payload = {}
+    suite_slug = str(row.get("test_id") or "")
+    gender = str(row.get("archetype_gender") or "female")
+    dimension_scores = row.get("dimension_scores") or {}
+
+    if is_ros_suite(suite_slug):
+        existing_ai = result_payload.get("ai_content")
+        if not ros_ai_content_ready(existing_ai):
+            result_payload = attach_ros_ai_content_to_payload(
+                conn,
+                attempt_id,
+                result_payload,
+                dimension_scores,
+                use_ai=False,
+                gender=gender,
+            )
+        if background_tasks and (result_payload.get("ai_content") or {}).get("mode") == "deterministic":
+            if _ai_enhance_enabled():
+                background_tasks.add_task(enhance_ros_ai_background, attempt_id)
+    elif is_mate_suite(suite_slug):
+        result_payload = attach_mate_ai_content_to_payload(
+            conn,
+            attempt_id,
+            result_payload,
+            dimension_scores,
+            use_ai=False,
+            gender=gender,
+        )
+    else:
+        if not result_payload.get("core_traits"):
+            result_payload = attach_core_traits_to_payload(
+                conn,
+                attempt_id,
+                result_payload,
+                dimension_scores,
+            )
+        result_payload = attach_self_ai_content_to_payload(
+            conn,
+            attempt_id,
+            result_payload,
+            dimension_scores,
+            use_ai=False,
+            gender=gender,
+        )
+        if background_tasks and (result_payload.get("ai_content") or {}).get("mode") == "deterministic":
+            if _ai_enhance_enabled():
+                background_tasks.add_task(enhance_self_ai_background, attempt_id)
+
+    row["result_payload"] = sanitize_user_facing_payload(result_payload)
+    if row.get("ai_report"):
+        row["ai_report"] = guard_ai_output(str(row["ai_report"]))
+    return row
 
 
 def _enhance_ai_after_finalize(conn: Any, attempt_id: str, suite_slug: str) -> None:
@@ -88,6 +203,8 @@ def finalize_attempt_background(attempt_id: str, user_id: str) -> None:
             ).fetchone()
             if not row or row.get("status") == "completed":
                 return
+            if not _claim_finalize_slot(conn, attempt_id):
+                return
 
             persist_attempt_answers_for_attempt(conn, attempt_id)
 
@@ -139,6 +256,9 @@ def finalize_attempt_background(attempt_id: str, user_id: str) -> None:
                     "ros_index": row.get("ros_index"),
                     "relation_code": result_payload.get("relationCode"),
                 }
+                if is_lite_suite_slug(suite_slug):
+                    result_payload.pop("relationCode", None)
+                    scores["relation_code"] = None
             elif is_ros_suite(suite_slug):
                 result_payload = attach_ros_ai_content_to_payload(
                     conn,
@@ -233,34 +353,48 @@ def finalize_attempt_background(attempt_id: str, user_id: str) -> None:
                             }
                         ),
                     )
-            elif is_mate_suite(suite_slug):
+            elif is_mate_suite(suite_slug) and not is_lite_suite_slug(suite_slug):
                 if partner_code:
-                    link_mate_partner_to_session(
+                    linked = link_mate_partner_to_session(
                         conn,
                         code=partner_code,
                         partner_attempt_id=uuid.UUID(attempt_id),
                         partner_user_id=user_id,
                     )
+                    session_row = linked if isinstance(linked, dict) else None
+                    if session_row and session_row.get("id"):
+                        try:
+                            merge_mate_couple_report(conn, session_row["id"])
+                        except Exception:
+                            pass
                 else:
                     relation_code = result_payload.get("relationCode") or scores.get("relation_code")
-                    create_mate_relation_session(
-                        conn,
-                        code=str(relation_code),
-                        initiator_attempt_id=uuid.UUID(attempt_id),
-                        initiator_user_id=user_id,
-                        initiator_snapshot=mate_attempt_snapshot(
-                            {
-                                "id": attempt_id,
-                                "user_id": user_id,
-                                "suite_slug": suite_slug,
-                                "archetype_gender": gender,
-                                "ros_index": scores.get("ros_index"),
-                                "dimension_scores": scores.get("dimension_scores"),
-                                "result_payload": result_payload,
-                            }
-                        ),
-                    )
+                    if relation_code:
+                        create_mate_relation_session(
+                            conn,
+                            code=str(relation_code),
+                            initiator_attempt_id=uuid.UUID(attempt_id),
+                            initiator_user_id=user_id,
+                            initiator_snapshot=mate_attempt_snapshot(
+                                {
+                                    "id": attempt_id,
+                                    "user_id": user_id,
+                                    "suite_slug": suite_slug,
+                                    "archetype_gender": gender,
+                                    "ros_index": scores.get("ros_index"),
+                                    "dimension_scores": scores.get("dimension_scores"),
+                                    "result_payload": result_payload,
+                                }
+                            ),
+                        )
 
+            if is_mate_suite(suite_slug) and partner_code and not is_lite_suite_slug(suite_slug):
+                session_row = conn.execute(
+                    "SELECT id FROM public.mate_relation_sessions WHERE code = %s",
+                    (partner_code,),
+                ).fetchone()
+                if session_row and session_row.get("id"):
+                    enhance_mate_couple_session_background(str(session_row["id"]))
             if is_ros_suite(suite_slug) and partner_code:
                 session_row = conn.execute(
                     "SELECT id FROM public.ros_relation_sessions WHERE code = %s",

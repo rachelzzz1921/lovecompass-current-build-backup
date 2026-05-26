@@ -9,11 +9,19 @@ import {
 } from "@/lib/resultPrefetchCache";
 import type { ProductSet } from "@/lib/resultRoutes";
 
-const POLL_MS = 400;
 const TIMEOUT_MS = 120_000;
+const FAST_POLL_MS = 200;
+const MID_POLL_MS = 400;
+const SLOW_POLL_MS = 800;
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function pollDelay(elapsedMs: number): number {
+  if (elapsedMs < 4_000) return FAST_POLL_MS;
+  if (elapsedMs < 20_000) return MID_POLL_MS;
+  return SLOW_POLL_MS;
 }
 
 export function selfAttemptRenderable(attempt: Record<string, unknown>): boolean {
@@ -25,17 +33,20 @@ export function selfAttemptRenderable(attempt: Record<string, unknown>): boolean
   const payload = attempt.result_payload;
   if (!payload || typeof payload !== "object") return false;
   const p = payload as Record<string, unknown>;
+  const ai = p.ai_content as { insights?: unknown[] } | undefined;
+  if (Array.isArray(ai?.insights) && ai.insights.length > 0) return true;
   return Boolean(p.archetype_code || p.attachment_type || p.dimensions);
 }
 
 /** SELF：提交后分数已写入，不必等后台 finalize 才展示结果。 */
 export async function waitForSelfAttemptReady(attemptId: string): Promise<Record<string, unknown>> {
-  const deadline = Date.now() + TIMEOUT_MS;
+  const started = Date.now();
+  const deadline = started + TIMEOUT_MS;
   while (Date.now() < deadline) {
     const res = await lovecompassApi.getAttemptResult(attemptId);
     const attempt = (res.attempt ?? {}) as Record<string, unknown>;
     if (selfAttemptRenderable(attempt)) return attempt;
-    await sleep(POLL_MS);
+    await sleep(pollDelay(Date.now() - started));
   }
   throw new Error("结果生成超时，请稍后在历史记录中查看。");
 }
@@ -73,6 +84,11 @@ export function rosAttemptRenderable(attempt: Record<string, unknown>): boolean 
   const payload = attempt.result_payload;
   if (payload && typeof payload === "object") {
     const p = payload as Record<string, unknown>;
+    const ai = p.ai_content as { insights?: unknown[]; insights_list?: unknown[] } | undefined;
+    if (Array.isArray(ai?.insights_list) && ai.insights_list.length > 0) return true;
+    if (ai?.insights && typeof ai.insights === "object" && Object.keys(ai.insights).length > 0) {
+      return true;
+    }
     if (p.layers || p.layerDetails || p.rosIndex || p.relationshipType || p.dims) {
       return true;
     }
@@ -89,6 +105,8 @@ export function mateAttemptRenderable(attempt: Record<string, unknown>): boolean
   const payload = attempt.result_payload;
   if (!payload || typeof payload !== "object") return false;
   const p = payload as Record<string, unknown>;
+  const ai = p.ai_content as { insights?: unknown[] } | undefined;
+  if (Array.isArray(ai?.insights) && ai.insights.length > 0) return true;
   return Boolean(
     p.positionType ||
       p.computedLayers ||
@@ -97,36 +115,74 @@ export function mateAttemptRenderable(attempt: Record<string, unknown>): boolean
   );
 }
 
+function attemptFromMateSingle(attemptId: string, single: Record<string, unknown>): Record<string, unknown> {
+  return {
+    id: attemptId,
+    status: "in_progress",
+    test_id: single.suiteSlug ?? undefined,
+    result_payload: single,
+    dimension_scores: single.modules ?? undefined,
+  };
+}
+
 export async function waitForRosAttemptReady(attemptId: string): Promise<Record<string, unknown>> {
-  const deadline = Date.now() + TIMEOUT_MS;
+  const started = Date.now();
+  const deadline = started + TIMEOUT_MS;
   while (Date.now() < deadline) {
+    try {
+      const singleRes = await lovecompassApi.getRosSingleResult(attemptId);
+      const single = singleRes.single as Record<string, unknown>;
+      if (rosSingleDisplayReady(single)) {
+        return {
+          id: attemptId,
+          status: "in_progress",
+          result_payload: single,
+          relation_code: singleRes.relationCode,
+        };
+      }
+    } catch {
+      // fall through to generic attempt poll
+    }
+
     const res = await lovecompassApi.getAttemptResult(attemptId);
     const attempt = (res.attempt ?? {}) as Record<string, unknown>;
     if (rosAttemptRenderable(attempt)) return attempt;
-    await sleep(POLL_MS);
+    await sleep(pollDelay(Date.now() - started));
   }
   throw new Error("关系画像生成超时，请稍后在历史记录中查看。");
 }
 
 export async function waitForMateAttemptReady(attemptId: string): Promise<Record<string, unknown>> {
-  const deadline = Date.now() + TIMEOUT_MS;
+  const started = Date.now();
+  const deadline = started + TIMEOUT_MS;
   while (Date.now() < deadline) {
+    try {
+      const singleRes = await lovecompassApi.getMateSingleResult(attemptId);
+      const single = singleRes.single as Record<string, unknown>;
+      if (Object.keys(single).length > 0 && mateAttemptRenderable(attemptFromMateSingle(attemptId, single))) {
+        return attemptFromMateSingle(attemptId, single);
+      }
+    } catch {
+      // fall through
+    }
+
     const res = await lovecompassApi.getAttemptResult(attemptId);
     const attempt = (res.attempt ?? {}) as Record<string, unknown>;
     if (mateAttemptRenderable(attempt)) return attempt;
-    await sleep(POLL_MS);
+    await sleep(pollDelay(Date.now() - started));
   }
   throw new Error("择偶档案生成超时，请稍后在历史记录中查看。");
 }
 
 /** @deprecated use waitForRosAttemptReady / waitForMateAttemptReady / waitForSelfAttemptReady */
 export async function waitForAttemptCompleted(attemptId: string): Promise<Record<string, unknown>> {
-  const deadline = Date.now() + TIMEOUT_MS;
+  const started = Date.now();
+  const deadline = started + TIMEOUT_MS;
   while (Date.now() < deadline) {
     const res = await lovecompassApi.getAttemptResult(attemptId);
     const attempt = (res.attempt ?? {}) as Record<string, unknown>;
     if (attempt.status === "completed") return attempt;
-    await sleep(POLL_MS);
+    await sleep(pollDelay(Date.now() - started));
   }
   throw new Error("结果生成超时，请稍后在历史记录中查看。");
 }
@@ -143,26 +199,31 @@ async function prefetchMateSingle(attemptId: string, attempt: Record<string, unk
         single,
         relationCode: extra?.relationCode ?? relationCode,
         coupleUnlocked: extra?.coupleUnlocked,
-        suiteSlug: String(attempt.test_id ?? ""),
+        suiteSlug: String(attempt.test_id ?? single.suiteSlug ?? ""),
       },
     } satisfies MateSinglePrefetch);
   };
+
+  try {
+    const singleRes = await lovecompassApi.getMateSingleResult(attemptId);
+    stash(singleRes.single, {
+      relationCode: singleRes.relationCode,
+      coupleUnlocked: singleRes.coupleUnlocked,
+    });
+    return;
+  } catch {
+    // use attempt payload fallback below
+  }
 
   if (mateAttemptRenderable(attempt) && Object.keys(payload).length > 0) {
     stash(payload);
     return;
   }
 
-  const deadline = Date.now() + TIMEOUT_MS;
+  const started = Date.now();
+  const deadline = started + TIMEOUT_MS;
   while (Date.now() < deadline) {
-    await sleep(POLL_MS);
-    const res = await lovecompassApi.getAttemptResult(attemptId);
-    attempt = (res.attempt ?? {}) as Record<string, unknown>;
-    const nextPayload = (attempt.result_payload ?? {}) as Record<string, unknown>;
-    if (mateAttemptRenderable(attempt) && Object.keys(nextPayload).length > 0) {
-      stash(nextPayload);
-      return;
-    }
+    await sleep(pollDelay(Date.now() - started));
     try {
       const singleRes = await lovecompassApi.getMateSingleResult(attemptId);
       stash(singleRes.single, {
@@ -171,7 +232,13 @@ async function prefetchMateSingle(attemptId: string, attempt: Record<string, unk
       });
       return;
     } catch {
-      // keep polling attempt until renderable or timeout
+      const res = await lovecompassApi.getAttemptResult(attemptId);
+      attempt = (res.attempt ?? {}) as Record<string, unknown>;
+      const nextPayload = (attempt.result_payload ?? {}) as Record<string, unknown>;
+      if (mateAttemptRenderable(attempt) && Object.keys(nextPayload).length > 0) {
+        stash(nextPayload);
+        return;
+      }
     }
   }
   throw new Error("择偶档案加载超时，请刷新或从历史记录进入。");
@@ -207,15 +274,41 @@ async function prefetchRosSingle(attemptId: string, attempt: Record<string, unkn
     return true;
   };
 
-  // POST 后 result_payload 已含 layers/dims，不必等 finalize 或重 GET /ros/.../single
+  try {
+    const singleRes = await lovecompassApi.getRosSingleResult(attemptId);
+    const single = singleRes.single as Record<string, unknown>;
+    if (rosSingleDisplayReady(single)) {
+      stash(single, {
+        relationCode: singleRes.relationCode,
+        coupleUnlocked: singleRes.coupleUnlocked,
+      });
+      return;
+    }
+  } catch {
+    // fall through
+  }
+
   if (tryStashAttempt(attempt)) return;
 
-  const deadline = Date.now() + TIMEOUT_MS;
+  const started = Date.now();
+  const deadline = started + TIMEOUT_MS;
   while (Date.now() < deadline) {
-    await sleep(POLL_MS);
-    const res = await lovecompassApi.getAttemptResult(attemptId);
-    attempt = (res.attempt ?? {}) as Record<string, unknown>;
-    if (tryStashAttempt(attempt)) return;
+    await sleep(pollDelay(Date.now() - started));
+    try {
+      const singleRes = await lovecompassApi.getRosSingleResult(attemptId);
+      const single = singleRes.single as Record<string, unknown>;
+      if (rosSingleDisplayReady(single)) {
+        stash(single, {
+          relationCode: singleRes.relationCode,
+          coupleUnlocked: singleRes.coupleUnlocked,
+        });
+        return;
+      }
+    } catch {
+      const res = await lovecompassApi.getAttemptResult(attemptId);
+      attempt = (res.attempt ?? {}) as Record<string, unknown>;
+      if (tryStashAttempt(attempt)) return;
+    }
   }
   throw new Error("关系画像加载超时，请刷新或从历史记录进入。");
 }
@@ -230,7 +323,8 @@ async function prefetchSelfAttempt(attemptId: string, attempt: Record<string, un
 }
 
 async function prefetchMateCouple(code: string): Promise<void> {
-  const deadline = Date.now() + TIMEOUT_MS;
+  const started = Date.now();
+  const deadline = started + TIMEOUT_MS;
   const normalized = code.trim().toUpperCase();
   while (Date.now() < deadline) {
     try {
@@ -243,14 +337,15 @@ async function prefetchMateCouple(code: string): Promise<void> {
       stashResultPrefetch(`couple:${normalized}`, entry);
       return;
     } catch {
-      await sleep(POLL_MS);
+      await sleep(pollDelay(Date.now() - started));
     }
   }
   throw new Error("双人报告加载超时，请稍后再试。");
 }
 
 async function prefetchRosCouple(code: string): Promise<void> {
-  const deadline = Date.now() + TIMEOUT_MS;
+  const started = Date.now();
+  const deadline = started + TIMEOUT_MS;
   const normalized = code.trim().toUpperCase();
   while (Date.now() < deadline) {
     try {
@@ -263,7 +358,7 @@ async function prefetchRosCouple(code: string): Promise<void> {
       stashResultPrefetch(`couple:${normalized}`, entry);
       return;
     } catch {
-      await sleep(POLL_MS);
+      await sleep(pollDelay(Date.now() - started));
     }
   }
   throw new Error("双人报告加载超时，请稍后再试。");

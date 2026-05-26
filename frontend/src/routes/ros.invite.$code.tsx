@@ -3,6 +3,8 @@ import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { ArrowLeft, ArrowRight, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import { CoupleReportUnavailableNotice } from "@/components/CoupleReportUnavailableNotice";
+import { coupleReportUnavailableCopy } from "@/lib/coupleReport";
 import { formatApiErrorMessage } from "@/lib/apiErrors";
 import { unlockProductForRun } from "@/lib/productAccessFlow";
 import { lovecompassApi } from "@/lib/lovecompassApi";
@@ -42,6 +44,7 @@ function InvitePage() {
   const [suiteTier, setSuiteTier] = useState<SuiteTier>("full");
   const [previewLoading, setPreviewLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [liteBlocked, setLiteBlocked] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -49,13 +52,14 @@ function InvitePage() {
       try {
         const preview = await lovecompassApi.previewRelationCode(code);
         if (cancelled) return;
-        setSuiteTier(
+        const tier =
           preview.suiteTier === "lite" || preview.suiteTier === "full"
             ? preview.suiteTier
             : preview.suiteSlug?.includes("_lite")
               ? "lite"
-              : "full",
-        );
+              : "full";
+        setSuiteTier(tier);
+        setLiteBlocked(tier === "lite");
       } catch (e) {
         if (!cancelled) toast.error(formatApiErrorMessage(e));
       } finally {
@@ -113,7 +117,11 @@ function InvitePage() {
             theme={theme}
             kicker="PARTNER INVITE"
             title="TA 邀请你看看，你们之间到底怎么样"
-            description="等你做完，你们会同时解锁完整的双人报告——这一步，你也是免费的。"
+            description={
+              liteBlocked
+                ? coupleReportUnavailableCopy("ros")
+                : "等你做完，你们会同时解锁完整的双人报告——这一步，你也是免费的。"
+            }
           />
 
           <ProductFlowCard theme={theme} className="space-y-6">
@@ -124,27 +132,37 @@ function InvitePage() {
               </div>
             </div>
 
-            <ProductFlowSection label="选择题库版本">
-              <GenderSelect productId="ros" value={gender} onChange={setGender} />
-            </ProductFlowSection>
-
-            <div className="text-center text-xs text-muted-foreground">
-              {previewLoading
-                ? "正在读取 TA 的测试版本…"
-                : `与 TA 对齐 · ${tierInfo.label} · ${tierInfo.questions} 题 · 约 ${tierInfo.minutes} 分钟`}
-            </div>
-
-            <PrimaryFlowButton theme={theme} onClick={() => void start()} disabled={submitting || previewLoading}>
-              {submitting ? (
-                <span className="flex items-center gap-2 font-mono text-sm tracking-[0.15em]">
-                  <Sparkles className="h-4 w-4 animate-pulse-ring" /> 验证中…
-                </span>
+            {liteBlocked ? (
+              previewLoading ? (
+                <p className="text-center text-xs text-muted-foreground">正在读取 TA 的测试版本…</p>
               ) : (
-                <>
-                  开始我的测评 <ArrowRight className="h-4 w-4 ml-2" />
-                </>
-              )}
-            </PrimaryFlowButton>
+                <CoupleReportUnavailableNotice productId="ros" surface="light" />
+              )
+            ) : (
+              <>
+                <ProductFlowSection label="选择题库版本">
+                  <GenderSelect productId="ros" value={gender} onChange={setGender} />
+                </ProductFlowSection>
+
+                <div className="text-center text-xs text-muted-foreground">
+                  {previewLoading
+                    ? "正在读取 TA 的测试版本…"
+                    : `与 TA 对齐 · ${tierInfo.label} · ${tierInfo.questions} 题 · 约 ${tierInfo.minutes} 分钟`}
+                </div>
+
+                <PrimaryFlowButton theme={theme} onClick={() => void start()} disabled={submitting || previewLoading}>
+                  {submitting ? (
+                    <span className="flex items-center gap-2 font-mono text-sm tracking-[0.15em]">
+                      <Sparkles className="h-4 w-4 animate-pulse-ring" /> 验证中…
+                    </span>
+                  ) : (
+                    <>
+                      开始我的测评 <ArrowRight className="h-4 w-4 ml-2" />
+                    </>
+                  )}
+                </PrimaryFlowButton>
+              </>
+            )}
           </ProductFlowCard>
         </motion.div>
       </section>

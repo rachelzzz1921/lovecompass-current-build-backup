@@ -1,9 +1,11 @@
 import { Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
 import { Star, AlertCircle, Lightbulb, ArrowRight, Bot, Share2 } from "lucide-react";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 import type { RosCoupleResult } from "@/data/rosTypes";
+import { aiEnhancementPendingLabel, showAiEnhancementPending } from "@/lib/aiContentUx";
+import { fetchAiEnhancementEnabled } from "@/lib/aiCapabilities";
 import { useLongPress } from "@/hooks/useLongPress";
 import { chatRouteSearch } from "@/lib/chatRouteSearch";
 import {
@@ -83,7 +85,13 @@ export function RosCoupleNext({
   onShare: () => void;
 }) {
   const insights = result.insights ?? [];
-  const aiPending = result.ai_content?.mode === "deterministic";
+  const [aiEnhanceEnabled, setAiEnhanceEnabled] = useState(false);
+
+  useEffect(() => {
+    void fetchAiEnhancementEnabled().then(setAiEnhanceEnabled);
+  }, []);
+
+  const aiPending = showAiEnhancementPending(result.ai_content, insights.length, aiEnhanceEnabled);
 
   return (
     <section className="space-y-7">
@@ -91,7 +99,7 @@ export function RosCoupleNext({
         <div className="flex items-center gap-2 mb-3">
           <div className="text-[10px] tracking-[0.3em] font-mono text-white/40">NEXT · AI 分析师摘要</div>
           {aiPending ? (
-            <span className="text-[9px] text-white/35 ml-auto animate-pulse">分析师正在整理…</span>
+            <span className="text-[9px] text-white/35 ml-auto animate-pulse">{aiEnhancementPendingLabel()}</span>
           ) : null}
         </div>
 

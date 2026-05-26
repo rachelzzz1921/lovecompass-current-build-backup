@@ -13,7 +13,7 @@ CORS_ORIGINS=https://lovecompass-web.vercel.app,http://localhost:5173
 AI_PROVIDER=zhipu
 ZHIPU_API_KEY=
 ZHIPU_BASE_URL=https://open.bigmodel.cn/api/paas/v4
-ZHIPU_MODEL=glm-4-flash
+ZHIPU_MODEL=glm-4.5-air
 LOVECOMPASS_ALLOW_DEMO_USER_FALLBACK=false
 
 # ── frontend（新建 Vercel 项目，Root = frontend）──────

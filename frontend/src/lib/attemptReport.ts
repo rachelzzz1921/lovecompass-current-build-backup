@@ -14,20 +14,37 @@ export function isPlaceholderReport(report: string | null | undefined): boolean 
 
 const REPORT_PENDING_RE = /尚未完成|暂不能生成报告/;
 
+const FAST_POLL_MS = 350;
+const MID_POLL_MS = 600;
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function pollDelay(elapsedMs: number): number {
+  if (elapsedMs < 8_000) return FAST_POLL_MS;
+  return MID_POLL_MS;
+}
+
+export type FetchReportOptions = {
+  maxWaitMs?: number;
+  /** Max time to wait for attempt finalize before trying report anyway. */
+  finalizeWaitMs?: number;
+  pollMs?: number;
+};
+
 /** Wait for attempt finalize, then fetch deep report. Avoids racing in_progress status. */
 export async function fetchAttemptReportWhenReady(
   attemptId: string,
-  options?: { maxWaitMs?: number; pollMs?: number },
+  options?: FetchReportOptions,
 ): Promise<{ report: AttemptReport | null; error: string | null }> {
-  const maxWaitMs = options?.maxWaitMs ?? 120_000;
-  const pollMs = options?.pollMs ?? 500;
-  const deadline = Date.now() + maxWaitMs;
+  const maxWaitMs = options?.maxWaitMs ?? 60_000;
+  const finalizeWaitMs = options?.finalizeWaitMs ?? 35_000;
+  const started = Date.now();
+  const deadline = started + maxWaitMs;
+  const finalizeDeadline = started + finalizeWaitMs;
 
-  while (Date.now() < deadline) {
+  while (Date.now() < finalizeDeadline) {
     try {
       const res = await lovecompassApi.getAttemptResult(attemptId);
       const status = (res.attempt as Record<string, unknown> | undefined)?.status;
@@ -35,7 +52,7 @@ export async function fetchAttemptReportWhenReady(
     } catch {
       // keep polling through transient API errors
     }
-    await sleep(pollMs);
+    await sleep(options?.pollMs ?? pollDelay(Date.now() - started));
   }
 
   while (Date.now() < deadline) {
@@ -45,20 +62,20 @@ export async function fetchAttemptReportWhenReady(
     } catch (e) {
       const message = (e as Error).message || "报告加载失败";
       if (REPORT_PENDING_RE.test(message)) {
-        await sleep(pollMs);
+        await sleep(options?.pollMs ?? pollDelay(Date.now() - started));
         continue;
       }
       return { report: null, error: message };
     }
   }
 
-  // Insights may already be visible; deep markdown is optional — don't show a false alarm.
   return { report: null, error: null };
 }
 
 export async function fetchAttemptReportIfNeeded(
   attemptId: string,
   initialReport?: string | null,
+  options?: FetchReportOptions,
 ): Promise<{ report: AttemptReport | null; error: string | null }> {
   if (initialReport && !isPlaceholderReport(initialReport)) {
     return {
@@ -71,5 +88,5 @@ export async function fetchAttemptReportIfNeeded(
       error: null,
     };
   }
-  return fetchAttemptReportWhenReady(attemptId);
+  return fetchAttemptReportWhenReady(attemptId, options);
 }

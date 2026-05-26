@@ -220,6 +220,11 @@ function TestEntry() {
                   setSuiteTier(tier);
                 }}
               />
+              {suiteTier === "lite" && productId === "self" ? (
+                <p className="text-[11px] text-muted-foreground leading-relaxed mt-2 rounded-xl border border-border/50 bg-secondary/20 px-3 py-2.5">
+                  完整版题目更多，可将自我画像精度从约 70% 提升至约 95%。
+                </p>
+              ) : null}
             </ProductFlowSection>
           )}
 

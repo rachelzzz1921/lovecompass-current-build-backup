@@ -12,6 +12,7 @@ import {
 } from "@/lib/mapAttemptToSelfResult";
 import { dedicatedResultRouteFromAttempt } from "@/lib/resultRoutes";
 import { fetchAttemptReportWhenReady, isPlaceholderReport } from "@/lib/attemptReport";
+import { fetchAiEnhancementEnabled, peekAiEnhancementEnabled } from "@/lib/aiCapabilities";
 import { peekResultPrefetch, takeResultPrefetch } from "@/lib/resultPrefetchCache";
 import { ResultDataLoading } from "@/components/ResultDataLoading";
 import { waitForSelfAttemptReady } from "@/lib/waitForResultReady";
@@ -39,6 +40,11 @@ export const Route = createFileRoute("/result/$attemptId")({
   component: ResultPage,
 });
 
+function countPayloadInsights(attempt: AttemptResultInput & Record<string, unknown>): number {
+  const ai = (attempt.result_payload as { ai_content?: { insights?: unknown[] } } | undefined)?.ai_content;
+  return Array.isArray(ai?.insights) ? ai.insights.length : 0;
+}
+
 function applySelfAttempt(
   attemptId: string,
   attempt: AttemptResultInput & Record<string, unknown>,
@@ -60,8 +66,13 @@ function applySelfAttempt(
     });
     return;
   }
-  setters.setReportLoading(true);
-  void fetchAttemptReportWhenReady(attemptId)
+  const insightCount = countPayloadInsights(attempt);
+  const blockUi = insightCount < 3;
+  if (blockUi) setters.setReportLoading(true);
+  void fetchAttemptReportWhenReady(attemptId, {
+    maxWaitMs: blockUi ? 60_000 : 45_000,
+    finalizeWaitMs: blockUi ? 35_000 : 20_000,
+  })
     .then(({ report: nextReport, error }) => {
       if (setters.ignoreRef()) return;
       if (nextReport) {
@@ -158,11 +169,22 @@ function ResultPage() {
   }, [attemptId, nav, authPending, authed]);
 
   useEffect(() => {
+    void fetchAiEnhancementEnabled();
+  }, []);
+
+  useEffect(() => {
     if (!data) return;
     const mode = (data.result_payload as { ai_content?: { mode?: string } } | undefined)?.ai_content?.mode;
     if (mode && mode !== "deterministic") return;
+    if (!peekAiEnhancementEnabled()) return;
+
     let ignore = false;
-    const timer = window.setTimeout(() => {
+    let polls = 0;
+    const maxPolls = 6;
+
+    const tick = () => {
+      if (ignore || polls >= maxPolls) return;
+      polls += 1;
       lovecompassApi
         .getAttemptResult(attemptId)
         .then((r) => {
@@ -171,13 +193,19 @@ function ResultPage() {
           const nextMode = next.result_payload?.ai_content?.mode;
           if (nextMode && nextMode !== mode) {
             setData(next);
+            return;
           }
+          if (polls < maxPolls) window.setTimeout(tick, 10_000);
         })
-        .catch(() => undefined);
-    }, 8000);
+        .catch(() => {
+          if (!ignore && polls < maxPolls) window.setTimeout(tick, 10_000);
+        });
+    };
+
+    const starter = window.setTimeout(tick, 10_000);
     return () => {
       ignore = true;
-      window.clearTimeout(timer);
+      window.clearTimeout(starter);
     };
   }, [attemptId, data]);
 

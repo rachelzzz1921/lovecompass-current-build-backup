@@ -15,7 +15,7 @@ export type AIAdapterGenerateOutput = {
 };
 
 const DEFAULT_ZHIPU_BASE_URL = 'https://open.bigmodel.cn/api/paas/v4';
-const DEFAULT_ZHIPU_MODEL = 'glm-4-flash';
+const DEFAULT_ZHIPU_MODEL = 'glm-4.5-air';
 
 function getAIConfig() {
   return {

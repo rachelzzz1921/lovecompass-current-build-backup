@@ -363,7 +363,7 @@ def compute_P3(male: dict[str, Any], female: dict[str, Any]) -> dict[str, Any]:
     return {"score": score, "level": _level_for_score("P3", score), "atoms": atoms}
 
 
-def compute_P4(male: dict[str, Any], female: dict[str, Any]) -> dict[str, Any]:
+def _collect_p4_alignments(male: dict[str, Any], female: dict[str, Any]) -> list[float]:
     m_fields = male.get("fields") or {}
     f_fields = female.get("fields") or {}
     alignments: list[float] = []
@@ -392,37 +392,60 @@ def compute_P4(male: dict[str, Any], female: dict[str, Any]) -> dict[str, Any]:
     if yh and th:
         alignments.append(100.0 if yh == th else 60.0)
 
-    if not alignments:
-        p3 = compute_P3(male, female)
-        score = p3["score"]
-    else:
-        score = sum(alignments) / len(alignments)
+    return alignments
 
+
+def compute_P4(male: dict[str, Any], female: dict[str, Any]) -> dict[str, Any]:
+    alignments = _collect_p4_alignments(male, female)
+    if not alignments:
+        return {
+            "score": None,
+            "level": "待评估",
+            "atoms": ["长期规划待评估"],
+            "pending": True,
+        }
+
+    score = sum(alignments) / len(alignments)
     atoms: list[str] = []
     if score >= 75:
         atoms.append("长期稳定")
     else:
         atoms.append("规划待对齐")
-    return {"score": score, "level": _level_for_score("P4", score), "atoms": atoms}
+    return {"score": score, "level": _level_for_score("P4", score), "atoms": atoms, "pending": False}
 
 
 def aggregate_score(modules: dict[str, dict[str, Any]]) -> int:
-    weights = load_pair_model().get("module_weights") or {
-        "P1": 0.30,
-        "P2": 0.25,
-        "P3": 0.15,
-        "P4": 0.15,
-        "P5": 0.10,
-        "P6": 0.05,
-    }
-    raw = (
-        float(modules["P1"]["score"]) * float(weights.get("P1", 0.30))
-        + float(modules["P2"]["score"]) * float(weights.get("P2", 0.25))
-        + float(modules["P3"]["score"]) * float(weights.get("P3", 0.15))
-        + float(modules["P4"]["score"]) * float(weights.get("P4", 0.15))
-        + (100.0 - float(modules["P5"]["score"])) * float(weights.get("P5", 0.10))
-        + float(modules["P6"]["score"]) * float(weights.get("P6", 0.05))
+    weights = dict(
+        load_pair_model().get("module_weights")
+        or {
+            "P1": 0.30,
+            "P2": 0.25,
+            "P3": 0.15,
+            "P4": 0.15,
+            "P5": 0.10,
+            "P6": 0.05,
+        }
     )
+    p4 = modules.get("P4") or {}
+    if p4.get("pending") or p4.get("score") is None:
+        p4_weight = float(weights.pop("P4", 0.15))
+        p1_w = float(weights.get("P1", 0.30))
+        p2_w = float(weights.get("P2", 0.25))
+        share = p1_w + p2_w
+        if share > 0:
+            weights["P1"] = p1_w + p4_weight * (p1_w / share)
+            weights["P2"] = p2_w + p4_weight * (p2_w / share)
+
+    raw = 0.0
+    for key, weight in weights.items():
+        mod = modules.get(key) or {}
+        score = mod.get("score")
+        if score is None:
+            continue
+        if key == "P5":
+            raw += (100.0 - float(score)) * float(weight)
+        else:
+            raw += float(score) * float(weight)
     return round(max(0.0, min(100.0, raw)))
 
 
@@ -821,10 +844,11 @@ def build_verdict(score: int, modules: dict[str, dict[str, Any]], deal_items: di
         when = str(rule.get("when") or "")
         if when == "default":
             continue
-        if when == "P1_high+P4_high" and float(p1["score"]) >= 75 and float(p4["score"]) >= 75:
+        p4_score = p4.get("score")
+        if when == "P1_high+P4_high" and float(p1["score"]) >= 75 and p4_score is not None and float(p4_score) >= 75:
             oneliner = rule.get("text", oneliner)
             break
-        if when == "P1_high+P4_mid" and float(p1["score"]) >= 75 and 55 <= float(p4["score"]) < 75:
+        if when == "P1_high+P4_mid" and float(p1["score"]) >= 75 and p4_score is not None and 55 <= float(p4_score) < 75:
             oneliner = rule.get("text", oneliner)
             break
         if when == "P1_mid+P2_high" and 55 <= float(p1["score"]) < 75 and float(p2["score"]) >= 75:
@@ -975,7 +999,15 @@ def build_couple_payload(
         "attention": attention,
         "conclusion": conclusion,
         "ai_context": ai_context,
-        "modules": {k: {"score": v["score"], "level": v.get("level"), "atoms": v.get("atoms") or []} for k, v in modules.items()},
+        "modules": {
+            k: {
+                "score": v.get("score"),
+                "level": v.get("level"),
+                "atoms": v.get("atoms") or [],
+                "pending": bool(v.get("pending")),
+            }
+            for k, v in modules.items()
+        },
         "supplementComplete": bool(_user_supplement_complete(you_sup) and _user_supplement_complete(ta_sup)),
         "youSupplementComplete": _user_supplement_complete(you_sup),
         "taSupplementComplete": _user_supplement_complete(ta_sup),
@@ -986,7 +1018,12 @@ def build_couple_payload(
             "keywords": atoms[:5],
         },
         "relationship_analysis": {
-            code: {"level": mod.get("level"), "desc": "", "score": mod.get("score")}
+            code: {
+                "level": mod.get("level"),
+                "desc": "",
+                "score": mod.get("score"),
+                "pending": bool(mod.get("pending")),
+            }
             for code, mod in modules.items()
             if code != "P6"
         },

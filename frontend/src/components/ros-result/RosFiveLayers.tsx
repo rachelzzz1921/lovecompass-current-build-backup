@@ -4,6 +4,7 @@ import { ChevronDown } from "lucide-react";
 import { useState } from "react";
 import type { RosLayerDetail, RosSingleResult } from "@/data/rosTypes";
 import { chatRouteSearch } from "@/lib/chatRouteSearch";
+import { coupleReportEligible, coupleReportUpgradeRoute } from "@/lib/coupleReport";
 import { rosLayerChatPrefill, rosPartnerInvitePrefill } from "@/lib/rosLayerChatPrefill";
 
 import { RosLayerRadar } from "@/components/ros-result/RosLayerRadar";
@@ -76,13 +77,16 @@ export function RosFiveLayers({
   result,
   attemptId,
   inviteCode,
+  suiteSlug,
   exampleMode = false,
 }: {
   result: RosSingleResult;
   attemptId: string;
   inviteCode: string;
+  suiteSlug?: string | null;
   exampleMode?: boolean;
 }) {
+  const canCoupleReport = exampleMode || coupleReportEligible("ros", suiteSlug);
   const [open, setOpen] = useState<string | null>(null);
   const valueOf = (k: string) => result.dims.find((d) => d.key === k)?.value ?? 0;
 
@@ -212,6 +216,7 @@ export function RosFiveLayers({
                       ) : null}
 
                       {!exampleMode ? (
+                        canCoupleReport ? (
                         <div className="rounded-xl p-3 border border-dashed border-white/15">
                           <div className="text-[10px] text-white/45 mb-1">如果对方来做会怎样</div>
                           <p className="text-xs text-white/60">
@@ -240,6 +245,20 @@ export function RosFiveLayers({
                             邀请他/她来做 →
                           </Link>
                         </div>
+                        ) : (
+                        <div className="rounded-xl border border-dashed border-white/10 px-3 py-2.5 mt-3 space-y-2">
+                          <p className="text-[11px] text-white/45 leading-relaxed">
+                            快速版无法合测双人报告。升级完整版后可邀请 TA 作答。
+                          </p>
+                          <Link
+                            to={coupleReportUpgradeRoute("ros").to}
+                            search={coupleReportUpgradeRoute("ros").search}
+                            className="inline-flex text-xs text-[#c2c4ff] hover:underline"
+                          >
+                            了解完整版与双人报告 →
+                          </Link>
+                        </div>
+                        )
                       ) : null}
                     </div>
                   </motion.div>

@@ -24,6 +24,7 @@ import {
   takeStashedSubmitResult,
 } from "@/lib/pendingAttemptSubmit";
 import { formatApiErrorMessage } from "@/lib/apiErrors";
+import { fetchAiEnhancementEnabled } from "@/lib/aiCapabilities";
 import type { SubmitAttemptResponse } from "@/lib/resultRoutes";
 import { lovecompassApi } from "@/lib/lovecompassApi";
 import { ApiErrorPanel } from "@/components/ApiErrorPanel";
@@ -93,6 +94,10 @@ function AnalyzingPage() {
   });
   const timelineStartRef = useRef<number | null>(null);
   const completionScheduledRef = useRef(false);
+
+  useEffect(() => {
+    void fetchAiEnhancementEnabled();
+  }, []);
 
   const applySubmitResult = (res: SubmitAttemptResponse) => {
     if (res.relationCode && typeof window !== "undefined") {

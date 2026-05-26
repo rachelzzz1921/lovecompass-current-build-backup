@@ -9,6 +9,7 @@ from app.universal_redemption import (
     is_universal_code,
     normalize_input_code,
     resolve_suite_slug,
+    shadow_base_slug,
     shadow_code_for_suite,
 )
 
@@ -34,9 +35,15 @@ def test_shadow_code_format() -> None:
     assert normalize_input_code("  mirror-all-access ") == "MIRRORALLACCESS"
 
 
+def test_shadow_base_slug_uses_full_suite() -> None:
+    assert shadow_base_slug("s02_ros_female_lite") == "s02_ros_female"
+    assert shadow_code_for_suite(shadow_base_slug("s03_mate_male_lite")) == "__UNIVERSAL__s03_mate_male"
+
+
 if __name__ == "__main__":
     test_universal_code_match()
     test_resolve_suite_by_product_and_gender()
     test_resolve_suite_prefers_explicit_slug()
     test_shadow_code_format()
+    test_shadow_base_slug_uses_full_suite()
     print("ok")

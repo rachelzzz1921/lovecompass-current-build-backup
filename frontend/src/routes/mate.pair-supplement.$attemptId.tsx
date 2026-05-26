@@ -5,6 +5,7 @@ import { ArrowLeft, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { QuestionRenderer } from "@/components/questions/QuestionRenderer";
 import { ApiErrorPanel } from "@/components/ApiErrorPanel";
+import { CoupleReportUnavailableNotice } from "@/components/CoupleReportUnavailableNotice";
 import { formatApiErrorMessage } from "@/lib/apiErrors";
 import { AuthChecking, useRequireAuth } from "@/lib/requireAuth";
 import { lovecompassApi } from "@/lib/lovecompassApi";
@@ -133,6 +134,24 @@ function MatePairSupplementPage() {
     );
   }
   if (error) {
+    const liteBlocked = /快速版|完整版/.test(error);
+    if (liteBlocked) {
+      return (
+        <main className="relative min-h-screen flex flex-col items-center justify-center px-5 py-12" style={{ background: "#100a0d" }}>
+          <div className="w-full max-w-lg space-y-4">
+            <Link
+              to="/result/mate/$id"
+              params={{ id: attemptId }}
+              className="inline-flex items-center gap-2 text-sm text-white/55 hover:text-white transition"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              返回档案
+            </Link>
+            <CoupleReportUnavailableNotice productId="mate" surface="light" />
+          </div>
+        </main>
+      );
+    }
     return (
       <ApiErrorPanel title="无法加载补充题" message={error} backTo={{ to: "/result/mate/$id", params: { id: attemptId }, label: "返回档案" }} />
     );

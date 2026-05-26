@@ -25,7 +25,7 @@
 ## Prompt 注入顺序
 
 ```
-system (MIRROR_CHAT_BASE)
+system (MIRROR_CHAT_BASE + 顾问气质层，代码合并，见 counselor_personas.py)
 → mirror-tone
 → crisis-guard（若触发）
 → portrait-reader（已登录用户）

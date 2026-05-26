@@ -13,6 +13,7 @@ import {
   getCounselor,
   type Counselor,
 } from "@/lib/counselors";
+import { streamChatMessage } from "@/lib/chatStream";
 import { deriveChatFlags, isAiPlaceholderReply, loadChatState, type ChatUiMessage } from "@/lib/chatState";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -141,28 +142,58 @@ function ChatPage() {
     const trimmed = text.trim();
     if (!trimmed || thinking) return;
     setInput("");
-    setMessages((m) => [...m, { role: "user", text: trimmed, ts: Date.now() }]);
+    const aiTs = Date.now();
+    setMessages((m) => [
+      ...m,
+      { role: "user", text: trimmed, ts: aiTs - 1 },
+      { role: "ai", text: "", ts: aiTs },
+    ]);
     setThinking(true);
     try {
-      const res = await lovecompassApi.sendChatMessage({
-        attemptId: boundAttemptId,
-        analystId: active.id,
-        message: trimmed,
-      });
-      if (res.context) {
-        setChatContext(res.context);
-        if (res.context.attemptId) setBoundAttemptId(res.context.attemptId);
-      }
-      setMessages((m) => [...m, { role: "ai", text: res.message, ts: Date.now() }]);
-    } catch (error) {
-      setMessages((m) => [
-        ...m,
+      await streamChatMessage(
         {
-          role: "ai",
-          text: formatApiErrorMessage(error),
-          ts: Date.now(),
+          attemptId: boundAttemptId,
+          analystId: active.id,
+          message: trimmed,
         },
-      ]);
+        {
+          onMeta: (partial) => {
+            if (partial.context) {
+              setChatContext(partial.context);
+              if (partial.context.attemptId) setBoundAttemptId(partial.context.attemptId);
+            }
+          },
+          onDelta: (chunk) => {
+            setMessages((m) => {
+              const last = m[m.length - 1];
+              if (!last || last.role !== "ai") return m;
+              return [...m.slice(0, -1), { ...last, text: last.text + chunk }];
+            });
+          },
+          onDone: (res) => {
+            if (res.context) {
+              setChatContext(res.context);
+              if (res.context.attemptId) setBoundAttemptId(res.context.attemptId);
+            }
+            setMessages((m) => {
+              const last = m[m.length - 1];
+              if (!last || last.role !== "ai") return m;
+              return [...m.slice(0, -1), { ...last, text: res.message }];
+            });
+          },
+        },
+      );
+    } catch (error) {
+      setMessages((m) => {
+        const last = m[m.length - 1];
+        if (last?.role === "ai" && !last.text) {
+          return [...m.slice(0, -1), { role: "ai", text: formatApiErrorMessage(error), ts: last.ts }];
+        }
+        return [
+          ...m,
+          { role: "ai", text: formatApiErrorMessage(error), ts: Date.now() },
+        ];
+      });
     } finally {
       setThinking(false);
     }

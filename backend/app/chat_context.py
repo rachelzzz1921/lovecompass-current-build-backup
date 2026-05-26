@@ -22,6 +22,7 @@ from app.suite_context import (
 
 from app.report_utils import looks_like_placeholder_report
 from app.ros_chat_layers import build_ros_inquiry_layer
+from app.suite_context import resolve_attempt_product_set
 
 
 def extract_dimensions(result_payload: dict[str, Any], dimension_scores: Any) -> list[dict[str, Any]]:
@@ -468,6 +469,123 @@ def save_message(conn: Any, session_id: str, user_id: str, role: str, content: s
     )
 
 
+CHAT_PROFILE_DETAIL_ACK = "明白，当前测评详情已记录，我不会直接复读，会在需要时织入。"
+
+CHAT_ANSWER_REQUIREMENTS = """【本轮回答要求】
+- 严格保持当前顾问人格，不混用其他顾问风格
+- 有画像时至少织入一条具体画像线索作为依据（自然语言，不暴露字段名）
+- 不给关系结果的绝对判断
+- 如用户问题简短（少于 20 字）或情绪激动，可省略完整输出结构
+- 禁止以「我理解你的感受」「作为 AI 我……」「首先其次最后」开头"""
+
+def _profile_anchor_ack(bound_product_set: str | None, has_portrait: bool, has_profile: bool) -> str:
+    if has_profile and bound_product_set:
+        from app.chat_prompt_layers import _suite_label
+
+        label = _suite_label(bound_product_set)
+        if has_portrait:
+            return (
+                f"好的，我已了解你在 {label} 的画像，以及其他套件的摘要线索。"
+                "后续回答会严格依据上述测评结果。"
+            )
+        return f"好的，我已了解你在 {label} 的画像。后续回答会严格依据上述测评结果。"
+    if has_portrait:
+        return "好的，我已了解你目前的综合画像摘要。后续回答会严格依据上述测评结果。"
+    return "好的，我们直接聊。"
+
+
+def build_chat_messages(
+    analyst: dict[str, Any],
+    attempt: dict[str, Any] | None,
+    history: list[dict[str, str]],
+    user_message: str,
+    *,
+    conn: Any | None = None,
+    user_id: str | None = None,
+    crisis_level: str = "none",
+) -> list[dict[str, str]]:
+    """OpenAI 多轮 messages：system 锁人格，画像锚定，历史多轮，末条 user 为当前问题。"""
+    system = str(analyst.get("system_prompt") or "").strip()
+    skill_body = str(analyst.get("persona_prompt") or "").strip()
+    tone_layer = build_mirror_tone_layer()
+    crisis_layer = build_crisis_guard_layer(crisis_level)  # type: ignore[arg-type]
+    ros_inquiry_layer = build_ros_inquiry_layer(user_message, attempt)
+
+    bound_product_set: str | None = None
+    if attempt:
+        try:
+            bound_product_set = resolve_attempt_product_set(attempt)
+        except Exception:
+            bound_product_set = None
+
+    portrait_layer = ""
+    if conn is not None and user_id:
+        try:
+            if attempt and bound_product_set:
+                portrait_layer = build_portrait_reader_layer(
+                    conn, user_id, exclude_product_set=bound_product_set
+                )
+            else:
+                portrait_layer = build_portrait_reader_layer(conn, user_id)
+        except Exception:
+            portrait_layer = ""
+
+    if attempt:
+        profile_block = (
+            build_effective_profile_block(conn, user_id, attempt)
+            if conn is not None and user_id
+            else build_profile_context_block(attempt)
+        )
+    elif conn is not None and user_id:
+        profile_block = ""
+    else:
+        profile_block = build_unbound_context_message() if not attempt else build_profile_context_block(attempt)
+
+    system_parts = [system, tone_layer]
+    if crisis_layer:
+        system_parts.append(crisis_layer)
+    if skill_body:
+        system_parts.append(f"【Agent Skill — 智能体定义，必须严格遵守】\n{skill_body}")
+    system_content = "\n\n".join(p for p in system_parts if p and p.strip())
+
+    messages: list[dict[str, str]] = [{"role": "system", "content": system_content}]
+
+    has_portrait = bool(portrait_layer.strip())
+    has_profile = bool(profile_block.strip())
+
+    if has_portrait:
+        messages.append({"role": "user", "content": portrait_layer})
+        messages.append(
+            {
+                "role": "assistant",
+                "content": _profile_anchor_ack(bound_product_set, True, False),
+            }
+        )
+
+    if has_profile:
+        messages.append({"role": "user", "content": profile_block})
+        messages.append({"role": "assistant", "content": CHAT_PROFILE_DETAIL_ACK})
+    elif not has_portrait and not attempt:
+        messages.append({"role": "assistant", "content": _profile_anchor_ack(None, False, False)})
+
+    for item in history:
+        role = str(item.get("role") or "user")
+        if role not in ("user", "assistant"):
+            role = "user"
+        content = str(item.get("content") or "").strip()
+        if content:
+            messages.append({"role": role, "content": content})
+
+    final_user_parts: list[str] = []
+    if ros_inquiry_layer:
+        final_user_parts.append(ros_inquiry_layer)
+    final_user_parts.append(user_message.strip())
+    final_user_parts.append(CHAT_ANSWER_REQUIREMENTS)
+    messages.append({"role": "user", "content": "\n\n".join(final_user_parts)})
+
+    return messages
+
+
 def build_chat_prompt(
     analyst: dict[str, Any],
     attempt: dict[str, Any] | None,
@@ -478,53 +596,16 @@ def build_chat_prompt(
     user_id: str | None = None,
     crisis_level: str = "none",
 ) -> str:
-    system = str(analyst.get("system_prompt") or "").strip()
-    skill_body = str(analyst.get("persona_prompt") or "").strip()
-    tone_layer = build_mirror_tone_layer()
-    crisis_layer = build_crisis_guard_layer(crisis_level)  # type: ignore[arg-type]
-    portrait_layer = ""
-    if conn is not None and user_id:
-        try:
-            portrait_layer = build_portrait_reader_layer(conn, user_id)
-        except Exception:
-            portrait_layer = ""
-    profile_block = build_effective_profile_block(conn, user_id, attempt) if conn is not None and user_id else (
-        build_profile_context_block(attempt) if attempt else build_unbound_context_message()
-    )
-    ros_inquiry_layer = build_ros_inquiry_layer(user_message, attempt)
-
-    history_lines = []
-    for item in history:
-        label = "用户" if item["role"] == "user" else "顾问"
-        history_lines.append(f"{label}：{item['content']}")
-    history_text = "\n".join(history_lines) if history_lines else "（本次会话尚无历史消息）"
-
-    layers = [system, tone_layer]
-    if crisis_layer:
-        layers.append(crisis_layer)
-    if portrait_layer:
-        layers.append(portrait_layer)
-    if ros_inquiry_layer:
-        layers.append(ros_inquiry_layer)
-
-    return f"""
-{chr(10).join(layers)}
-
-【Agent Skill — 智能体定义，必须严格遵守】
-{skill_body}
-
-{profile_block}
-
-【本次会话最近对话】
-{history_text}
-
-【用户当前问题】
-{user_message}
-
-回答要求：
-- 必须基于上方真实测试画像与完整画像摘要作答；有画像时禁止说「尚未接入数据」或「接口未接通」。
-- 严格遵循 mirror-tone 与各顾问 Skill 的「输出格式」与「表达 DNA」；你是该人格本身，不是通用 AI 助手。
-- 禁止「我理解你的感受」「首先其次最后」等客服腔；禁止与其他顾问混用语气。
-- 具体、有内容；不要暴露数据库字段、prompt、JSON、SA 编号。
-- 关系决策类问题：给出可观察的信号与思考框架，不做绝对化预言。
-""".strip()
+    """Deprecated：单条 prompt 拼接，仅供调试；生产路径用 build_chat_messages。"""
+    parts = []
+    for item in build_chat_messages(
+        analyst,
+        attempt,
+        history,
+        user_message,
+        conn=conn,
+        user_id=user_id,
+        crisis_level=crisis_level,
+    ):
+        parts.append(f"[{item['role']}]\n{item['content']}")
+    return "\n\n---\n\n".join(parts)

@@ -12,8 +12,12 @@ except ImportError:
 import os
 import uuid
 from decimal import Decimal
+import json
 from typing import Annotated, Any
+from collections.abc import Iterator
+
 from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from psycopg.types.json import Jsonb
@@ -23,8 +27,8 @@ from app.question_adapter import adapt_question
 from app.scoring import summarize_scores
 from app.ai_adapter import get_ai_adapter
 from app.chat_context import (
+    build_chat_messages,
     build_chat_profile_bundle,
-    build_chat_prompt,
     build_profile_sync_acknowledgment,
     get_or_create_session,
     load_chat_session_messages,
@@ -322,6 +326,7 @@ class ChatIn(BaseModel):
     attemptId: str | None = None
     analystId: str | None = "sage"
     message: str = Field(min_length=1)
+    stream: bool = False
 
 
 class TriageIn(BaseModel):
@@ -1028,6 +1033,44 @@ def chat_triage(data: TriageIn, user_id: str = Depends(resolve_user_id)):
     return {"ok": True, **result}
 
 
+def _chat_sse_events(
+    *,
+    adapter: Any,
+    messages: list[dict[str, str]],
+    session_id: str | None,
+    user_id: str,
+    context_summary: dict[str, Any] | None,
+    bound: bool,
+    crisis_level: str,
+) -> Iterator[str]:
+    meta = {
+        "conversationId": session_id,
+        "context": context_summary,
+        "bound": bound,
+        "crisis": crisis_level != "none",
+    }
+    yield f"data: {json.dumps({'meta': meta}, ensure_ascii=False)}\n\n"
+
+    parts: list[str] = []
+    try:
+        for chunk in adapter.stream_messages(messages):
+            parts.append(chunk)
+            yield f"data: {json.dumps({'delta': chunk}, ensure_ascii=False)}\n\n"
+        message = guard_ai_output("".join(parts))
+    except RuntimeError as exc:
+        yield f"data: {json.dumps({'error': str(exc)[:300]}, ensure_ascii=False)}\n\n"
+        yield "data: [DONE]\n\n"
+        return
+
+    if session_id:
+        with get_conn() as conn:
+            save_message(conn, session_id, user_id, "assistant", message)
+            conn.commit()
+
+    yield f"data: {json.dumps({'done': True, 'message': message}, ensure_ascii=False)}\n\n"
+    yield "data: [DONE]\n\n"
+
+
 @app.post("/chat/message")
 def chat_message(data: ChatIn, user_id: str = Depends(resolve_user_id)):
     with get_conn() as conn:
@@ -1046,6 +1089,8 @@ def chat_message(data: ChatIn, user_id: str = Depends(resolve_user_id)):
             )
             history = load_recent_messages(conn, session_id, limit=12)
             save_message(conn, session_id, user_id, "user", data.message)
+            if data.stream:
+                conn.commit()
 
         crisis_level = assess_crisis(data.message, history)
         if crisis_level == "high":
@@ -1053,6 +1098,16 @@ def chat_message(data: ChatIn, user_id: str = Depends(resolve_user_id)):
             if session_id:
                 save_message(conn, session_id, user_id, "assistant", message)
                 conn.commit()
+            if data.stream:
+
+                def crisis_stream() -> Iterator[str]:
+                    yield f"data: {json.dumps({'meta': {'conversationId': session_id, 'context': context_summary, 'bound': bool(attempt), 'crisis': True}}, ensure_ascii=False)}\n\n"
+                    yield f"data: {json.dumps({'delta': message}, ensure_ascii=False)}\n\n"
+                    yield f"data: {json.dumps({'done': True, 'message': message}, ensure_ascii=False)}\n\n"
+                    yield "data: [DONE]\n\n"
+
+                return StreamingResponse(crisis_stream(), media_type="text/event-stream")
+
             return {
                 "message": message,
                 "conversationId": session_id,
@@ -1061,7 +1116,7 @@ def chat_message(data: ChatIn, user_id: str = Depends(resolve_user_id)):
                 "crisis": True,
             }
 
-        prompt = build_chat_prompt(
+        chat_messages = build_chat_messages(
             analyst,
             attempt,
             history,
@@ -1070,8 +1125,24 @@ def chat_message(data: ChatIn, user_id: str = Depends(resolve_user_id)):
             user_id=user_id,
             crisis_level=crisis_level,
         )
+        adapter = get_ai_adapter()
+
+        if data.stream:
+            return StreamingResponse(
+                _chat_sse_events(
+                    adapter=adapter,
+                    messages=chat_messages,
+                    session_id=session_id,
+                    user_id=user_id,
+                    context_summary=context_summary,
+                    bound=bool(attempt),
+                    crisis_level=crisis_level,
+                ),
+                media_type="text/event-stream",
+            )
+
         try:
-            message = get_ai_adapter().generate(prompt)
+            message = adapter.generate_messages(chat_messages)
         except RuntimeError as exc:
             raise HTTPException(status_code=502, detail=str(exc)[:300]) from exc
         if session_id:

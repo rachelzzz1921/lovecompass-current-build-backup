@@ -352,88 +352,423 @@ def _format_suite_summary(label: str, summary: dict[str, Any] | None) -> str:
     return " · ".join(parts)
 
 
-def build_portrait_reader_layer(conn: Any, user_id: str) -> str:
-    try:
-        portrait = rebuild_and_cache_portrait(conn, user_id)
-    except Exception:
-        portrait = build_portrait(conn, user_id)
+SUITE_LABELS = {
+    "SELF": "套一 SELF",
+    "ROS": "套二 ROS",
+    "MATE": "套三 MATE",
+}
 
-    lib = load_phrase_library()
+PORTRAIT_READER_WITH_ATTEMPT = """
+【跨套画像摘要 · 补充视角层】
+当前对话已绑定：{bound_suite_label}（详细画像见下一条 profile_block）
+以下为其他已完成套件的摘要，仅作补充，不重复 profile_block 内容
+
+{other_suite_headlines}
+
+跨套联动线索（优先用于「为什么总是这样」类模式追问）：
+{cross_model_summary}
+
+使用规范：
+- 用户问当前套（{bound_suite_label}）相关问题：不引用本层，以 profile_block 为准
+- 用户问模式/根源/为什么反复：优先引用跨套联动线索
+- 用户问其他套细节：可轻度引用 other_suite_headlines，但提醒「这套没有绑定，细节有限」
+- 禁止报具体分数和维度编号；禁止说「根据你的测试」「你的数据显示」
+  → 改用：「从你描述的方式来看」「你提到的这个倾向」
+""".strip()
+
+PORTRAIT_READER_NO_ATTEMPT = """
+【跨套画像摘要 · 主要画像层】
+用户已完成以下套件，以下为综合摘要（画像完整度 {completeness_percent}% · {completeness_label}）：
+
+{all_suite_headlines}
+
+跨套联动线索：
+{cross_model_summary}
+
+使用规范：
+- 回答时优先织入与用户问题最相关的套件线索
+- 跨套联动线索用于模式类、根源类问题
+- 禁止报具体分数和维度编号
+- 禁止说「尚未接入数据」
+""".strip()
+
+PORTRAIT_READER_NO_DATA = """
+【画像状态：用户尚未完成任何套件】
+- 完全基于对话内容回答
+- 不说「你还没有画像」「等你完成测试」等催促话术
+- 可在合适时机自然提及：「如果你做过 SELF 测评，我们可以看得更深」
+- 禁止说「尚未接入数据」
+""".strip()
+
+
+def _suite_label(product_set: str) -> str:
+    return SUITE_LABELS.get(product_set.upper(), product_set)
+
+
+def _build_suite_headline_natural(product_set: str, summary: dict[str, Any]) -> str:
+    ps = product_set.upper()
+    theme = str(summary.get("tagline") or summary.get("description") or "").strip()
+    theme_bit = f"——{theme[:40]}" if theme else ""
+
+    if ps == "SELF":
+        attachment = summary.get("attachmentType") or summary.get("primaryMetric") or "待判断"
+        return f"· SELF：你在自我关系上的底色是「{attachment}」{theme_bit}"
+    if ps == "ROS":
+        rel = summary.get("relationshipType") or summary.get("primaryMetric") or "这段关系"
+        stage = summary.get("relationshipStage") or "进行中"
+        return f"· ROS：这段关系目前的主型是「{rel}」，处于「{stage}」阶段{theme_bit}"
+    if ps == "MATE":
+        pos = _mate_position_from_summary(summary) or summary.get("primaryMetric") or "待定位"
+        return f"· MATE：在择偶市场上，你的位置偏向「{pos}」{theme_bit}"
+    return f"· {ps}：{summary.get('primaryMetric') or '已完成'}{theme_bit}"
+
+
+def _format_cross_summary(linkage: list[str]) -> str:
+    if not linkage:
+        return "（暂无跨套联动，可仅依据各套摘要回答）"
+    return "\n".join(f"  · {line}" for line in linkage)
+
+
+def _portrait_latest_map(portrait: dict[str, Any]) -> dict[str, dict[str, Any] | None]:
     latest: dict[str, dict[str, Any] | None] = {key: None for key in PRODUCT_SETS}
     for product in portrait.get("products") or []:
         ps = product.get("productSet")
         if ps in latest and product.get("latest"):
             latest[ps] = product["latest"]
+    return latest
 
-    completeness = portrait.get("completeness") or {}
+
+def build_portrait_reader_layer(
+    conn: Any,
+    user_id: str,
+    *,
+    exclude_product_set: str | None = None,
+) -> str:
+    """跨套画像摘要；exclude_product_set = 当前绑定套（详情在 profile_block，此处只列其他套）。"""
+    try:
+        portrait = rebuild_and_cache_portrait(conn, user_id)
+    except Exception:
+        portrait = build_portrait(conn, user_id)
+
+    latest = _portrait_latest_map(portrait)
+    if not any(latest.values()):
+        return PORTRAIT_READER_NO_DATA
+
+    lib = load_phrase_library()
     linkage = _build_linkage_lines(latest.get("SELF"), latest.get("ROS"), latest.get("MATE"), lib)
-    skill = load_shared_skill("portrait-reader")
+    cross_summary = _format_cross_summary(linkage)
+    completeness = portrait.get("completeness") or {}
+    bound = (exclude_product_set or "").strip().upper() or None
 
-    lines = [
-        "【MIRROR 完整画像摘要 — portrait-reader · 跨套联动，必须作为依据】",
-        f"画像完整度：{completeness.get('percent', 0)}% · {completeness.get('label', '等待测试')}",
-        _format_suite_summary("套一 SELF", latest.get("SELF")),
-        _format_suite_summary("套二 ROS", latest.get("ROS")),
-        _format_suite_summary("套三 MATE", latest.get("MATE")),
-    ]
-    if linkage:
-        lines.append("套间联动：")
-        lines.extend(f"  · {item}" for item in linkage)
-    if skill:
-        lines.append(skill)
-    return "\n".join(lines)
+    if bound:
+        other_lines: list[str] = []
+        for key in PRODUCT_SETS:
+            if key == bound:
+                continue
+            summary = latest.get(key)
+            if summary:
+                other_lines.append(_build_suite_headline_natural(key, summary))
+        return PORTRAIT_READER_WITH_ATTEMPT.format(
+            bound_suite_label=_suite_label(bound),
+            other_suite_headlines="\n".join(other_lines) if other_lines else "（暂无其他已完成套件）",
+            cross_model_summary=cross_summary,
+        )
+
+    all_lines = []
+    for key in PRODUCT_SETS:
+        summary = latest.get(key)
+        if summary:
+            all_lines.append(_build_suite_headline_natural(key, summary))
+    return PORTRAIT_READER_NO_ATTEMPT.format(
+        completeness_percent=completeness.get("percent", 0),
+        completeness_label=completeness.get("label", "等待测试"),
+        all_suite_headlines="\n".join(all_lines) if all_lines else "（暂无摘要）",
+        cross_model_summary=cross_summary,
+    )
 
 
-def triage_counselor(message: str) -> dict[str, Any]:
-    text = message.strip().lower()
+# --- Triage v2: 否定词 mask + 意图模板 + 关键词融合 ---
+
+NEGATION_PATTERNS: tuple[str, ...] = (
+    r"不想(分手|崩溃|哭|放弃|离婚)",
+    r"不要(分手|离婚)",
+    r"没有(在哭|崩|失恋|分手)",
+    r"还没(分手|离婚)",
+    r"不是(分手|离婚|备胎)",
+    r"只是想(分析|聊聊|了解|说说)",
+    r"不是.*问题.*是.*",
+)
+
+INTENT_TEMPLATES: dict[str, list[tuple[str, float]]] = {
+    "haven": [
+        (r"(刚|刚刚).*(分手|被甩|被拒)", 0.9),
+        (r"(哭|崩|难受|睡不着).*(好久|很久|一直|整晚)", 0.85),
+        (r"(陪|陪我|在吗|我很难受|撑不住)", 0.8),
+        (r"(憋|压抑|说不出口).*(好久|很久|一直)", 0.75),
+    ],
+    "oracle": [
+        (r"(值不值得|要不要继续|还有没有必要)", 0.9),
+        (r"(他到底|她到底).*(喜不喜欢|什么意思|啥意思|爱不爱)", 0.85),
+        (r"(信号|暗示|什么意思).*(看不懂|不确定|搞不清)", 0.8),
+        (r"(追|表白|要不要).*(时机|时间|现在)", 0.75),
+    ],
+    "darwin": [
+        (r"(知道.*(不好|有问题)|明明.*(不对|不合适)).*(就是|但是|可是)", 0.9),
+        (r"(沉没成本|放不下|走不了|离不开|恋爱脑)", 0.85),
+        (r"(消耗|内耗|很累).*(还在|还没走|不知道怎么)", 0.8),
+        (r"(我是不是.*(备胎|将就|凑合))", 0.85),
+    ],
+    "sage": [
+        (r"(为什么.*(总是|一直|反复|每次))", 0.9),
+        (r"(依恋|模式|根源|深层|结构)", 0.85),
+        (r"(为什么我.*(这样|会这样|老是这样))", 0.8),
+    ],
+}
+
+# 关键词命中时若同时出现否定短语，则不计分（兼容旧逻辑）
+TRIAGE_KEYWORD_NEGATIONS: dict[str, dict[str, tuple[str, ...]]] = {
+    "haven": {
+        "分手": ("不想分手", "不要分手", "还没分手", "不是分手", "没有分手", "没分手", "并未分手"),
+        "离婚": ("不想离婚", "不要离婚", "还没离婚", "不是离婚"),
+        "失去": ("不想失去", "怕失去", "害怕失去"),
+    },
+    "darwin": {
+        "分手": ("不想分手", "不要分手", "还没分手"),
+        "止损": ("不想止损", "不必止损"),
+    },
+    "oracle": {
+        "备胎": ("不是备胎", "不想当备胎", "不愿当备胎"),
+    },
+}
+
+TRIAGE_INTENT_BOOSTS: tuple[tuple[str, str, int], ...] = (
+    ("haven", r"刚分手|分手了|失恋了|走不出来", 2),
+    ("oracle", r"他到底|她到底|什么意思|爱不爱我", 2),
+    ("darwin", r"恋爱脑|沉没成本|值不值得继续", 2),
+    ("sage", r"为什么总是|老是这样|重复出现", 2),
+)
+
+
+def _triage_keyword_counts(text: str) -> tuple[dict[str, int], dict[str, list[str]]]:
     scores: dict[str, int] = {slug: 0 for slug, _, _, _ in TRIAGE_RULES}
     hits: dict[str, list[str]] = {slug: [] for slug, _, _, _ in TRIAGE_RULES}
 
     for slug, keywords, _, _ in TRIAGE_RULES:
+        neg_map = TRIAGE_KEYWORD_NEGATIONS.get(slug, {})
         for kw in keywords:
-            if kw.lower() in text:
-                scores[slug] += 1
-                hits[slug].append(kw)
+            kw_l = kw.lower()
+            if kw_l not in text:
+                continue
+            blocked = False
+            for neg in neg_map.get(kw, ()):
+                if neg in text:
+                    blocked = True
+                    break
+            if blocked:
+                continue
+            scores[slug] += 1
+            hits[slug].append(kw)
 
-    best_slug = max(scores, key=lambda s: scores[s])
-    if scores[best_slug] == 0:
-        return {
-            "counselorId": "sage",
-            "counselorName": "学者 · Sage",
-            "confidence": "low",
-            "reason": "暂未识别明确意图，默认从结构看见入手；你也可以直接选四位顾问之一。",
-            "matchedSignals": [],
-            "alternatives": [
+    for slug, pattern, boost in TRIAGE_INTENT_BOOSTS:
+        if re.search(pattern, text):
+            scores[slug] += boost
+            hits[slug].append(f"intent:{pattern[:24]}")
+
+    return scores, hits
+
+
+def strip_negated_signals(message: str) -> str:
+    """把否定语境里的关键词 mask 掉再做关键词匹配。"""
+    text = message
+    for pattern in NEGATION_PATTERNS:
+        text = re.sub(pattern, "[NEGATED]", text, flags=re.IGNORECASE)
+    return text
+
+
+def match_intent_templates(message: str) -> dict[str, float]:
+    scores = {slug: 0.0 for slug, _, _, _ in TRIAGE_RULES}
+    clean = strip_negated_signals(message)
+    for counselor, patterns in INTENT_TEMPLATES.items():
+        for pattern, weight in patterns:
+            if re.search(pattern, clean, re.IGNORECASE):
+                scores[counselor] = max(scores[counselor], weight)
+    return scores
+
+
+TRIAGE_LLM_THRESHOLD = 0.65
+TRIAGE_VALID_SLUGS = frozenset({"haven", "oracle", "darwin", "sage"})
+
+TRIAGE_LLM_PROMPT = """
+你是 MIRROR 平台的分诊系统。根据用户消息，判断最适合的顾问。
+
+四位顾问核心定位：
+- haven：情绪崩溃、失恋、需要先被接住、长期压抑
+- oracle：值不值得、信号判断、择偶策略、尊严问题
+- darwin：恋爱脑、依赖模式、止损判断、关系位置
+- sage：为什么总这样、依恋根源、模式分析、深层结构
+
+用户消息：{message}
+
+只输出 JSON，不要 markdown 代码块，格式：
+{{"counselor":"haven|oracle|darwin|sage","confidence":0.0,"reason":"10字以内"}}
+""".strip()
+
+
+def _triage_meta_for_slug(slug: str) -> tuple[str, str]:
+    for s, _, cname, creason in TRIAGE_RULES:
+        if s == slug:
+            return cname, creason
+    return "学者 · Sage", "需要深度看见关系结构与重复模式。"
+
+
+def _confidence_label(score: float) -> str:
+    if score >= 0.85:
+        return "high"
+    if score >= 0.55:
+        return "medium"
+    return "low"
+
+
+def _triage_result_payload(
+    slug: str,
+    *,
+    confidence: str,
+    reason: str | None = None,
+    matched_signals: list[str] | None = None,
+    fused: dict[str, float] | None = None,
+    alternatives: list[dict[str, Any]] | None = None,
+    source: str = "rules",
+) -> dict[str, Any]:
+    name, default_reason = _triage_meta_for_slug(slug)
+    alts: list[dict[str, Any]] = list(alternatives or [])
+    if not alts and fused:
+        alts = [
+            {"counselorId": s, "label": cname, "score": round(fused[s], 2)}
+            for s, _, cname, _ in TRIAGE_RULES
+            if s != slug and fused.get(s, 0) >= 0.35
+        ][:2]
+    signals = list(matched_signals or [])
+    if source == "llm":
+        signals.append("triage:llm")
+    return {
+        "counselorId": slug,
+        "counselorName": name,
+        "confidence": confidence,
+        "reason": reason or default_reason,
+        "matchedSignals": signals[:5],
+        "alternatives": alts,
+    }
+
+
+def _triage_llm_enabled() -> bool:
+    import os
+
+    flag = os.getenv("TRIAGE_USE_LLM", "1").strip().lower()
+    return flag not in ("0", "false", "no", "off")
+
+
+def triage_with_llm(message: str) -> dict[str, Any] | None:
+    """轻量 LLM 分诊；失败时返回 None 由规则兜底。"""
+    if not _triage_llm_enabled():
+        return None
+    text = (message or "").strip()
+    if not text:
+        return None
+
+    try:
+        from app.ai_adapter import get_ai_adapter
+        from app.semantic_translation import guard_ai_json
+
+        adapter = get_ai_adapter()
+        prompt = TRIAGE_LLM_PROMPT.format(message=text[:800])
+        raw = adapter.generate(prompt, json_mode=True)
+        payload = json.loads(guard_ai_json(raw) if raw.strip().startswith("{") else raw)
+    except Exception:
+        return None
+
+    counselor = str(payload.get("counselor") or payload.get("counselorId") or "sage").strip().lower()
+    if counselor not in TRIAGE_VALID_SLUGS:
+        counselor = "sage"
+
+    try:
+        conf_num = float(payload.get("confidence", 0.7))
+    except (TypeError, ValueError):
+        conf_num = 0.7
+    conf_num = max(0.0, min(1.0, conf_num))
+    reason = str(payload.get("reason") or "").strip()[:80]
+
+    return _triage_result_payload(
+        counselor,
+        confidence=_confidence_label(conf_num),
+        reason=reason or None,
+        source="llm",
+    )
+
+
+def _triage_fused_scores(message: str) -> tuple[dict[str, float], dict[str, list[str]]]:
+    raw = message.strip().lower()
+    clean = strip_negated_signals(raw)
+    keyword_scores, hits = _triage_keyword_counts(clean)
+    template_scores = match_intent_templates(raw)
+
+    slugs = [slug for slug, _, _, _ in TRIAGE_RULES]
+    fused: dict[str, float] = {}
+    for slug in slugs:
+        kw = keyword_scores.get(slug, 0)
+        tpl = template_scores.get(slug, 0.0)
+        fused[slug] = kw * 0.3 + tpl * 0.7
+        if tpl >= 0.85:
+            fused[slug] += 0.5
+    return fused, hits
+
+
+def triage_counselor(message: str) -> dict[str, Any]:
+    text = message.strip().lower()
+    if not text:
+        return _triage_result_payload(
+            "sage",
+            confidence="low",
+            reason="暂未识别明确意图，默认从结构看见入手。",
+        )
+
+    fused, hits = _triage_fused_scores(text)
+    best_slug = max(fused, key=lambda s: fused[s])
+    top_score = fused[best_slug]
+
+    if top_score < TRIAGE_LLM_THRESHOLD:
+        llm_result = triage_with_llm(message)
+        if llm_result:
+            return llm_result
+
+    if top_score < 0.35:
+        return _triage_result_payload(
+            "sage",
+            confidence="low",
+            reason="暂未识别明确意图，默认从结构看见入手；你也可以直接选四位顾问之一。",
+            alternatives=[
                 {"counselorId": "oracle", "label": "祖师爷 · 直球真话"},
                 {"counselorId": "haven", "label": "港湾 · 陪伴"},
                 {"counselorId": "darwin", "label": "进化论 · 策略"},
             ],
-        }
+        )
 
-    ranked = sorted(scores.items(), key=lambda x: x[1], reverse=True)
-    second = ranked[1] if len(ranked) > 1 else ("sage", 0)
-    confidence = "high" if scores[best_slug] >= 2 else "medium"
-    if scores[best_slug] == scores.get(second[0], 0) and second[1] > 0:
-        confidence = "medium"
+    ranked = sorted(fused.items(), key=lambda x: x[1], reverse=True)
+    second = ranked[1] if len(ranked) > 1 else ("sage", 0.0)
+    confidence = _confidence_label(top_score)
+    if fused.get(second[0], 0) >= top_score - 0.15 and second[1] > 0:
+        confidence = "medium" if confidence == "high" else confidence
 
-    name, reason = "学者 · Sage", "需要深度看见关系结构与重复模式。"
+    matched = hits.get(best_slug, [])[:5]
+    if not matched:
+        tpl_score = match_intent_templates(text).get(best_slug, 0.0)
+        if tpl_score > 0:
+            matched.append(f"intent:{tpl_score:.2f}")
 
-    for slug, _, cname, creason in TRIAGE_RULES:
-        if slug == best_slug:
-            name, reason = cname, creason
-            break
-
-    alts = [
-        {"counselorId": slug, "label": cname, "score": scores[slug]}
-        for slug, _, cname, _ in TRIAGE_RULES
-        if slug != best_slug and scores[slug] > 0
-    ][:2]
-
-    return {
-        "counselorId": best_slug,
-        "counselorName": name,
-        "confidence": confidence,
-        "reason": reason,
-        "matchedSignals": hits[best_slug][:5],
-        "alternatives": alts,
-    }
+    _, reason = _triage_meta_for_slug(best_slug)
+    return _triage_result_payload(
+        best_slug,
+        confidence=confidence,
+        reason=reason,
+        matched_signals=matched,
+        fused=fused,
+    )

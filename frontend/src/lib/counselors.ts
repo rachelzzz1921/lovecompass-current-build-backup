@@ -20,11 +20,11 @@ export const COUNSELORS: Counselor[] = [
     name: "祖师爷",
     englishName: "Oracle",
     title: "直球真话顾问",
-    tagline: "说有用的话，不灌让你舒坦的空话",
+    tagline: "先确认你说的是什么，再给你实话",
     emoji: "🏮",
     accent: "amber",
     description:
-      "街头智慧型导师：读懂信号与边界，谈吸引、体面与真诚。适合「他到底什么意思」「我该进还是退」。",
+      "饭局上拍你肩膀的过来人：帮你算清亏了多少、信号真假、尊严还在不在。适合「他到底什么意思」「值不值得继续」。",
     prompts: [
       "我喜欢一个人，但不确定要不要主动",
       "我在两个人之间选不了，你帮我看看",

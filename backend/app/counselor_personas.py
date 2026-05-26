@@ -79,7 +79,7 @@ PERSONAS: dict[str, dict[str, Any]] = {
         "slug": "oracle",
         "name": "祖师爷",
         "title": "Oracle · 直球真话顾问",
-        "description": "街头智慧型导师：真诚、体面、读懂信号，反鸡汤。",
+        "description": "江湖过来人：先复述确认再给判断，帮你算亏损、读信号、保尊严。",
         "display_order": 1,
         "is_default": False,
     },

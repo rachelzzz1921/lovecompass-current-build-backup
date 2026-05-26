@@ -1,10 +1,11 @@
 import { createFileRoute, Link, Outlet, useNavigate, useParams, useRouterState, useSearch } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { z } from "zod";
 import { useAuth } from "@/hooks/useAuth";
-import { hasProductAccess, clearProductUnlock } from "@/lib/accessGate";
+import { hasProductAccess, clearProductUnlock, hasRedeemableSuiteAccess } from "@/lib/accessGate";
 import { findProductByRouteId, inferGenderFromSuiteSlug, testEntryRouteId } from "@/lib/resultRoutes";
+import { productBadgeText } from "@/data/products";
 import { HintButton } from "@/components/HintButton";
 import { accessRedirectFromTestEntry } from "@/lib/productAccessFlow";
 import {
@@ -16,7 +17,13 @@ import {
   type SuiteGender,
 } from "@/lib/productRegistry";
 import { resolveSuiteSlugByTier, tierMeta, type SuiteTier } from "@/lib/suiteTier";
-import { resetPresentationSeed } from "@/lib/shufflePresentation";
+import {
+  getPresentationSettings,
+  resetPresentationSeed,
+  setPresentationSettings,
+  type PresentationSettings,
+} from "@/lib/shufflePresentation";
+import { QuestionOrderToggle } from "@/components/questions/QuestionOrderToggle";
 import { productTheme } from "@/lib/productTheme";
 import {
   GenderSelect,
@@ -56,14 +63,22 @@ function TestEntry() {
     () => search.gender ?? slugGender ?? getStoredGender(productId),
   );
   const [suiteTier, setSuiteTier] = useState<SuiteTier>(() => search.tier ?? "lite");
+  const [presentationSettings, setPresentationSettingsState] = useState<PresentationSettings>({
+    questionOrder: "shuffled",
+    optionOrder: "shuffled",
+  });
 
   const pickedGender = spec.pickGenderOnAccess ? gender : null;
   const runSuiteSlug = pickedGender
     ? resolveSuiteSlugByTier(productId, pickedGender, suiteTier)
     : routeSuiteSlug;
+
+  useEffect(() => {
+    setPresentationSettingsState(getPresentationSettings(runSuiteSlug));
+  }, [runSuiteSlug]);
   const tierInfo = tierMeta(productId, suiteTier);
   const liteFree = isLiteTierFree(productId, suiteTier);
-  const hasAccess = liteFree || hasProductAccess(product.id, runSuiteSlug);
+  const hasAccess = liteFree || hasRedeemableSuiteAccess(productId, runSuiteSlug);
 
   const returnPath = `/tests/${productId}`;
 
@@ -105,6 +120,7 @@ function TestEntry() {
       sessionStorage.setItem(`suite:${productId}`, runSuiteSlug);
     }
     sessionStorage.setItem(`${productId}:tier`, suiteTier);
+    setPresentationSettings(runSuiteSlug, presentationSettings);
     resetPresentationSeed(runSuiteSlug);
     nav({ to: "/tests/$id/run", params: { id: runSuiteSlug } });
   };
@@ -125,7 +141,9 @@ function TestEntry() {
 
       <section className="relative z-10 max-w-3xl mx-auto px-6 md:px-12 pt-14 pb-20">
         <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
-          <div className="text-[10px] font-mono tracking-[0.4em] text-muted-foreground">{product.badge}</div>
+          <div className="text-[10px] font-mono tracking-[0.4em] text-muted-foreground">
+            {productBadgeText(product.badge)}
+          </div>
           <h1 className="font-display text-4xl md:text-[52px] mt-3 leading-[1.05] tracking-tight">
             <span className={theme.titleGradient}>{product.title}</span>
           </h1>
@@ -240,6 +258,20 @@ function TestEntry() {
               )}
             </ProductFlowSection>
           )}
+
+          <QuestionOrderToggle
+            settings={presentationSettings}
+            onQuestionChange={(mode) => {
+              const next = { ...presentationSettings, questionOrder: mode };
+              setPresentationSettingsState(next);
+              setPresentationSettings(runSuiteSlug, next);
+            }}
+            onOptionChange={(mode) => {
+              const next = { ...presentationSettings, optionOrder: mode };
+              setPresentationSettingsState(next);
+              setPresentationSettings(runSuiteSlug, next);
+            }}
+          />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             {!hasAccess && !liteFree && (

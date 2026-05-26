@@ -9,7 +9,7 @@ import { QuestionRenderer } from "@/components/questions/QuestionRenderer";
 import { ApiErrorPanel } from "@/components/ApiErrorPanel";
 import { formatApiErrorMessage, getApiErrorHint } from "@/lib/apiErrors";
 import { AuthChecking, safeReturnPath, useRequireAuth } from "@/lib/requireAuth";
-import { hasProductAccess, getPartnerRelationCode, hasRosRunAccess } from "@/lib/accessGate";
+import { getPartnerRelationCode, getRedemptionEventId, hasRedeemableSuiteAccess } from "@/lib/accessGate";
 import { stashLiteAnswers, isSelfLiteSuite, isLiteSuite, mergeLiteAnswersForFullSuite } from "@/lib/suiteTier";
 import { lovecompassApi } from "@/lib/lovecompassApi";
 import { findProductByRouteId, inferGenderFromSuiteSlug, productSetFromSlug, testEntryRouteId, type ProductSet } from "@/lib/resultRoutes";
@@ -197,12 +197,12 @@ function TestRun() {
       setAccessChecked(true);
       return;
     }
-    if (productId === "ros" && !hasRosRunAccess(suiteSlug)) {
+    if (productId === "ros" && !hasRedeemableSuiteAccess("ros", suiteSlug)) {
       toast.info("请先完成 ROS 入门流程（兑换码 · 版本 · 阶段）");
       void nav({ to: "/ros/start" });
       return;
     }
-    if (!hasProductAccess(productId, suiteSlug) && !isSelfLiteSuite(suiteSlug)) {
+    if (!hasRedeemableSuiteAccess(productId, suiteSlug) && !isSelfLiteSuite(suiteSlug)) {
       toast.info("请先输入兑换码解锁本题库");
       const tier = isLiteSuite(suiteSlug) ? ("lite" as const) : ("full" as const);
       void nav({
@@ -395,13 +395,10 @@ function TestRun() {
         sessionSuiteSlug: storedSuiteSlug,
       });
       const redemptionEventId =
-        typeof window !== "undefined"
-          ? window.sessionStorage.getItem(`redemption:${suiteSlug}`) ||
-            window.sessionStorage.getItem(`redemption:${productId}`)
-          : null;
+        typeof window !== "undefined" ? getRedemptionEventId(productId, suiteSlug) : null;
       const partnerRelationCode = getPartnerRelationCode();
       const selfLiteFree = isSelfLiteSuite(suiteSlug);
-      const hasAccess = hasProductAccess(productId, suiteSlug);
+      const hasAccess = hasRedeemableSuiteAccess(productId, suiteSlug);
       if (!partnerRelationCode && !redemptionEventId && !selfLiteFree) {
         if (hasAccess) {
           toast.error("兑换凭证已失效，请重新验证兑换码后再提交");

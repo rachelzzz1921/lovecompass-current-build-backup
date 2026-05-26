@@ -6,8 +6,7 @@ import { toast } from "sonner";
 import { STAGE_OPTIONS } from "@/data/rosTypes";
 import {
   clearProductUnlock,
-  getRedemptionEventId,
-  hasProductAccess,
+  hasRedeemableSuiteAccess,
 } from "@/lib/accessGate";
 import { formatApiErrorMessage } from "@/lib/apiErrors";
 import { AuthChecking, useRequireAuth } from "@/lib/requireAuth";
@@ -86,11 +85,7 @@ function RosStartPage() {
     [gender, suiteTier],
   );
 
-  const cachedRosAccess = Boolean(
-    runSuiteSlug &&
-      hasProductAccess(PRODUCT_ID, runSuiteSlug) &&
-      getRedemptionEventId(PRODUCT_ID, runSuiteSlug),
-  );
+  const cachedRosAccess = Boolean(runSuiteSlug && hasRedeemableSuiteAccess(PRODUCT_ID, runSuiteSlug));
 
   const unlockCanAdvance =
     hasCode === "yes"

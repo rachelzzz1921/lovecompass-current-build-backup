@@ -97,8 +97,11 @@ function AccessPage() {
         suiteSlug,
         gender: pickedGender ?? undefined,
       });
-      const verifiedSuiteSlug = res.suiteSlug || suiteSlug;
+      const verifiedSuiteSlug = res.suiteSlug ?? suiteSlug;
       markProductAccess(productId, verifiedSuiteSlug, res.redemptionEventId);
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem(`${productId}:tier`, suiteTier);
+      }
       toast.success("解锁成功");
 
       const target = resolvePostRedeemTarget({

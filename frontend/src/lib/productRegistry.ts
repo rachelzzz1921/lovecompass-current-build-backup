@@ -223,7 +223,9 @@ export function setStoredGender(productId: ProductId, gender: SuiteGender) {
   if (typeof window === "undefined") return;
   const spec = PRODUCT_FLOW_SPECS[productId];
   sessionStorage.setItem(spec.genderStorageKey, gender);
-  sessionStorage.setItem(`suite:${productId}`, spec.suiteSlugs[gender]);
+  const tierRaw = sessionStorage.getItem(`${productId}:tier`);
+  const tier: SuiteTier = tierRaw === "lite" ? "lite" : "full";
+  sessionStorage.setItem(`suite:${productId}`, resolveSuiteSlugForTier(productId, gender, tier));
 }
 
 export function resolveActiveSuiteSlug(options: {
@@ -235,7 +237,9 @@ export function resolveActiveSuiteSlug(options: {
   if (routeId.includes("_")) return routeId;
   if (sessionSuiteSlug?.includes("_")) return sessionSuiteSlug;
   const gender = getStoredGender(productId) ?? "female";
-  return PRODUCT_FLOW_SPECS[productId].suiteSlugs[gender];
+  const tierRaw = typeof window !== "undefined" ? sessionStorage.getItem(`${productId}:tier`) : null;
+  const tier: SuiteTier = tierRaw === "lite" ? "lite" : "full";
+  return resolveSuiteSlugForTier(productId, gender, tier);
 }
 
 export function isLiteTierFree(productId: ProductId, tier: SuiteTier): boolean {

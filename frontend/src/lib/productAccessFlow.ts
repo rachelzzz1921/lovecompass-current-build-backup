@@ -1,4 +1,4 @@
-import { markPartnerMateAccess, markPartnerRosAccess, markProductAccess, getRedemptionEventId, hasProductAccess } from "@/lib/accessGate";
+import { markPartnerMateAccess, markPartnerRosAccess, markProductAccess, getRedemptionEventId, hasRedeemableSuiteAccess } from "@/lib/accessGate";
 import { lovecompassApi } from "@/lib/lovecompassApi";
 import {
   getStoredGender,
@@ -134,7 +134,7 @@ export async function unlockProductForRun(input: {
   const suiteSlug = resolveSuiteSlugForTier(productId, gender, suiteTier);
 
   if (unlock.kind === "cached-access") {
-    if (!hasProductAccess(productId, suiteSlug)) {
+    if (!hasRedeemableSuiteAccess(productId, suiteSlug)) {
       throw new Error("请先完成兑换码验证");
     }
     const redemptionEventId = getRedemptionEventId(productId, suiteSlug);

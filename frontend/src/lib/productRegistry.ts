@@ -109,7 +109,7 @@ export const PRODUCT_FLOW_SPECS: Record<ProductId, ProductFlowSpec> = {
   },
 };
 
-/** ROS 三步入口流程（解锁 → 版本 → 阶段） */
+/** ROS 三步入口流程（解锁 → 阶段 → 版本） */
 export type MultiStepEntryStepId = "unlock" | "setup" | "stage";
 
 export type MultiStepEntryFlow = {
@@ -137,9 +137,9 @@ export type MultiStepEntryFlow = {
 
 export const ROS_ENTRY_FLOW: MultiStepEntryFlow = {
   productId: "ros",
-  steps: ["1 · 解锁", "2 · 版本", "3 · 阶段"],
+  steps: ["1 · 解锁", "2 · 阶段", "3 · 版本"],
   defaultTier: "lite",
-  skipUnlockStepWhenAccessGranted: true,
+  skipUnlockStepWhenAccessGranted: false,
   sessionKeys: { stage: "ros:stageUi", tier: "ros:tier" },
   panels: {
     unlock: {
@@ -247,11 +247,11 @@ export function liteAnswersStorageKey(productId: ProductId, suiteSlug: string): 
 }
 
 export function stepIndexForMultiStep(step: MultiStepEntryStepId): number {
-  return step === "unlock" ? 0 : step === "setup" ? 1 : 2;
+  return step === "unlock" ? 0 : step === "stage" ? 1 : 2;
 }
 
 export function nextMultiStepStep(current: MultiStepEntryStepId): MultiStepEntryStepId | null {
-  if (current === "unlock") return "setup";
-  if (current === "setup") return "stage";
+  if (current === "unlock") return "stage";
+  if (current === "stage") return "setup";
   return null;
 }

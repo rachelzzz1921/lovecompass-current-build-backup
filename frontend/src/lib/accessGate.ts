@@ -61,3 +61,19 @@ export function clearPartnerRelationCode() {
   if (typeof window === "undefined") return;
   sessionStorage.removeItem(PARTNER_CODE_KEY);
 }
+
+export function getRedemptionEventId(productId: string, suiteSlug?: string): string | null {
+  if (typeof window === "undefined") return null;
+  if (suiteSlug) {
+    const perSuite = sessionStorage.getItem(`redemption:${suiteSlug}`);
+    if (perSuite) return perSuite;
+  }
+  return sessionStorage.getItem(`redemption:${productId}`);
+}
+
+/** ROS 答题页：须同时有解锁标记与兑换事件（或伴侣关系码）。 */
+export function hasRosRunAccess(suiteSlug: string): boolean {
+  if (typeof window === "undefined") return false;
+  if (getPartnerRelationCode()) return true;
+  return hasProductAccess("ros", suiteSlug) && Boolean(getRedemptionEventId("ros", suiteSlug));
+}

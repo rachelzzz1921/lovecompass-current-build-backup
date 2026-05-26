@@ -11,15 +11,7 @@ UNIVERSAL_CODE = os.getenv("LOVECOMPASS_UNIVERSAL_CODE", "MIRROR-ALL-ACCESS").st
 SHADOW_CODE_PREFIX = "__UNIVERSAL__"
 SHADOW_BATCH_NAME = "UNIVERSAL-SHADOW"
 
-PRODUCT_SUITE_SLUGS: dict[str, dict[str, str]] = {
-    "self": {"female": "s01_self_female", "male": "s01_self_male"},
-    "ros": {"female": "s02_ros_female", "male": "s02_ros_male"},
-    "mate": {"female": "s03_mate_female", "male": "s03_mate_male"},
-}
-
-ALL_SUITE_SLUGS = frozenset(
-    slug for gender_map in PRODUCT_SUITE_SLUGS.values() for slug in gender_map.values()
-)
+from app.suite_tier import ALL_KNOWN_SUITE_SLUGS, resolve_suite_slug_for_request
 
 
 def normalize_input_code(code: str) -> str:
@@ -34,18 +26,7 @@ def is_universal_code(code: str) -> bool:
 
 
 def resolve_suite_slug(*, product: str, suite_slug: str | None = None, gender: str | None = None) -> str:
-    if suite_slug:
-        slug = suite_slug.strip()
-        if slug in ALL_SUITE_SLUGS:
-            return slug
-    product_key = product.strip().lower()
-    suites = PRODUCT_SUITE_SLUGS.get(product_key)
-    if not suites:
-        raise HTTPException(status_code=400, detail="无法识别测试产品")
-    gender_key = (gender or "female").strip().lower()
-    if gender_key not in suites:
-        gender_key = "female"
-    return suites[gender_key]
+    return resolve_suite_slug_for_request(product=product, suite_slug=suite_slug, gender=gender)
 
 
 def shadow_code_for_suite(suite_slug: str) -> str:

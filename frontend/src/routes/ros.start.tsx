@@ -1,15 +1,20 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { motion } from "framer-motion";
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight, Heart, KeyRound, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { STAGE_OPTIONS } from "@/data/rosTypes";
-import { getPartnerRelationCode, hasProductAccess } from "@/lib/accessGate";
+import {
+  clearProductUnlock,
+  getRedemptionEventId,
+  hasProductAccess,
+} from "@/lib/accessGate";
 import { formatApiErrorMessage } from "@/lib/apiErrors";
 import { AuthChecking, useRequireAuth } from "@/lib/requireAuth";
 import {
   getProductMeta,
   multiStepEntryFlow,
+  resolveSuiteSlugForTier,
   stepIndexForMultiStep,
   tierMeta,
   type MultiStepEntryStepId,
@@ -22,8 +27,14 @@ import {
   unlockProductForRun,
   type RunUnlockMode,
 } from "@/lib/productAccessFlow";
-import { resetPresentationSeed } from "@/lib/shufflePresentation";
+import {
+  getPresentationSettings,
+  resetPresentationSeed,
+  setPresentationSettings,
+  type PresentationSettings,
+} from "@/lib/shufflePresentation";
 import { optionClass, productTheme } from "@/lib/productTheme";
+import { QuestionOrderToggle } from "@/components/questions/QuestionOrderToggle";
 import {
   FlowOptionCard,
   FlowStepIndicator,
@@ -65,15 +76,28 @@ function RosStartPage() {
   const [stage, setStage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [unlockAdvancing, setUnlockAdvancing] = useState(false);
+  const [presentationSettings, setPresentationSettingsState] = useState<PresentationSettings>({
+    questionOrder: "shuffled",
+    optionOrder: "shuffled",
+  });
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (getPartnerRelationCode()) return;
-    if (flow.skipUnlockStepWhenAccessGranted && hasProductAccess(PRODUCT_ID)) {
-      setHasCode("no");
-      setStep("setup");
-    }
-  }, [flow.skipUnlockStepWhenAccessGranted]);
+  const runSuiteSlug = useMemo(
+    () => (gender ? resolveSuiteSlugForTier(PRODUCT_ID, gender, suiteTier) : null),
+    [gender, suiteTier],
+  );
+
+  const cachedRosAccess = Boolean(
+    runSuiteSlug &&
+      hasProductAccess(PRODUCT_ID, runSuiteSlug) &&
+      getRedemptionEventId(PRODUCT_ID, runSuiteSlug),
+  );
+
+  const unlockCanAdvance =
+    hasCode === "yes"
+      ? code.trim().length > 0
+      : hasCode === "no"
+        ? cachedRosAccess || code.trim().length > 0
+        : false;
 
   const advanceFromUnlock = async () => {
     if (hasCode === "yes") {
@@ -81,7 +105,7 @@ function RosStartPage() {
       try {
         const tier = await resolveRelationCodeTier(code);
         setSuiteTier(tier);
-        setStep("setup");
+        setStep("stage");
       } catch (e) {
         toast.error(formatApiErrorMessage(e));
       } finally {
@@ -89,7 +113,7 @@ function RosStartPage() {
       }
       return;
     }
-    setStep("setup");
+    setStep("stage");
   };
 
   const beginTest = async () => {
@@ -99,7 +123,7 @@ function RosStartPage() {
       let unlock: RunUnlockMode;
       if (hasCode === "yes") {
         unlock = { kind: "partner-code", code };
-      } else if (hasProductAccess(PRODUCT_ID)) {
+      } else if (cachedRosAccess && !code.trim()) {
         unlock = { kind: "cached-access" };
       } else {
         unlock = { kind: "redeem-code", code };
@@ -113,10 +137,14 @@ function RosStartPage() {
       });
 
       persistRunSessionKeys(flow.sessionKeys, { stage, tier: suiteTier });
+      setPresentationSettings(suiteSlug, presentationSettings);
       resetPresentationSeed(suiteSlug);
       void nav({ to: "/tests/$id/run", params: { id: suiteSlug } });
     } catch (e) {
       toast.error(formatApiErrorMessage(e));
+      if (/兑换|验证/.test(formatApiErrorMessage(e))) {
+        setStep("unlock");
+      }
     } finally {
       setSubmitting(false);
     }
@@ -190,52 +218,28 @@ function RosStartPage() {
                   placeholder={unlockPanel.relationCodePlaceholder}
                 />
               ) : hasCode === "no" ? (
-                <RedemptionCodeInput
-                  productId={PRODUCT_ID}
-                  value={code}
-                  onChange={setCode}
-                  label={unlockPanel.redeemCodeLabel}
-                  placeholder={unlockPanel.redeemCodePlaceholder}
-                />
+                <>
+                  {cachedRosAccess ? (
+                    <p className="text-[12px] text-muted-foreground leading-relaxed rounded-xl border border-border/50 bg-secondary/20 px-4 py-3">
+                      检测到本浏览器已有 ROS 兑换记录，可直接点「下一步」；若要换码或换版本，请在下方重新输入兑换码。
+                    </p>
+                  ) : null}
+                  <RedemptionCodeInput
+                    productId={PRODUCT_ID}
+                    value={code}
+                    onChange={setCode}
+                    label={unlockPanel.redeemCodeLabel}
+                    placeholder={unlockPanel.redeemCodePlaceholder}
+                  />
+                </>
               ) : null}
 
               <PrimaryFlowButton
                 theme={theme}
-                disabled={!hasCode || !code.trim() || unlockAdvancing}
+                disabled={!unlockCanAdvance || unlockAdvancing}
                 onClick={() => void advanceFromUnlock()}
               >
                 {unlockAdvancing ? "验证关系码…" : "下一步"} <ArrowRight className="h-4 w-4" />
-              </PrimaryFlowButton>
-            </ProductFlowCard>
-          </motion.div>
-        )}
-
-        {step === "setup" && (
-          <motion.div key="setup" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-            <ProductFlowCard theme={theme} className="space-y-6">
-              <h2 className="font-display text-2xl">{setupPanel.heading}</h2>
-
-              {hasCode === "yes" ? (
-                <ProductFlowSection label="测试深度" hint="与 TA 保持一致，不可更改">
-                  <div className="rounded-xl border border-border/60 bg-secondary/20 px-4 py-3 text-sm">
-                    {tierInfo.label} · {tierInfo.questions} 题 · 约 {tierInfo.minutes} 分钟
-                  </div>
-                </ProductFlowSection>
-              ) : (
-                <ProductFlowSection label="选择测试深度" hint={tierInfo.hint}>
-                  <TierSelect productId={PRODUCT_ID} value={suiteTier} onChange={setSuiteTier} />
-                </ProductFlowSection>
-              )}
-
-              <ProductFlowSection
-                label="选择题库版本"
-                hint={gender ? `已选 · ${gender === "female" ? "女性版" : "男性版"}` : undefined}
-              >
-                <GenderSelect productId={PRODUCT_ID} value={gender} onChange={setGender} />
-              </ProductFlowSection>
-
-              <PrimaryFlowButton theme={theme} disabled={!gender} onClick={() => setStep("stage")}>
-                下一步 <ArrowRight className="h-4 w-4" />
               </PrimaryFlowButton>
             </ProductFlowCard>
           </motion.div>
@@ -262,9 +266,93 @@ function RosStartPage() {
                   ))}
                 </div>
               </ProductFlowSection>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setStep("unlock")}
+                  className="text-xs text-muted-foreground hover:text-foreground transition px-2 py-1"
+                >
+                  ← 返回兑换
+                </button>
+              </div>
+              <PrimaryFlowButton theme={theme} disabled={!stage} onClick={() => setStep("setup")}>
+                下一步 <ArrowRight className="h-4 w-4" />
+              </PrimaryFlowButton>
+            </ProductFlowCard>
+          </motion.div>
+        )}
+
+        {step === "setup" && (
+          <motion.div key="setup" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+            <ProductFlowCard theme={theme} className="space-y-6">
+              <h2 className="font-display text-2xl">{setupPanel.heading}</h2>
+
+              {hasCode === "yes" ? (
+                <ProductFlowSection label="测试深度" hint="与 TA 保持一致，不可更改">
+                  <div className="rounded-xl border border-border/60 bg-secondary/20 px-4 py-3 text-sm">
+                    {tierInfo.label} · {tierInfo.questions} 题 · 约 {tierInfo.minutes} 分钟
+                  </div>
+                </ProductFlowSection>
+              ) : (
+                <ProductFlowSection label="选择测试深度" hint={tierInfo.hint}>
+                  <TierSelect
+                    productId={PRODUCT_ID}
+                    value={suiteTier}
+                    onChange={(tier) => {
+                      if (tier !== suiteTier) clearProductUnlock(PRODUCT_ID);
+                      setSuiteTier(tier);
+                    }}
+                  />
+                </ProductFlowSection>
+              )}
+
+              <ProductFlowSection
+                label="选择题库版本"
+                hint={gender ? `已选 · ${gender === "female" ? "女性版" : "男性版"}` : undefined}
+              >
+                <GenderSelect
+                  productId={PRODUCT_ID}
+                  value={gender}
+                  onChange={(next) => {
+                    if (gender && gender !== next) clearProductUnlock(PRODUCT_ID);
+                    setGender(next);
+                    if (next) {
+                      const slug = resolveSuiteSlugForTier(PRODUCT_ID, next, suiteTier);
+                      setPresentationSettingsState(getPresentationSettings(slug));
+                    }
+                  }}
+                />
+              </ProductFlowSection>
+
+              {gender ? (
+                <QuestionOrderToggle
+                  settings={presentationSettings}
+                  onQuestionChange={(mode) => {
+                    const next = { ...presentationSettings, questionOrder: mode };
+                    setPresentationSettingsState(next);
+                    if (runSuiteSlug) setPresentationSettings(runSuiteSlug, next);
+                  }}
+                  onOptionChange={(mode) => {
+                    const next = { ...presentationSettings, optionOrder: mode };
+                    setPresentationSettingsState(next);
+                    if (runSuiteSlug) setPresentationSettings(runSuiteSlug, next);
+                  }}
+                />
+              ) : null}
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setStep("unlock")}
+                  className="text-xs text-muted-foreground hover:text-foreground transition px-2 py-1"
+                >
+                  ← 重新验证兑换码
+                </button>
+              </div>
+
               <PrimaryFlowButton
                 theme={theme}
-                disabled={!stage || submitting}
+                disabled={!gender || submitting}
                 onClick={() => void beginTest()}
               >
                 {submitting ? "准备中…" : `开始 ${tierInfo.questions} 题`}

@@ -17,34 +17,34 @@ from app.chat_context import (
     build_chat_prompt,
     build_profile_sync_acknowledgment,
     get_or_create_session,
+    load_chat_session_messages,
     load_recent_messages,
     resolve_analyst_row,
-    resolve_attempt,
+    resolve_attempt_or_latest,
     save_message,
     summarize_context,
 )
 from app.chat_prompt_layers import assess_crisis, build_crisis_response, triage_counselor
 from app.admin import router as admin_router
 from app.core_traits import attach_core_traits_to_payload
-from app.self_ai_content import attach_self_ai_content_to_payload, enhance_self_ai_for_attempt
-from app.ros_ai_content import attach_ros_ai_content_to_payload, enhance_ros_ai_for_attempt
+from app.self_ai_content import attach_self_ai_content_to_payload, enhance_self_ai_background, enhance_self_ai_for_attempt
+from app.ros_ai_content import attach_ros_ai_content_to_payload, enhance_ros_ai_background, enhance_ros_ai_for_attempt
 from app.mate_ai_content import attach_mate_ai_content_to_payload, enhance_mate_ai_for_attempt
 from app.profile_center import rebuild_and_cache_portrait
+from app.attempt_finalize import finalize_attempt_background
+from app.attempt_helpers import batch_insert_attempt_answers
 from app.report_utils import looks_like_placeholder_report
-from app.ros_router import create_relation_session, link_partner_to_session
+from app.semantic_translation import guard_ai_output, sanitize_user_facing_payload, FORBIDDEN_RULES_MARKDOWN
 from app.ros_router import router as ros_router
 from app.ros_scoring import is_ros_suite, summarize_ros_scores
-from app.mate_router import (
-    create_relation_session as create_mate_relation_session,
-    link_partner_to_session as link_mate_partner_to_session,
-)
+from app.mate_router import router as mate_router
 from app.universal_redemption import (
     ensure_shadow_redemption_code,
     is_universal_code,
     resolve_suite_slug as resolve_universal_suite_slug,
 )
-from app.mate_router import router as mate_router
 from app.mate_scoring import is_mate_suite, load_mate_result_profiles, summarize_mate_scores
+from app.suite_tier import resolve_redemption_target_slug, suites_redemption_compatible
 
 def is_lite_suite(suite_slug: str | None) -> bool:
     return "_lite" in (suite_slug or "").lower()
@@ -61,43 +61,8 @@ from app.suite_context import build_suite_report_prompt, fallback_suite_report
 
 
 def _cors_origins() -> list[str]:
-    raw = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:4173")
+    raw = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173")
     return [origin.strip() for origin in raw.split(",") if origin.strip()]
-
-
-def _enhance_ros_ai_background(attempt_id: str) -> None:
-    if os.getenv("AI_PROVIDER", "mock").strip().lower() != "zhipu":
-        return
-    try:
-        with get_conn() as conn:
-            updated = enhance_ros_ai_for_attempt(conn, attempt_id, use_ai=True, force=False)
-            if not updated:
-                return
-            conn.execute(
-                "UPDATE public.test_attempts SET result_payload = %s WHERE id = %s",
-                (Jsonb(updated), attempt_id),
-            )
-            conn.commit()
-    except Exception:
-        return
-
-
-def _enhance_self_ai_background(attempt_id: str) -> None:
-    """Optional async upgrade: AI traits + insights, with pattern cache."""
-    if os.getenv("AI_PROVIDER", "mock").strip().lower() != "zhipu":
-        return
-    try:
-        with get_conn() as conn:
-            updated = enhance_self_ai_for_attempt(conn, attempt_id, use_ai=True, force=False)
-            if not updated:
-                return
-            conn.execute(
-                "UPDATE public.test_attempts SET result_payload = %s WHERE id = %s",
-                (Jsonb(updated), attempt_id),
-            )
-            conn.commit()
-    except Exception:
-        return
 
 
 def _enhance_mate_ai_background(attempt_id: str) -> None:
@@ -226,8 +191,9 @@ def _build_report_prompt(attempt: dict[str, Any]) -> tuple[str, dict[str, Any]]:
     matching_logic = str(profile.get("matching_logic") or "")
     dimension_lines = []
     for item in dimensions:
+        name = item.get("name") or "该维度"
         dimension_lines.append(
-            f"- {item.get('code')} {item.get('name')}：{item.get('core', '')}；内部参考分 {item.get('score')}；解释方向：{_score_tone(item.get('score'))}"
+            f"- {name}：{item.get('core', '')}；解释方向：{_score_tone(item.get('score'))}"
         )
     dimension_text = "\n".join(dimension_lines) or "- 暂无完整维度明细。"
     prompt_payload = {
@@ -264,6 +230,8 @@ def _build_report_prompt(attempt: dict[str, Any]) -> tuple[str, dict[str, Any]]:
 {dimension_text}
 
 请生成正式报告。
+
+{FORBIDDEN_RULES_MARKDOWN}
 """.strip()
     return prompt, prompt_payload
 
@@ -420,6 +388,11 @@ def get_questions(suite_slug: str):
             """,
             (suite["id"],),
         ).fetchall()
+        if not questions and suite["total_questions"]:
+            raise HTTPException(
+                status_code=503,
+                detail=f"题库「{suite['name']}」题目尚未导入（预期 {suite['total_questions']} 题）",
+            )
     return {
         "suite": {
             "id": str(suite["id"]),
@@ -439,13 +412,33 @@ def verify_redemption(data: RedemptionIn, user_id: str = Depends(resolve_user_id
     universal = is_universal_code(code)
     with get_conn() as conn:
         if universal:
-            suite_slug = resolve_universal_suite_slug(
+            target_slug = resolve_universal_suite_slug(
                 product=data.product,
                 suite_slug=data.suiteSlug,
                 gender=data.gender,
             )
-            row = ensure_shadow_redemption_code(conn, suite_slug)
-            event_metadata = Jsonb({"source": "universal_code"})
+            shadow_row = ensure_shadow_redemption_code(conn, target_slug)
+            event_metadata = Jsonb({"source": "universal_code", "requestedSlug": data.suiteSlug})
+            if data.suiteSlug and suites_redemption_compatible(shadow_row["slug"], data.suiteSlug.strip()):
+                final_slug = resolve_redemption_target_slug(
+                    code_suite_slug=shadow_row["slug"],
+                    requested_slug=data.suiteSlug,
+                    product=data.product,
+                    gender=data.gender,
+                )
+                final_suite = conn.execute(
+                    "SELECT id, slug FROM public.test_suites WHERE slug = %s AND is_active = true",
+                    (final_slug,),
+                ).fetchone()
+                if not final_suite:
+                    raise HTTPException(status_code=404, detail="测试套件不存在")
+                row = {
+                    "code_id": shadow_row["code_id"],
+                    "suite_id": final_suite["id"],
+                    "slug": final_suite["slug"],
+                }
+            else:
+                row = shadow_row
         else:
             row = conn.execute(
                 """
@@ -461,6 +454,19 @@ def verify_redemption(data: RedemptionIn, user_id: str = Depends(resolve_user_id
             if not row:
                 raise HTTPException(status_code=400, detail="兑换码无效或已过期")
             event_metadata = Jsonb({"source": "api_v1"})
+            target_slug = resolve_redemption_target_slug(
+                code_suite_slug=row["slug"],
+                requested_slug=data.suiteSlug,
+                product=data.product,
+                gender=data.gender,
+            )
+            target_suite = conn.execute(
+                "SELECT id, slug FROM public.test_suites WHERE slug = %s AND is_active = true",
+                (target_slug,),
+            ).fetchone()
+            if not target_suite:
+                raise HTTPException(status_code=404, detail="测试套件不存在")
+            row = {"code_id": row["code_id"], "suite_id": target_suite["id"], "slug": target_suite["slug"]}
         event = conn.execute(
             """
             INSERT INTO public.redemption_events(user_id, suite_id, redemption_code_id, metadata)
@@ -477,7 +483,20 @@ def verify_redemption(data: RedemptionIn, user_id: str = Depends(resolve_user_id
                 (row["code_id"],),
             )
         conn.commit()
-    return {"ok": True, "suiteSlug": row["slug"], "redemptionEventId": str(event["id"]), "redirect": f"/tests/{row['slug']}/run"}
+    resolved_slug = row["slug"]
+    if data.suiteSlug and suites_redemption_compatible(resolved_slug, data.suiteSlug.strip()):
+        resolved_slug = resolve_redemption_target_slug(
+            code_suite_slug=resolved_slug,
+            requested_slug=data.suiteSlug,
+            product=data.product,
+            gender=data.gender,
+        )
+    return {
+        "ok": True,
+        "suiteSlug": resolved_slug,
+        "redemptionEventId": str(event["id"]),
+        "redirect": f"/tests/{resolved_slug}/run",
+    }
 
 
 
@@ -533,7 +552,6 @@ def get_profile_portrait(user_id: str = Depends(resolve_user_id)):
 @app.post("/attempts")
 def submit_attempt(data: AttemptIn, background_tasks: BackgroundTasks, user_id: str = Depends(resolve_user_id)):
     answer_by_external = {a.externalId: a.answerPayload for a in data.answers}
-    pending_partner_link: tuple[str, str, uuid.UUID, str] | None = None
     with get_conn() as conn:
         suite = conn.execute("SELECT id, slug, gender::text AS gender FROM public.test_suites WHERE slug = %s AND is_active = true", (data.suiteSlug,)).fetchone()
         if not suite:
@@ -566,7 +584,12 @@ def submit_attempt(data: AttemptIn, background_tasks: BackgroundTasks, user_id: 
             ).fetchone()
             if not event_row:
                 raise HTTPException(status_code=400, detail="兑换记录无效或无权使用")
-            if event_row["suite_id"] != suite["id"]:
+            event_suite = conn.execute(
+                "SELECT slug FROM public.test_suites WHERE id = %s",
+                (event_row["suite_id"],),
+            ).fetchone()
+            event_slug = str((event_suite or {}).get("slug") or "")
+            if not suites_redemption_compatible(event_slug, suite["slug"]):
                 raise HTTPException(status_code=400, detail="兑换码与当前题库不匹配，请重新验证兑换码")
         scoring_model = conn.execute(
             """
@@ -602,6 +625,7 @@ def submit_attempt(data: AttemptIn, background_tasks: BackgroundTasks, user_id: 
                 scoring_model,
                 gender=suite["gender"],
                 result_profiles=mate_profiles,
+                skip_enrich=True,
             )
             archetype = None
         else:
@@ -633,7 +657,7 @@ def submit_attempt(data: AttemptIn, background_tasks: BackgroundTasks, user_id: 
               scores, dimension_scores, archetype_code, archetype_gender, ros_index, rk_score, ai_report,
               result_payload, partner_relation_code, status, completed_at
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'completed', now())
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'in_progress', NULL)
             RETURNING id
             """,
             (
@@ -647,138 +671,21 @@ def submit_attempt(data: AttemptIn, background_tasks: BackgroundTasks, user_id: 
         ).fetchone()
         attempt_id = attempt["id"]
         numeric_map = scores["numeric_by_external_id"]
-        for q in questions:
-            ext = q["external_question_id"]
-            conn.execute(
-                """
-                INSERT INTO public.test_attempt_answers(attempt_id, question_id, external_question_id, answer_payload, numeric_score, dimension_code)
-                VALUES (%s, %s, %s, %s, %s, %s)
-                """,
-                (attempt_id, q["id"], ext, Jsonb(answer_by_external[ext]), numeric_map.get(ext), q["dimension_code"]),
-            )
+        batch_insert_attempt_answers(
+            conn,
+            attempt_id,
+            questions,
+            answer_by_external,
+            numeric_map,
+        )
         if data.redemptionEventId:
             conn.execute("UPDATE public.redemption_events SET attempt_id = %s WHERE id = %s", (attempt_id, data.redemptionEventId))
 
-        if ros_suite:
-            from app.ros_couple import attempt_snapshot
-
-            result_payload = attach_ros_ai_content_to_payload(
-                conn,
-                str(attempt_id),
-                result_payload,
-                scores["dimension_scores"],
-                use_ai=False,
-                gender=str(suite["gender"]),
-            )
-            conn.execute(
-                "UPDATE public.test_attempts SET result_payload = %s WHERE id = %s",
-                (Jsonb(result_payload), attempt_id),
-            )
-            background_tasks.add_task(_enhance_ros_ai_background, str(attempt_id))
-
-            if partner_code:
-                pending_partner_link = ("ros", partner_code, attempt_id, user_id)
-            else:
-                relation_code = scores.get("relation_code") or result_payload.get("relationCode")
-                create_relation_session(
-                    conn,
-                    code=str(relation_code),
-                    initiator_attempt_id=attempt_id,
-                    initiator_user_id=user_id,
-                    initiator_snapshot=attempt_snapshot(
-                        {
-                            "id": attempt_id,
-                            "user_id": user_id,
-                            "suite_slug": suite["slug"],
-                            "dimension_scores": scores["dimension_scores"],
-                            "ros_index": scores["ros_index"],
-                            "result_payload": result_payload,
-                        }
-                    ),
-                )
-        elif mate_suite:
-            from app.mate_couple import attempt_snapshot as mate_attempt_snapshot
-
-            result_payload = attach_mate_ai_content_to_payload(
-                conn,
-                str(attempt_id),
-                result_payload,
-                scores["dimension_scores"],
-                use_ai=False,
-                gender=str(suite["gender"]),
-            )
-            conn.execute(
-                "UPDATE public.test_attempts SET result_payload = %s WHERE id = %s",
-                (Jsonb(result_payload), attempt_id),
-            )
-            background_tasks.add_task(_enhance_mate_ai_background, str(attempt_id))
-
-            if partner_code:
-                pending_partner_link = ("mate", partner_code, attempt_id, user_id)
-            else:
-                relation_code = scores.get("relation_code") or result_payload.get("relationCode")
-                create_mate_relation_session(
-                    conn,
-                    code=str(relation_code),
-                    initiator_attempt_id=attempt_id,
-                    initiator_user_id=user_id,
-                    initiator_snapshot=mate_attempt_snapshot(
-                        {
-                            "id": attempt_id,
-                            "user_id": user_id,
-                            "suite_slug": suite["slug"],
-                            "archetype_gender": suite["gender"],
-                            "ros_index": scores["ros_index"],
-                            "dimension_scores": scores["dimension_scores"],
-                            "result_payload": result_payload,
-                        }
-                    ),
-                )
-        elif not ros_suite and not mate_suite:
-            result_payload = attach_core_traits_to_payload(
-                conn,
-                attempt_id,
-                result_payload,
-                scores["dimension_scores"],
-            )
-            result_payload = attach_self_ai_content_to_payload(
-                conn,
-                str(attempt_id),
-                result_payload,
-                scores["dimension_scores"],
-                use_ai=False,
-                gender=str(archetype["gender"] if archetype else suite["gender"]),
-            )
-            conn.execute(
-                "UPDATE public.test_attempts SET result_payload = %s WHERE id = %s",
-                (Jsonb(result_payload), attempt_id),
-            )
-            background_tasks.add_task(_enhance_self_ai_background, str(attempt_id))
-
-        rebuild_and_cache_portrait(conn, user_id)
         conn.commit()
 
-    if pending_partner_link:
-        product, partner_code, attempt_id, user_id = pending_partner_link
-        with get_conn() as conn:
-            if product == "mate":
-                link_mate_partner_to_session(
-                    conn,
-                    code=partner_code,
-                    partner_attempt_id=attempt_id,
-                    partner_user_id=user_id,
-                )
-            else:
-                link_partner_to_session(
-                    conn,
-                    code=partner_code,
-                    partner_attempt_id=attempt_id,
-                    partner_user_id=user_id,
-                )
-            rebuild_and_cache_portrait(conn, user_id)
-            conn.commit()
+    background_tasks.add_task(finalize_attempt_background, str(attempt_id), user_id)
 
-    next_path = f"/analyzing?attemptId={attempt_id}&productSet=SELF"
+    next_path = f"/result/{attempt_id}"
     product_set = "SELF"
     if ros_suite:
         next_path = (
@@ -796,7 +703,7 @@ def submit_attempt(data: AttemptIn, background_tasks: BackgroundTasks, user_id: 
         product_set = "MATE"
     response: dict[str, Any] = {
         "attemptId": str(attempt_id),
-        "status": "completed",
+        "status": "in_progress",
         "next": next_path,
         "productSet": product_set,
     }
@@ -813,7 +720,7 @@ def get_attempt_result(attempt_id: str, user_id: str = Depends(resolve_user_id))
     with get_conn() as conn:
         attempt = conn.execute(
             """
-            SELECT id, test_id, scores, archetype_code, archetype_gender, ros_index, rk_score,
+            SELECT id, test_id, status, scores, archetype_code, archetype_gender, ros_index, rk_score,
                    risk_alert, ai_report, dimension_scores, result_payload, created_at, completed_at
             FROM public.test_attempts
             WHERE id = %s AND user_id = %s
@@ -822,6 +729,10 @@ def get_attempt_result(attempt_id: str, user_id: str = Depends(resolve_user_id))
         ).fetchone()
         if not attempt:
             raise HTTPException(status_code=404, detail="画像结果不存在")
+        if attempt.get("status") == "in_progress":
+            attempt = dict(attempt)
+            attempt["result_payload"] = attempt.get("result_payload") or {}
+            return {"attempt": {k: (str(v) if k == "id" else v) for k, v in attempt.items()}}
         result_payload = attempt.get("result_payload") or {}
         if not isinstance(result_payload, dict):
             result_payload = {}
@@ -835,11 +746,8 @@ def get_attempt_result(attempt_id: str, user_id: str = Depends(resolve_user_id))
                 use_ai=False,
                 gender=str(attempt.get("archetype_gender") or "female"),
             )
-            conn.execute(
-                "UPDATE public.test_attempts SET result_payload = %s WHERE id = %s",
-                (Jsonb(result_payload), attempt_id),
-            )
-            conn.commit()
+            if (result_payload.get("ai_content") or {}).get("mode") == "deterministic":
+                enhance_ros_ai_background(attempt_id)
         elif is_mate_suite(suite_slug):
             result_payload = attach_mate_ai_content_to_payload(
                 conn,
@@ -849,11 +757,10 @@ def get_attempt_result(attempt_id: str, user_id: str = Depends(resolve_user_id))
                 use_ai=False,
                 gender=str(attempt.get("archetype_gender") or "female"),
             )
-            conn.execute(
-                "UPDATE public.test_attempts SET result_payload = %s WHERE id = %s",
-                (Jsonb(result_payload), attempt_id),
-            )
-            conn.commit()
+            # 读路径只合并 insights/缓存叙事，不回写 DB（finalize / background AI 负责持久化）
+            attempt = dict(attempt)
+            attempt["result_payload"] = sanitize_user_facing_payload(result_payload)
+            return {"attempt": {k: (str(v) if k == "id" else v) for k, v in attempt.items()}}
         elif not is_mate_suite(suite_slug):
             if not result_payload.get("core_traits"):
                 result_payload = attach_core_traits_to_payload(
@@ -870,13 +777,12 @@ def get_attempt_result(attempt_id: str, user_id: str = Depends(resolve_user_id))
                 use_ai=False,
                 gender=str(attempt.get("archetype_gender") or "female"),
             )
-            conn.execute(
-                "UPDATE public.test_attempts SET result_payload = %s WHERE id = %s",
-                (Jsonb(result_payload), attempt_id),
-            )
-            conn.commit()
+            if (result_payload.get("ai_content") or {}).get("mode") == "deterministic":
+                enhance_self_ai_background(attempt_id)
         attempt = dict(attempt)
-        attempt["result_payload"] = result_payload
+        attempt["result_payload"] = sanitize_user_facing_payload(result_payload)
+        if attempt.get("ai_report"):
+            attempt["ai_report"] = guard_ai_output(str(attempt["ai_report"]))
     return {"attempt": {k: (str(v) if k == "id" else v) for k, v in attempt.items()}}
 
 
@@ -956,7 +862,9 @@ def generate_attempt_report(attempt_id: str, refresh: bool = False, user_id: str
             (attempt_id,),
         ).fetchone()
         if existing and existing["status"] == "succeeded" and not refresh and not looks_like_placeholder_report(attempt.get("ai_report")):
-            content = (existing.get("report_payload") or {}).get("content") or attempt.get("ai_report")
+            content = guard_ai_output(
+                str((existing.get("report_payload") or {}).get("content") or attempt.get("ai_report") or "")
+            )
             return {
                 "report": {
                     "attemptId": attempt_id,
@@ -977,7 +885,7 @@ def generate_attempt_report(attempt_id: str, refresh: bool = False, user_id: str
         generation_mode = "ai_adapter"
         error_message = None
         try:
-            content = get_ai_adapter().generate(prompt).strip()
+            content = guard_ai_output(get_ai_adapter().generate(prompt).strip())
             if looks_like_placeholder_report(content):
                 content, summary, fallback_payload = fallback_suite_report(dict(attempt))
                 generation_mode = "deterministic_fallback"
@@ -1061,15 +969,28 @@ def generate_attempt_report(attempt_id: str, refresh: bool = False, user_id: str
     }
 
 @app.get("/chat/context")
-def chat_context(attemptId: str | None = None, user_id: str = Depends(resolve_user_id)):
-    """Return bound test result summary and cross-suite profile for the chat sidebar."""
+def chat_context(
+    attemptId: str | None = None,
+    analystId: str | None = None,
+    user_id: str = Depends(resolve_user_id),
+):
+    """Return bound test result summary, cross-suite profile, and existing session history."""
     with get_conn() as conn:
         bundle = build_chat_profile_bundle(conn, user_id, attemptId, refresh=False)
+        session_id, messages = load_chat_session_messages(
+            conn,
+            user_id,
+            analystId,
+            attemptId,
+            limit=40,
+        )
     return {
         "ok": True,
         "bound": bundle["bound"],
         "context": bundle["context"],
         "profile": bundle["profile"],
+        "conversationId": session_id,
+        "messages": messages,
     }
 
 
@@ -1100,7 +1021,7 @@ def chat_triage(data: TriageIn, user_id: str = Depends(resolve_user_id)):
 @app.post("/chat/message")
 def chat_message(data: ChatIn, user_id: str = Depends(resolve_user_id)):
     with get_conn() as conn:
-        attempt = resolve_attempt(conn, user_id, data.attemptId)
+        attempt = resolve_attempt_or_latest(conn, user_id, data.attemptId)
         analyst = resolve_analyst_row(conn, data.analystId)
         context_summary = summarize_context(attempt) if attempt else None
         session_id: str | None = None
@@ -1113,7 +1034,7 @@ def chat_message(data: ChatIn, user_id: str = Depends(resolve_user_id)):
                 str(analyst["id"]),
                 context_summary or {},
             )
-            history = load_recent_messages(conn, session_id)
+            history = load_recent_messages(conn, session_id, limit=12)
             save_message(conn, session_id, user_id, "user", data.message)
 
         crisis_level = assess_crisis(data.message, history)

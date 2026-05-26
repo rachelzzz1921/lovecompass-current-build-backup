@@ -1,4 +1,4 @@
-import { markPartnerMateAccess, markPartnerRosAccess, markProductAccess, hasProductAccess } from "@/lib/accessGate";
+import { markPartnerMateAccess, markPartnerRosAccess, markProductAccess, getRedemptionEventId, hasProductAccess } from "@/lib/accessGate";
 import { lovecompassApi } from "@/lib/lovecompassApi";
 import {
   getStoredGender,
@@ -137,10 +137,11 @@ export async function unlockProductForRun(input: {
     if (!hasProductAccess(productId, suiteSlug)) {
       throw new Error("请先完成兑换码验证");
     }
-    const redemptionEventId =
-      sessionStorage.getItem(`redemption:${productId}`) ||
-      sessionStorage.getItem(`redemption:${suiteSlug}`);
-    markProductAccess(productId, suiteSlug, redemptionEventId ?? undefined);
+    const redemptionEventId = getRedemptionEventId(productId, suiteSlug);
+    if (!redemptionEventId) {
+      throw new Error("兑换凭证已失效，请重新输入兑换码");
+    }
+    markProductAccess(productId, suiteSlug, redemptionEventId);
     return suiteSlug;
   }
 
@@ -150,8 +151,8 @@ export async function unlockProductForRun(input: {
     suiteSlug,
     gender,
   });
-  markProductAccess(productId, res.suiteSlug || suiteSlug, res.redemptionEventId);
-  return res.suiteSlug || suiteSlug;
+  markProductAccess(productId, suiteSlug, res.redemptionEventId);
+  return suiteSlug;
 }
 
 export function persistRunSessionKeys(

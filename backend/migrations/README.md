@@ -24,6 +24,8 @@
 | 18 | `202605250004_mate_ai_pattern_cache.sql` | MATE Layer C pattern 缓存 |
 | 19 | `202605250004_ros_couple_ai_pattern_cache.sql` | ROS 双人报告 Layer C pattern 缓存 |
 | 20 | `202605250005_mate_ai_cache_rehearse_simulator.sql` | MATE 缓存扩展：预演 + 模拟器叙事 |
+| 21 | `202605260001_chat_system_prompts_v2.sql` | Chat system prompts v2 |
+| 22 | **`202605260002_chat_case_examples.sql`** | **顾问案例库（few-shot，scene_tags 对齐 triage）** |
 
 ## 目标库状态（三套体系齐全后）
 

@@ -8,6 +8,7 @@ import {
   resolvePrimaryAttachmentType,
   SELF_DIMENSIONS,
 } from "@/data/selfSuiteSpec";
+import { resolveSelfUnderlyingLogic } from "@/lib/selfDimensionLogic";
 
 const TRAIT_ICONS = ["shield", "key", "eye"] as const;
 
@@ -22,14 +23,18 @@ export function buildExampleSelfResult(character: ExampleCharacter): SelfResult 
   );
   const dimensions = SELF_DIMENSIONS.map((d) => {
     const dimKey = d.code.toLowerCase();
+    const score = character.selfScores[d.code];
+    const underlyingLogic = resolveSelfUnderlyingLogic(d.code, score);
     return {
       key: dimKey,
       label: d.name,
-      value: character.selfScores[d.code],
+      value: score,
       color: d.color,
-      displaySummary: dimensionDisplaySummary(d.code, character.selfScores[d.code], pronoun),
+      displaySummary: dimensionDisplaySummary(d.code, score, pronoun),
       coreQuestion: coreQuestionThirdPerson(d.code, pronoun),
       profileNote: traitByDimension[dimKey],
+      detail: underlyingLogic?.headline,
+      underlyingLogic: underlyingLogic ?? undefined,
     };
   });
   const overallScore = Math.round(

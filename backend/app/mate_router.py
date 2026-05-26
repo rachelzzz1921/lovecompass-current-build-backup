@@ -12,7 +12,7 @@ from app.auth import resolve_user_id
 from app.db import get_conn
 from app.json_utils import coerce_dict, jsonable
 from app.mate_couple import attempt_snapshot, build_couple_payload
-from app.mate_couple_ai_content import attach_mate_couple_ai_content
+from app.mate_couple_ai_content import enhance_mate_couple_session_background
 from app.mate_pair_supplement import (
     _user_supplement_complete,
     extract_single_mapped_supplement_fields,
@@ -142,7 +142,7 @@ def _fetch_latest_self_attachment(conn: Any, user_id: str) -> str | None:
         LEFT JOIN public.test_suites ts ON ts.id = ta.suite_id
         WHERE ta.user_id = %s
           AND ta.status = 'completed'
-          AND (ts.slug ILIKE '%suite1%' OR ts.slug ILIKE '%self%' OR ts.slug ILIKE '%s01%')
+          AND (ts.slug ILIKE '%%suite1%%' OR ts.slug ILIKE '%%self%%' OR ts.slug ILIKE '%%s01%%')
         ORDER BY COALESCE(ta.completed_at, ta.created_at) DESC
         LIMIT 1
         """,
@@ -157,13 +157,22 @@ def _fetch_latest_self_attachment(conn: Any, user_id: str) -> str | None:
 
 def merge_and_store_couple_report(conn: Any, session_id: uuid.UUID) -> dict[str, Any]:
     session = conn.execute(
-        "SELECT * FROM public.mate_relation_sessions WHERE id = %s",
+        """
+        SELECT *
+        FROM public.mate_relation_sessions
+        WHERE id = %s
+        FOR UPDATE
+        """,
         (session_id,),
     ).fetchone()
     if not session:
         raise HTTPException(status_code=404, detail="MATE 关系会话不存在")
     if not session.get("partner_attempt_id"):
         raise HTTPException(status_code=400, detail="伴侣尚未完成测评")
+
+    existing_payload = coerce_dict(session.get("couple_payload"))
+    if session.get("status") == "completed" and existing_payload.get("verdict"):
+        return existing_payload
 
     initiator = _fetch_attempt(conn, session["initiator_attempt_id"])
     partner = _fetch_attempt(conn, session["partner_attempt_id"])
@@ -184,7 +193,6 @@ def merge_and_store_couple_report(conn: Any, session_id: uuid.UUID) -> dict[str,
             conn=conn,
         )
     )
-    couple_payload = attach_mate_couple_ai_content(couple_payload, use_ai=True)
 
     conn.execute(
         """
@@ -318,13 +326,20 @@ def get_couple_report(code: str, user_id: str = Depends(resolve_user_id)):
         if str(session.get("initiator_user_id")) != user_id and str(session.get("partner_user_id")) != user_id:
             raise HTTPException(status_code=403, detail="无权查看该双人报告")
 
-        if session.get("status") != "completed" or not session.get("couple_payload"):
+        if session.get("status") != "completed" or not coerce_dict(session.get("couple_payload")).get("verdict"):
             if not session.get("partner_attempt_id"):
                 raise HTTPException(status_code=409, detail="等待伴侣完成测评")
             couple_payload = merge_and_store_couple_report(conn, session["id"])
             conn.commit()
         else:
             couple_payload = coerce_dict(session.get("couple_payload"))
+
+        enrichment = coerce_dict(couple_payload.get("ai_enrichment"))
+        conclusion = coerce_dict(couple_payload.get("conclusion"))
+        if enrichment.get("mode") != "ai" and (
+            conclusion.get("ai_pending") or int(coerce_dict(couple_payload.get("verdict")).get("score") or 0) >= 80
+        ):
+            enhance_mate_couple_session_background(str(session["id"]))
 
     return {"ok": True, "code": normalized, "couple": jsonable(couple_payload)}
 

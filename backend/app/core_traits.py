@@ -247,6 +247,9 @@ def build_core_traits(
     return traits[:3]
 
 
+from app.attempt_helpers import materialize_answer_rows_from_attempt
+
+
 def load_attempt_answer_rows(conn: Any, attempt_id: str) -> list[dict[str, Any]]:
     rows = conn.execute(
         """
@@ -268,7 +271,9 @@ def load_attempt_answer_rows(conn: Any, attempt_id: str) -> list[dict[str, Any]]
         """,
         (attempt_id,),
     ).fetchall()
-    return [dict(row) for row in rows]
+    if rows:
+        return [dict(row) for row in rows]
+    return materialize_answer_rows_from_attempt(conn, attempt_id)
 
 
 def attach_core_traits_to_payload(

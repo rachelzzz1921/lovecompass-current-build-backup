@@ -4,8 +4,6 @@ from typing import Any
 
 from psycopg.types.json import Jsonb
 
-from app.report_utils import looks_like_placeholder_report
-
 PRODUCT_SETS: tuple[str, ...] = ("SELF", "ROS", "MATE")
 
 PRODUCT_META: dict[str, dict[str, Any]] = {
@@ -62,8 +60,54 @@ def _profile_from_payload(result_payload: dict[str, Any] | None) -> dict[str, An
     }
 
 
-def summarize_attempt(row: dict[str, Any]) -> dict[str, Any]:
-    result_payload = row.get("result_payload") or {}
+def _light_result_payload_from_row(row: dict[str, Any]) -> dict[str, Any]:
+    """Rebuild minimal result_payload from SQL JSON extracts (no full blob)."""
+    payload: dict[str, Any] = {}
+    attachment = row.get("payload_attachment_type") or row.get("profile_attachment_type")
+    if attachment:
+        payload["attachment_type"] = attachment
+    tagline = row.get("payload_archetype_tagline")
+    archetype_profile: dict[str, Any] = {}
+    if tagline:
+        archetype_profile["tagline"] = tagline
+    if row.get("profile_attachment_type"):
+        archetype_profile["attachment_type"] = row.get("profile_attachment_type")
+    if archetype_profile:
+        payload["archetype_profile"] = archetype_profile
+
+    if row.get("ros_rel_name") or row.get("ros_one_liner"):
+        payload["relationshipType"] = {
+            "name": row.get("ros_rel_name"),
+            "one_liner": row.get("ros_one_liner"),
+            "key": row.get("ros_rel_key"),
+        }
+    if row.get("ros_stage_name") or row.get("ros_stage_id"):
+        payload["relationshipStage"] = {
+            "name": row.get("ros_stage_name"),
+            "id": row.get("ros_stage_id"),
+        }
+    if row.get("ros_resonance_tier"):
+        payload["resonance"] = {"tier": row.get("ros_resonance_tier")}
+    if row.get("payload_relation_code"):
+        payload["relationCode"] = row.get("payload_relation_code")
+
+    mate_name = row.get("mate_pos_name") or row.get("mate_pos_name_alt")
+    if mate_name or row.get("mate_pos_tagline"):
+        payload["positionType"] = {
+            "name": mate_name,
+            "tagline": row.get("mate_pos_tagline"),
+        }
+    if row.get("payload_quadrant"):
+        payload["quadrant"] = row.get("payload_quadrant")
+    return payload
+
+
+def summarize_attempt(row: dict[str, Any], *, include_detail: bool = False) -> dict[str, Any]:
+    raw_payload = row.get("result_payload")
+    if isinstance(raw_payload, dict) and raw_payload:
+        result_payload = raw_payload
+    else:
+        result_payload = _light_result_payload_from_row(row)
     if not isinstance(result_payload, dict):
         result_payload = {}
     profile_bits = _profile_from_payload(result_payload)
@@ -88,10 +132,10 @@ def summarize_attempt(row: dict[str, Any]) -> dict[str, Any]:
         "index": index_value,
         "rkScore": row.get("rk_score"),
         "dimensionScores": row.get("dimension_scores") if isinstance(row.get("dimension_scores"), dict) else {},
-        "coreTraits": profile_bits["coreTraits"][:3],
-        "dimensions": profile_bits["dimensions"],
+        "coreTraits": profile_bits["coreTraits"][:3] if include_detail else [],
+        "dimensions": profile_bits["dimensions"] if include_detail else [],
         "completedAt": str(row.get("completed_at") or row.get("created_at") or ""),
-        "hasAiReport": not looks_like_placeholder_report(row.get("ai_report")),
+        "hasAiReport": False,
         "primaryMetric": None,
         "primaryMetricLabel": None,
     }
@@ -191,7 +235,7 @@ def fetch_user_profile_row(conn: Any, user_id: str) -> dict[str, Any] | None:
     return dict(row) if row else None
 
 
-def fetch_completed_attempts(conn: Any, user_id: str, limit: int = 50) -> list[dict[str, Any]]:
+def fetch_completed_attempts(conn: Any, user_id: str, limit: int = 30) -> list[dict[str, Any]]:
     rows = conn.execute(
         """
         SELECT
@@ -203,13 +247,25 @@ def fetch_completed_attempts(conn: Any, user_id: str, limit: int = 50) -> list[d
           ta.ros_index,
           ta.rk_score,
           ta.dimension_scores,
-          ta.result_payload,
-          ta.ai_report,
           ta.created_at,
           ta.completed_at,
           ts.slug AS suite_slug,
           ts.name AS suite_name,
-          ts.gender::text AS suite_gender
+          ts.gender::text AS suite_gender,
+          ta.result_payload->>'attachment_type' AS payload_attachment_type,
+          ta.result_payload->'archetype_profile'->>'tagline' AS payload_archetype_tagline,
+          ta.result_payload->'archetype_profile'->>'attachment_type' AS profile_attachment_type,
+          ta.result_payload->'relationshipType'->>'name' AS ros_rel_name,
+          ta.result_payload->'relationshipType'->>'one_liner' AS ros_one_liner,
+          ta.result_payload->'relationshipType'->>'key' AS ros_rel_key,
+          ta.result_payload->'relationshipStage'->>'name' AS ros_stage_name,
+          ta.result_payload->'relationshipStage'->>'id' AS ros_stage_id,
+          ta.result_payload->'resonance'->>'tier' AS ros_resonance_tier,
+          ta.result_payload->>'relationCode' AS payload_relation_code,
+          ta.result_payload->'positionType'->>'name' AS mate_pos_name,
+          ta.result_payload->'positionType'->>'tagline' AS mate_pos_tagline,
+          ta.result_payload->'matePosition'->>'name' AS mate_pos_name_alt,
+          ta.result_payload->>'quadrant' AS payload_quadrant
         FROM public.test_attempts ta
         LEFT JOIN public.test_suites ts ON ts.id = ta.suite_id
         WHERE ta.user_id = %s AND ta.status = 'completed'
@@ -219,6 +275,40 @@ def fetch_completed_attempts(conn: Any, user_id: str, limit: int = 50) -> list[d
         (user_id, limit),
     ).fetchall()
     return [dict(row) for row in rows]
+
+
+def fetch_attempt_detail(conn: Any, attempt_id: str) -> dict[str, Any]:
+    row = conn.execute(
+        """
+        SELECT
+          result_payload->'core_traits' AS core_traits,
+          result_payload->'dimensions' AS dimensions
+        FROM public.test_attempts
+        WHERE id = %s
+        """,
+        (attempt_id,),
+    ).fetchone()
+    if not row:
+        return {}
+    item = dict(row)
+    core_traits = item.get("core_traits")
+    dimensions = item.get("dimensions")
+    return {
+        "core_traits": core_traits if isinstance(core_traits, list) else [],
+        "dimensions": dimensions if isinstance(dimensions, list) else [],
+    }
+
+
+def fetch_completed_attempt_count(conn: Any, user_id: str) -> int:
+    row = conn.execute(
+        """
+        SELECT COUNT(*)::int AS total
+        FROM public.test_attempts
+        WHERE user_id = %s AND status = 'completed'
+        """,
+        (user_id,),
+    ).fetchone()
+    return int((dict(row) if row else {}).get("total") or 0)
 
 
 def fetch_chat_stats(conn: Any, user_id: str) -> dict[str, Any]:
@@ -249,29 +339,57 @@ def fetch_chat_stats(conn: Any, user_id: str) -> dict[str, Any]:
     }
 
 
+def _portrait_cache_usable(cache: Any) -> bool:
+    if not isinstance(cache, dict):
+        return False
+    products = cache.get("products")
+    if not isinstance(products, list) or not products:
+        return False
+    return any(isinstance(p.get("latest"), dict) for p in products if isinstance(p, dict))
+
+
+def load_portrait_for_chat(conn: Any, user_id: str, *, refresh: bool = False) -> dict[str, Any]:
+    """Hot path: read profiles.portrait_cache when valid; rebuild only on refresh or cache miss."""
+    if refresh:
+        return rebuild_and_cache_portrait(conn, user_id)
+    row = fetch_user_profile_row(conn, user_id)
+    cache = (row or {}).get("portrait_cache")
+    if _portrait_cache_usable(cache):
+        return cache  # type: ignore[return-value]
+    return rebuild_and_cache_portrait(conn, user_id)
+
+
 def build_portrait(conn: Any, user_id: str) -> dict[str, Any]:
     profile_row = fetch_user_profile_row(conn, user_id)
     attempts = fetch_completed_attempts(conn, user_id)
-    summaries = [summarize_attempt(row) for row in attempts]
+    total_attempts = fetch_completed_attempt_count(conn, user_id)
 
     latest_by_set: dict[str, dict[str, Any] | None] = {key: None for key in PRODUCT_SETS}
-    history_by_set: dict[str, list[dict[str, Any]]] = {key: [] for key in PRODUCT_SETS}
-    for summary in summaries:
-        product_set = summary["productSet"]
-        history_by_set.setdefault(product_set, []).append(summary)
+    attempt_count_by_set: dict[str, int] = {key: 0 for key in PRODUCT_SETS}
+    for row in attempts:
+        product_set = resolve_product_set(row.get("suite_slug"), row.get("suite_name"), row.get("test_id"))
+        attempt_count_by_set[product_set] = attempt_count_by_set.get(product_set, 0) + 1
         if latest_by_set.get(product_set) is None:
-            latest_by_set[product_set] = summary
+            latest_by_set[product_set] = summarize_attempt(row, include_detail=False)
 
     self_latest = latest_by_set.get("SELF")
+    if self_latest and self_latest.get("attemptId"):
+        detail = fetch_attempt_detail(conn, str(self_latest["attemptId"]))
+        if detail.get("core_traits"):
+            self_latest = {**self_latest, "coreTraits": detail["core_traits"][:3]}
+        if detail.get("dimensions"):
+            self_latest = {**self_latest, "dimensions": detail["dimensions"]}
+        latest_by_set["SELF"] = self_latest
+
     completeness = compute_completeness(latest_by_set)
     chat = fetch_chat_stats(conn, user_id)
 
-    primary_attempt = self_latest or next((s for s in summaries if s), None)
+    primary_attempt = self_latest or next((s for s in latest_by_set.values() if s), None)
     products = []
     for product_set in PRODUCT_SETS:
         meta = PRODUCT_META[product_set]
         latest = latest_by_set.get(product_set)
-        history = history_by_set.get(product_set) or []
+        count = attempt_count_by_set.get(product_set, 0)
         products.append(
             {
                 "id": meta["id"],
@@ -280,11 +398,13 @@ def build_portrait(conn: Any, user_id: str) -> dict[str, Any]:
                 "title": meta["title"],
                 "subtitle": meta["subtitle"],
                 "status": "completed" if latest else "locked",
-                "attemptCount": len(history),
+                "attemptCount": count,
                 "latest": latest,
-                "history": history[:5],
+                "history": [],
             }
         )
+
+    timeline = [latest_by_set[key] for key in PRODUCT_SETS if latest_by_set.get(key)]
 
     portrait = {
         "user": {
@@ -316,9 +436,9 @@ def build_portrait(conn: Any, user_id: str) -> dict[str, Any]:
             "coreTraits": self_latest.get("coreTraits") if self_latest else [],
         },
         "products": products,
-        "timeline": summaries,
+        "timeline": timeline,
         "stats": {
-            "totalAttempts": len(summaries),
+            "totalAttempts": total_attempts,
             "chatSessions": chat["sessionCount"],
             "lastChatAt": chat["lastActiveAt"],
             "boundAttemptId": chat["boundAttemptId"],

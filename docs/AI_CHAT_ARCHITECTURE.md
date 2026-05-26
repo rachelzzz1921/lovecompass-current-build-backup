@@ -234,6 +234,22 @@ backend/app/shared_skills/  或  .cursor/skills/
 # 效果：注入 Prompt 5 写作规范（80–120 字、承接+洞察+开放问题）
 ```
 
+### 5.4 案例库（Phase 1：规则 + scene_tags）
+
+```text
+chat_case_examples (Supabase)
+    ↓ infer_scene_tags(user_message)  # 与 triage 同一套标签词表
+    ↓ GIN(scene_tags) + counselor_slug + product_set 预筛（最多 80 条）
+    ↓ Python 打分 → 注入 1–2 条 few-shot
+build_chat_messages() 顺序：
+  portrait → profile → 【案例 user】→ assistant(案例锚定) → history → 当前 user
+```
+
+- 模块：`chat_case_tags.py`、`chat_case_library.py`
+- 迁移：`migrations/202605260002_chat_case_examples.sql`
+- 字段：`use_count`（注入时 +1）、`hit_rate`（可选，后期自动调 `priority`）
+- **大规模**：数百～上千条仍走标签 + 关键词 + `priority`/`hit_rate`；跨场景误捞或维护成本过高时再 `CREATE EXTENSION vector`，做「标签过滤 → 向量 Top-K → 注入 2 条」
+
 ---
 
 ## 6. 危机护栏

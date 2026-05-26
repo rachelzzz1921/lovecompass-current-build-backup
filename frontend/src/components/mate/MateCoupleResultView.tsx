@@ -1,25 +1,46 @@
 import type { ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
-import type { MateCoupleResult } from "@/data/mateCoupleTypes";
+import type { MateCoupleBadge, MateCoupleResult } from "@/data/mateCoupleTypes";
 import { LiteCoupleResultNotice } from "@/components/LiteCoupleResultNotice";
-import { MatePairCompareTable } from "@/components/mate/MatePairCompareTable";
 
 const ROSE = {
   chip: "rgba(244,114,182,0.12)",
   chipText: "#f9a8d4",
   chipBorder: "rgba(244,114,182,0.35)",
-  accent: "#fb7185",
+  accent: "#534AB7",
+  accentAlt: "#1D9E75",
 };
 
 function SectionLabel({ children }: { children: ReactNode }) {
   return (
-    <div className="text-[10px] font-mono tracking-[0.28em] text-white/45 mb-3">{children}</div>
+    <div className="text-[10px] font-mono tracking-[0.28em] text-white/45 mb-3 uppercase">{children}</div>
+  );
+}
+
+function badgeClass(badge: MateCoupleBadge): string {
+  if (badge === "alert") return "bg-[#FCEBEB] text-[#A32D2D]";
+  if (badge === "warn") return "bg-[#FAEEDA] text-[#854F0B]";
+  return "bg-[#EAF3DE] text-[#3B6D11]";
+}
+
+function statusClass(badge: MateCoupleBadge): string {
+  if (badge === "alert") return "text-[#A32D2D]";
+  if (badge === "warn") return "text-[#854F0B]";
+  return "text-[#3B6D11]";
+}
+
+function RhythmBar({ score, color }: { score: number; color: string }) {
+  return (
+    <div className="flex-1 h-[3px] bg-white/10 rounded-full overflow-hidden">
+      <div className="h-full rounded-full" style={{ width: `${Math.max(0, Math.min(100, score))}%`, background: color }} />
+    </div>
   );
 }
 
 export function MateCoupleResultView({ result }: { result: MateCoupleResult }) {
-  const supplement = result.pairSupplement;
+  const { verdict, dealItems } = result;
+
   return (
     <main className="relative min-h-screen" style={{ background: "#100a0d" }}>
       <header
@@ -40,194 +61,206 @@ export function MateCoupleResultView({ result }: { result: MateCoupleResult }) {
 
       <div className="max-w-[480px] mx-auto px-5 pb-24 space-y-8">
         <LiteCoupleResultNotice productId="mate" participants={result.participants} />
-        <section>
-          <SectionLabel>📍 适配坐标</SectionLabel>
-          <div
-            className="rounded-3xl p-6 text-center"
-            style={{ background: ROSE.chip, border: `1px solid ${ROSE.chipBorder}` }}
-          >
-            <div className="font-display text-5xl text-white">{result.matchingScore}</div>
-            <div className="text-sm mt-2" style={{ color: ROSE.chipText }}>
-              {result.relationshipStatus} · 火花：{result.relationshipSpark}
+
+        <section
+          className="rounded-2xl p-5 flex gap-5 items-center"
+          style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
+        >
+          <div className="text-center shrink-0 w-[60px]">
+            <div className="font-display text-[42px] leading-none text-white">{verdict.score}</div>
+            <div className="text-[9px] tracking-[0.08em] uppercase text-white/40 mt-1">现实适配</div>
+          </div>
+          <div className="w-px self-stretch bg-white/10" />
+          <div className="min-w-0">
+            <div className="text-[11px] font-medium mb-1" style={{ color: ROSE.accent }}>
+              {verdict.oneliner}
             </div>
-            <div className="flex flex-wrap justify-center gap-2 mt-4">
-              {result.keywords.map((kw) => (
-                <span key={kw} className="text-[11px] px-2 py-0.5 rounded-full bg-black/20 text-white/80">
-                  #{kw}
-                </span>
-              ))}
-            </div>
-            <div className="grid grid-cols-2 gap-3 mt-5 text-left text-xs text-white/70">
-              <div className="rounded-xl p-3 bg-black/15">
-                <div className="text-white/40 mb-1">你</div>
-                {result.youPosition || "—"}
-              </div>
-              <div className="rounded-xl p-3 bg-black/15">
-                <div className="text-white/40 mb-1">TA</div>
-                {result.taPosition || "—"}
-              </div>
-            </div>
+            <div className="text-[15px] font-medium text-white mb-1">{verdict.title}</div>
+            <p className="text-xs text-white/65 leading-relaxed">{verdict.desc}</p>
+            {verdict.texture ? (
+              <p className="text-xs text-white/55 mt-2 leading-relaxed italic">{verdict.texture}</p>
+            ) : null}
           </div>
         </section>
 
-        {supplement && !supplement.supplementComplete ? (
+        {!result.supplementComplete ? (
           <section
             className="rounded-2xl px-4 py-3 text-xs text-white/70"
             style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
           >
             双方完成「双人补充题」后，条件对比与必聊议题会更完整。
-            {!supplement.youSupplementComplete ? " 你这边尚未完成补充题。" : ""}
-            {!supplement.taSupplementComplete ? " TA 尚未完成补充题。" : ""}
+            {!result.youSupplementComplete ? " 你这边尚未完成补充题。" : ""}
+            {!result.taSupplementComplete ? " TA 尚未完成补充题。" : ""}
           </section>
         ) : null}
 
-        {supplement?.conditionCompareTable.length ? (
-          <MatePairCompareTable title="📊 条件对比" rows={supplement.conditionCompareTable} />
-        ) : null}
-
-        {supplement?.dealItemsTable.length ? (
-          <MatePairCompareTable title="💬 相亲必聊议题" rows={supplement.dealItemsTable} />
-        ) : null}
-
-        {supplement?.rhythmSection.note ? (
+        {result.conditionTable.length > 0 ? (
           <section>
-            <SectionLabel>🎵 {supplement.rhythmSection.label}</SectionLabel>
-            <div
-              className="rounded-2xl p-4 space-y-3"
-              style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}
-            >
-              <div className="grid grid-cols-2 gap-3 text-center">
-                <div className="rounded-xl p-3 bg-black/15">
-                  <div className="text-2xl text-white">
-                    {supplement.rhythmSection.youScore ?? "—"}
-                  </div>
-                  <div className="text-[10px] text-white/45 mt-1">你</div>
-                </div>
-                <div className="rounded-xl p-3 bg-black/15">
-                  <div className="text-2xl text-white">
-                    {supplement.rhythmSection.taScore ?? "—"}
-                  </div>
-                  <div className="text-[10px] text-white/45 mt-1">TA</div>
-                </div>
-              </div>
-              <p className="text-sm text-white/75 leading-relaxed">{supplement.rhythmSection.note}</p>
+            <SectionLabel>现实条件对比</SectionLabel>
+            <div className="overflow-x-auto rounded-2xl border border-white/10">
+              <table className="w-full text-left border-collapse min-w-[340px]">
+                <thead>
+                  <tr className="text-[10px] text-white/40 border-b border-white/10">
+                    <th className="py-2 px-3 font-normal w-[28%]" />
+                    <th className="py-2 px-3 font-normal text-center">他</th>
+                    <th className="py-2 px-3 font-normal text-center">她</th>
+                    <th className="py-2 px-3 font-normal text-center w-[22%]">差距</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {result.conditionTable.map((row) => (
+                    <tr key={row.field} className="border-b border-white/8 text-xs text-white/85">
+                      <td className="py-2 px-3 text-white/55">
+                        {row.label}
+                        <span className="block text-[10px] text-white/35 mt-0.5">{row.source}</span>
+                      </td>
+                      <td className="py-2 px-3 text-center">
+                        {row.male_value}
+                        {row.male_sub ? <span className="block text-[10px] text-white/35">{row.male_sub}</span> : null}
+                      </td>
+                      <td className="py-2 px-3 text-center">
+                        {row.female_value}
+                        {row.female_sub ? (
+                          <span className="block text-[10px] text-white/35">{row.female_sub}</span>
+                        ) : null}
+                      </td>
+                      <td className="py-2 px-3 text-center">
+                        <span className={`inline-block text-[10px] px-2 py-0.5 rounded-full ${badgeClass(row.badge)}`}>
+                          {row.badge_label}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </section>
         ) : null}
 
-        {supplement?.attentionItems.length ? (
+        {(dealItems.highlight.length > 0 || dealItems.dim.length > 0) && (
           <section>
-            <SectionLabel>👀 需要关注</SectionLabel>
+            <SectionLabel>相亲必聊议题</SectionLabel>
+            <div className="space-y-3">
+              {dealItems.highlight.length > 0 ? (
+                <>
+                  <div className="text-[9px] tracking-[0.1em] uppercase text-white/40">需要谈的</div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {dealItems.highlight.map((item) => (
+                      <div
+                        key={item.field}
+                        className="rounded-xl p-3 border border-[#EF9F27]/60 bg-white/[0.03]"
+                      >
+                        <div className="text-[10px] text-white/40 mb-1">
+                          {item.label} · {item.source}
+                        </div>
+                        <div className="text-xs text-white flex flex-wrap items-baseline gap-1">
+                          <span className="font-medium">{item.male_text}</span>
+                          <span className="text-white/35 text-[9px]">vs</span>
+                          <span className="text-white/75">{item.female_text}</span>
+                        </div>
+                        <div className={`text-[10px] mt-1 ${statusClass(item.badge)}`}>{item.status_text}</div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : null}
+
+              {dealItems.dim.length > 0 ? (
+                <>
+                  <div className="text-[9px] tracking-[0.1em] uppercase text-white/40 mt-2">已对齐的</div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {dealItems.dim.map((item) => (
+                      <div key={item.field} className="rounded-xl p-3 border border-white/10 bg-white/[0.02] opacity-55">
+                        <div className="text-[10px] text-white/40 mb-1">
+                          {item.label} · {item.source}
+                        </div>
+                        <div className="text-xs text-white flex flex-wrap items-baseline gap-1">
+                          <span className="font-medium">{item.male_text}</span>
+                          <span className="text-white/35 text-[9px]">vs</span>
+                          <span className="text-white/75">{item.female_text}</span>
+                        </div>
+                        <div className={`text-[10px] mt-1 ${statusClass(item.badge)}`}>{item.status_text}</div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : null}
+            </div>
+          </section>
+        )}
+
+        {result.rhythm.length > 0 ? (
+          <section>
+            <SectionLabel>性格与节奏</SectionLabel>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {result.rhythm.map((row) => (
+                <div key={row.label} className="rounded-xl p-3 border border-white/10 bg-white/[0.03]">
+                  <div className="text-[10px] text-white/40 mb-2">{row.label}</div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-[10px] text-white/55 w-4">他</span>
+                    <RhythmBar score={row.male_score} color={ROSE.accent} />
+                  </div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-[10px] text-white/55 w-4">她</span>
+                    <RhythmBar score={row.female_score} color={ROSE.accentAlt} />
+                  </div>
+                  <p className="text-[10px] text-white/45 leading-relaxed">{row.note}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : null}
+
+        {result.attention.length > 0 ? (
+          <section>
+            <SectionLabel>需要关注的地方</SectionLabel>
             <div className="space-y-2">
-              {supplement.attentionItems.map((item) => (
+              {result.attention.map((item) => (
                 <div
-                  key={item.label}
-                  className="rounded-2xl px-4 py-3 text-sm"
-                  style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}
+                  key={item.id ?? item.title}
+                  className="grid grid-cols-[26px_1fr] gap-2 rounded-xl p-3 border border-white/10 bg-white/[0.03]"
                 >
-                  <div className="text-white/90 font-medium">{item.message}</div>
-                  <p className="text-xs text-white/55 mt-1 leading-relaxed">{item.desc}</p>
+                  <div
+                    className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${
+                      item.icon === "ok" ? "bg-[#EAF3DE] text-[#3B6D11]" : "bg-[#FAEEDA] text-[#854F0B]"
+                    }`}
+                  >
+                    {item.icon === "ok" ? "✓" : "!"}
+                  </div>
+                  <div>
+                    <div className="text-sm text-white/90 font-medium">
+                      {item.title}
+                      {item.source ? <span className="text-[10px] text-white/35 font-normal"> · {item.source}</span> : null}
+                    </div>
+                    <p className="text-xs text-white/55 mt-1 leading-relaxed">{item.desc}</p>
+                  </div>
                 </div>
               ))}
             </div>
           </section>
         ) : null}
 
-        <section>
-          <SectionLabel>🔬 关系拆解</SectionLabel>
-          <div className="grid grid-cols-2 gap-2">
-            {Object.entries(result.analysis).map(([code, mod]) => (
-              <details
-                key={code}
-                className="rounded-2xl p-3"
-                style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}
-              >
-                <summary className="cursor-pointer text-sm text-white font-medium list-none">
-                  {code} · {mod.level}
-                </summary>
-                <p className="text-xs text-white/60 mt-2 leading-relaxed">{mod.desc || "暂无补充说明"}</p>
-              </details>
-            ))}
-          </div>
-        </section>
-
-        <section>
-          <SectionLabel>🧩 关系画像</SectionLabel>
-          <div
-            className="rounded-2xl p-4 space-y-3"
-            style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}
-          >
-            <div>
-              <div className="text-xs text-white/45 mb-1">重叠区</div>
-              <div className="text-sm text-white/85">{result.portrait.common.join(" · ") || "—"}</div>
-            </div>
-            <div>
-              <div className="text-xs text-white/45 mb-1">差异点</div>
-              <div className="text-sm text-white/85">{result.portrait.difference.join(" · ") || "—"}</div>
-            </div>
-          </div>
-        </section>
-
-        <section>
-          <SectionLabel>⚠ 风险实验室</SectionLabel>
-          <div
-            className="rounded-2xl p-4"
-            style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-white font-medium">{result.riskLab.riskName}</span>
-              <span className="text-xs text-white/50">{result.riskLab.riskLevel}风险</span>
-            </div>
-            <div className="font-mono text-xs mt-2 text-white/70">{result.riskLab.riskVisual}</div>
-            <ul className="mt-3 space-y-1 text-sm text-white/75 list-disc pl-4">
-              {result.riskLab.manifest.map((line) => (
-                <li key={line}>{line}</li>
+        <section
+          className="rounded-xl p-4 text-xs text-white/70 leading-relaxed"
+          style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
+        >
+          <strong className="text-white/90 font-medium">红娘结论：</strong>
+          {result.conclusion.summary}
+          {result.conclusion.items.length > 0 ? (
+            <div className="mt-3 space-y-2">
+              {result.conclusion.items.map((item) => (
+                <div key={item.field} className="flex gap-2 items-start">
+                  <span className="w-1 h-1 rounded-full bg-[#854F0B] mt-2 shrink-0" />
+                  <span>{item.text}</span>
+                </div>
               ))}
-            </ul>
-            {result.riskLab.repair.length > 0 && (
-              <p className="text-xs text-white/55 mt-3">修复建议：{result.riskLab.repair.join("；")}</p>
-            )}
-          </div>
-        </section>
-
-        <section>
-          <SectionLabel>🔭 长期预估</SectionLabel>
-          <div className="grid grid-cols-2 gap-2 mb-3">
-            <div className="rounded-xl p-3 text-center bg-white/5">
-              <div className="text-2xl text-white">{result.future.stableRelationshipProbability}%</div>
-              <div className="text-[10px] text-white/45 mt-1">稳定关系概率</div>
             </div>
-            <div className="rounded-xl p-3 text-center bg-white/5">
-              <div className="text-2xl text-white">{result.future.marriageAdaptationScore}</div>
-              <div className="text-[10px] text-white/45 mt-1">结婚适配度</div>
-            </div>
-          </div>
-          <div className="space-y-3">
-            {result.future.timeline.map((node) => (
-              <div key={node.stage} className="border-l-2 pl-3" style={{ borderColor: ROSE.accent }}>
-                <div className="text-xs font-mono text-white/45">{node.stage}</div>
-                <div className="text-sm text-white/80 mt-1">{node.text}</div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section>
-          <SectionLabel>📋 红娘建议</SectionLabel>
-          <div className="space-y-2">
-            <div className="rounded-2xl px-4 py-3 text-sm text-white/85 bg-emerald-950/30 border border-emerald-900/40">
-              {result.advice.goodNews}
-            </div>
-            <div className="rounded-2xl px-4 py-3 text-sm text-white/85 bg-amber-950/25 border border-amber-900/35">
-              {result.advice.caution}
-            </div>
-            <div
-              className="rounded-2xl px-4 py-3 text-sm text-white/90"
-              style={{ background: ROSE.chip, border: `1px solid ${ROSE.chipBorder}` }}
-            >
-              {result.advice.oneChange}
-            </div>
-          </div>
+          ) : null}
+          {result.conclusion.action_item ? (
+            <p className="mt-3 text-white/85 font-medium">{result.conclusion.action_item}</p>
+          ) : result.conclusion.ai_pending ? (
+            <p className="mt-3 text-white/40 italic">个性化建议生成中…</p>
+          ) : null}
         </section>
       </div>
     </main>

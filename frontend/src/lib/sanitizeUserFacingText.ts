@@ -40,7 +40,12 @@ function codePattern(code: string): RegExp {
 }
 
 export function sanitizeUserFacingText(text: string): string {
-  if (!text?.trim()) return text;
+  if (typeof text !== "string") {
+    if (text == null) return "";
+    if (typeof text === "object") return "";
+    return String(text);
+  }
+  if (!text.trim()) return text;
   let out = text;
   for (const [code, label] of Object.entries(SEMANTIC_REPLACE).sort(
     (a, b) => b[0].length - a[0].length,
@@ -48,9 +53,20 @@ export function sanitizeUserFacingText(text: string): string {
     out = out.replace(codePattern(code), label);
   }
   out = out.replace(INTERNAL_CODE_RE, "");
-  out = out.replace(/\s{2,}/g, " ");
+  out = out.replace(/[ \t\f\v\u00a0]{2,}/g, " ");
   out = out.replace(/[，。；]\s*[，。；]/g, "，");
   return out.trim();
+}
+
+/** Sanitize markdown without collapsing line breaks (needed for ## headings). */
+export function sanitizeUserFacingMarkdown(markdown: string): string {
+  if (typeof markdown !== "string" || !markdown.trim()) return markdown;
+  return markdown
+    .split("\n")
+    .map((line) => sanitizeUserFacingText(line))
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 export function sanitizeUserFacingDeep<T>(value: T): T {

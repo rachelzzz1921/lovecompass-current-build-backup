@@ -53,7 +53,7 @@ export function SelfResultView({
   }, []);
 
   return (
-    <div className={`relative w-full min-w-0 ${exampleMode ? "" : "min-h-screen pb-28"}`}>
+    <div className={`relative w-full min-w-0 overflow-x-hidden ${exampleMode ? "" : "min-h-screen pb-32 md:pb-28"}`}>
       {!exampleMode ? (
         <header className="relative z-10 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 sm:px-6 md:px-12 pt-4 sm:pt-6">
           <Link to="/" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition shrink-0">

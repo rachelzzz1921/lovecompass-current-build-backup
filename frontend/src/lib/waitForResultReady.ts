@@ -40,12 +40,48 @@ export async function waitForSelfAttemptReady(attemptId: string): Promise<Record
   throw new Error("结果生成超时，请稍后在历史记录中查看。");
 }
 
+const ROS_LAYER_KEYS = new Set(["AT", "IN", "CO", "EV", "RK"]);
+
+export function normalizeRosSinglePayload(attempt: Record<string, unknown>): Record<string, unknown> {
+  const payload = {
+    ...(((attempt.result_payload ?? {}) as Record<string, unknown>) || {}),
+  };
+  if (!Array.isArray(payload.dims) && Array.isArray(payload.layers)) {
+    payload.dims = (payload.layers as Array<Record<string, unknown>>).map((layer) => ({
+      key: String(layer.code ?? "").toLowerCase(),
+      label: String(layer.name ?? ""),
+      value: Number(layer.displayScore ?? layer.score ?? 0),
+      color: String(layer.color ?? ""),
+    }));
+  }
+  const code = attempt.relation_code ?? payload.relationCode;
+  if (code && !payload.relationCode) payload.relationCode = code;
+  return payload;
+}
+
+export function rosSingleDisplayReady(single: Record<string, unknown>): boolean {
+  if (Array.isArray(single.dims) && single.dims.length > 0) return true;
+  return Boolean(
+    Array.isArray(single.layers) &&
+      single.layers.length > 0 &&
+      single.relationshipType,
+  );
+}
+
 export function rosAttemptRenderable(attempt: Record<string, unknown>): boolean {
   if (attempt.status === "completed") return true;
   const payload = attempt.result_payload;
-  if (!payload || typeof payload !== "object") return false;
-  const p = payload as Record<string, unknown>;
-  return Boolean(p.layers || p.layerDetails || p.rosIndex || p.relationshipType);
+  if (payload && typeof payload === "object") {
+    const p = payload as Record<string, unknown>;
+    if (p.layers || p.layerDetails || p.rosIndex || p.relationshipType || p.dims) {
+      return true;
+    }
+  }
+  const scores = attempt.dimension_scores;
+  if (scores && typeof scores === "object") {
+    return Object.keys(scores as object).some((k) => ROS_LAYER_KEYS.has(k.toUpperCase()));
+  }
+  return false;
 }
 
 export function mateAttemptRenderable(attempt: Record<string, unknown>): boolean {
@@ -112,28 +148,41 @@ async function prefetchMateSingle(attemptId: string, attempt: Record<string, unk
     } satisfies MateSinglePrefetch);
   };
 
+  if (mateAttemptRenderable(attempt) && Object.keys(payload).length > 0) {
+    stash(payload);
+    return;
+  }
+
   const deadline = Date.now() + TIMEOUT_MS;
   while (Date.now() < deadline) {
+    await sleep(POLL_MS);
+    const res = await lovecompassApi.getAttemptResult(attemptId);
+    attempt = (res.attempt ?? {}) as Record<string, unknown>;
+    const nextPayload = (attempt.result_payload ?? {}) as Record<string, unknown>;
+    if (mateAttemptRenderable(attempt) && Object.keys(nextPayload).length > 0) {
+      stash(nextPayload);
+      return;
+    }
     try {
-      const res = await lovecompassApi.getMateSingleResult(attemptId);
-      stash(res.single, { relationCode: res.relationCode, coupleUnlocked: res.coupleUnlocked });
+      const singleRes = await lovecompassApi.getMateSingleResult(attemptId);
+      stash(singleRes.single, {
+        relationCode: singleRes.relationCode,
+        coupleUnlocked: singleRes.coupleUnlocked,
+      });
       return;
     } catch {
-      if (mateAttemptRenderable(attempt) && Object.keys(payload).length > 0) {
-        stash(payload);
-        return;
-      }
-      await sleep(POLL_MS);
-      const res = await lovecompassApi.getAttemptResult(attemptId);
-      attempt = (res.attempt ?? {}) as Record<string, unknown>;
+      // keep polling attempt until renderable or timeout
     }
   }
   throw new Error("择偶档案加载超时，请刷新或从历史记录进入。");
 }
 
 async function prefetchRosSingle(attemptId: string, attempt: Record<string, unknown>): Promise<void> {
-  const payload = (attempt.result_payload ?? {}) as Record<string, unknown>;
-  const relationCode = String(attempt.relation_code ?? payload.relationCode ?? "") || undefined;
+  const relationCode = String(
+    attempt.relation_code ??
+      (attempt.result_payload as Record<string, unknown> | undefined)?.relationCode ??
+      "",
+  ) || undefined;
 
   const stash = (single: Record<string, unknown>, extra?: { relationCode?: string; coupleUnlocked?: boolean }) => {
     stashResultPrefetch(attemptId, {
@@ -141,28 +190,32 @@ async function prefetchRosSingle(attemptId: string, attempt: Record<string, unkn
       attemptId,
       data: {
         single,
-        relationCode: extra?.relationCode ?? relationCode,
+        relationCode:
+          extra?.relationCode ??
+          relationCode ??
+          (String(single.relationCode ?? "") || undefined),
         coupleUnlocked: extra?.coupleUnlocked,
         suiteSlug: String(attempt.test_id ?? ""),
       },
     } satisfies RosSinglePrefetch);
   };
 
+  const tryStashAttempt = (row: Record<string, unknown>): boolean => {
+    const single = normalizeRosSinglePayload(row);
+    if (!rosAttemptRenderable(row) || !rosSingleDisplayReady(single)) return false;
+    stash(single);
+    return true;
+  };
+
+  // POST 后 result_payload 已含 layers/dims，不必等 finalize 或重 GET /ros/.../single
+  if (tryStashAttempt(attempt)) return;
+
   const deadline = Date.now() + TIMEOUT_MS;
   while (Date.now() < deadline) {
-    try {
-      const res = await lovecompassApi.getRosSingleResult(attemptId);
-      stash(res.single, { relationCode: res.relationCode, coupleUnlocked: res.coupleUnlocked });
-      return;
-    } catch {
-      if (rosAttemptRenderable(attempt) && Object.keys(payload).length > 0) {
-        stash(payload);
-        return;
-      }
-      await sleep(POLL_MS);
-      const res = await lovecompassApi.getAttemptResult(attemptId);
-      attempt = (res.attempt ?? {}) as Record<string, unknown>;
-    }
+    await sleep(POLL_MS);
+    const res = await lovecompassApi.getAttemptResult(attemptId);
+    attempt = (res.attempt ?? {}) as Record<string, unknown>;
+    if (tryStashAttempt(attempt)) return;
   }
   throw new Error("关系画像加载超时，请刷新或从历史记录进入。");
 }

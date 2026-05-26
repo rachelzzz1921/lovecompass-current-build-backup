@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { AuthChecking, useRequireAuth } from "@/lib/requireAuth";
 import { waitForResultReady } from "@/lib/waitForResultReady";
+import { peekResultPrefetch } from "@/lib/resultPrefetchCache";
 import {
   clearAnalyzingSession,
   peekAnalyzingSession,
@@ -137,6 +138,16 @@ function AnalyzingPage() {
       setSubmitNext(restored.submitNext ?? null);
       if (restored.partnerRelationCode) setPartnerRelationCode(restored.partnerRelationCode);
       setWorkState("ready");
+      const prefetchKey = restored.partnerRelationCode
+        ? `couple:${restored.partnerRelationCode.trim().toUpperCase()}`
+        : restored.attemptId;
+      if (!peekResultPrefetch(prefetchKey)) {
+        void waitForResultReady({
+          attemptId: restored.attemptId,
+          productSet: restored.productSet,
+          partnerRelationCode: restored.partnerRelationCode,
+        }).catch(() => undefined);
+      }
       return;
     }
 

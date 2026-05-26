@@ -1,7 +1,9 @@
 import { Link } from "@tanstack/react-router";
 import { Bot, Share2 } from "lucide-react";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import type { MateResult } from "@/data/mateTypes";
+import { ShareCardDialog } from "@/components/share/ShareCardDialog";
 import { LiteResultNotice } from "@/components/LiteResultNotice";
 import { SuiteCrossSell } from "@/components/SuiteCrossSell";
 import { SuiteUpgradeBanner } from "@/components/SuiteUpgradeBanner";
@@ -15,6 +17,7 @@ import { MATE_RESULT_SECTIONS } from "@/lib/readingSections";
 import { chatRouteSearch } from "@/lib/chatRouteSearch";
 import { inferSuiteTier } from "@/lib/suiteTier";
 import { mateLayout } from "@/lib/mateLayout";
+import { drawMateSummaryShareCard } from "@/lib/share/templates/drawMateSummaryShareCard";
 
 export function MateResultView({
   result,
@@ -34,11 +37,11 @@ export function MateResultView({
   accuracyNote: string | null;
 }) {
   const { activeSectionId, visible: showFloatingNav } = useFloatingResultNav(MATE_RESULT_SECTIONS);
-  const quotes = result.socialQuotes.length ? result.socialQuotes : ["看起来一般，熟了以后会越来越上头"];
-
-  const copyQuote = () => {
-    navigator.clipboard.writeText(quotes[0]).then(() => toast.success("已复制语录")).catch(() => toast.error("复制失败"));
-  };
+  const [shareOpen, setShareOpen] = useState(false);
+  const drawShare = useCallback(
+    (canvas: HTMLCanvasElement) => drawMateSummaryShareCard(canvas, result),
+    [result],
+  );
 
   return (
     <MateResultShell>
@@ -118,12 +121,21 @@ export function MateResultView({
         </Link>
         <button
           type="button"
-          onClick={copyQuote}
+          onClick={() => setShareOpen(true)}
           className="flex items-center justify-center gap-2 h-11 rounded-2xl text-sm text-white/80 border border-white/10"
         >
           <Share2 className="h-4 w-4" /> 生成分享卡片
         </button>
       </div>
+
+      <ShareCardDialog
+        open={shareOpen}
+        onOpenChange={setShareOpen}
+        title="择偶坐标 · 分享卡片"
+        filenamePrefix="mirror-mate"
+        draw={drawShare}
+        variant="dark"
+      />
 
       <FloatingSectionNav
         visible={showFloatingNav}

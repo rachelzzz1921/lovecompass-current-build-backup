@@ -42,7 +42,7 @@ export function RosResultView({
   examplePartner,
 }: RosResultViewProps) {
   const [shareOpen, setShareOpen] = useState(false);
-  const stage = REL_STAGES[result.stageId - 1];
+  const stage = REL_STAGES[Math.min(Math.max(result.stageId, 1), REL_STAGES.length) - 1];
   const resonance = result.resonance?.score ?? Math.round(
     result.dims.reduce((s, d) => s + d.value, 0) / Math.max(result.dims.length, 1),
   );

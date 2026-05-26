@@ -22,7 +22,8 @@ import {
   SELF_DIMENSIONS,
   type SelfDimensionCode,
 } from "@/data/selfSuiteSpec";
-import { sanitizeUserFacingText } from "@/lib/sanitizeUserFacingText";
+import { sanitizeUserFacingDeep, sanitizeUserFacingMarkdown, sanitizeUserFacingText } from "@/lib/sanitizeUserFacingText";
+import { resolveSelfUnderlyingLogic } from "@/lib/selfDimensionLogic";
 
 export type AttemptResultInput = {
   test_id?: string;
@@ -52,7 +53,20 @@ export type AttemptResultInput = {
     }>;
     dimension_summaries?: Record<
       string,
-      { label?: string; detail?: string; coreQuestion?: string; name?: string }
+      {
+        label?: string;
+        detail?: string;
+        coreQuestion?: string;
+        name?: string;
+        underlying_logic?: {
+          measure?: string;
+          headline?: string;
+          interpretation?: string;
+          inRelationship?: string;
+          growthHint?: string | null;
+          bandKey?: string;
+        };
+      }
     >;
     ai_content?: AiContentBlock;
     static_copy?: {
@@ -106,8 +120,22 @@ function normalizeDimensions(
     );
     const summaryRow =
       summaries && typeof summaries === "object"
-        ? (summaries as Record<string, { label?: string; coreQuestion?: string }>)[spec.code]
+        ? (summaries as NonNullable<AttemptResultInput["result_payload"]>["dimension_summaries"])?.[
+            spec.code
+          ]
         : undefined;
+    const underlyingFromPayload = summaryRow?.underlying_logic;
+    const underlyingLogic = underlyingFromPayload
+      ? {
+          measure: underlyingFromPayload.measure,
+          headline: underlyingFromPayload.headline,
+          interpretation: underlyingFromPayload.interpretation,
+          inRelationship: underlyingFromPayload.inRelationship,
+          growthHint: underlyingFromPayload.growthHint,
+          bandKey: underlyingFromPayload.bandKey,
+        }
+      : resolveSelfUnderlyingLogic(spec.code, rawScore) ?? undefined;
+    const headline = summaryRow?.detail ?? underlyingLogic?.headline;
     return {
       key: spec.code,
       label: spec.name,
@@ -116,10 +144,8 @@ function normalizeDimensions(
       rawScore,
       color: spec.color,
       displaySummary: summaryRow?.label ?? scoreDisplaySummary(rawScore),
-      detail:
-        summaries && typeof summaries === "object"
-          ? (summaries as Record<string, { detail?: string }>)[spec.code]?.detail
-          : undefined,
+      detail: headline,
+      underlyingLogic,
     };
   });
 }
@@ -331,7 +357,7 @@ export function sanitizeResultReportMarkdown(
     /^##\s*你的自我关系画像：.+$/m,
     `## 你的自我关系画像：${attachmentType}`,
   );
-  return sanitizeUserFacingText(out);
+  return sanitizeUserFacingMarkdown(out);
 }
 
 export function mapAttemptToSelfResult(input: AttemptResultInput): SelfResult {
@@ -359,7 +385,7 @@ export function mapAttemptToSelfResult(input: AttemptResultInput): SelfResult {
           body: sanitizeUserFacingText(trait.body),
           highlight: trait.highlight,
           source_dimension: trait.source_dimension,
-          evidence: trait.evidence ? sanitizeUserFacingText(trait.evidence) : trait.evidence,
+          evidence: trait.evidence ? sanitizeUserFacingDeep(trait.evidence) : trait.evidence,
         }))
       : buildCoreTraits(payload, profile, attachment, dimensions, greyZone);
   const insights = (aiContent?.insights?.length

@@ -105,7 +105,15 @@ export function mapApiSingleToRosResult(
 ): RosSingleResult {
   const relType = (single.relationshipType as Record<string, string>) || {};
   const stage = (single.relationshipStage as Record<string, unknown>) || {};
-  const dims = Array.isArray(single.dims) ? single.dims : [];
+  let dims = Array.isArray(single.dims) ? single.dims : [];
+  if (!dims.length && Array.isArray(single.layers)) {
+    dims = (single.layers as Array<Record<string, unknown>>).map((layer) => ({
+      key: String(layer.code ?? "").toLowerCase(),
+      label: String(layer.name ?? ""),
+      value: Number(layer.displayScore ?? layer.score ?? 0),
+      color: String(layer.color ?? ""),
+    }));
+  }
   const resonance = single.resonance as RosSingleResult["resonance"];
   const timeTag = single.timeTag ? String(single.timeTag) : null;
   const aiContent = mapAiContent(single.ai_content);

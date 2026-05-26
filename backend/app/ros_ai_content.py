@@ -489,6 +489,13 @@ def build_ros_ai_content(
     return ai_content
 
 
+def ros_ai_content_ready(ai: Any) -> bool:
+    if not isinstance(ai, dict):
+        return False
+    has_insights = bool(ai.get("insights_list") or ai.get("insights"))
+    return bool(ai.get("layer_expansion") and ai.get("prescription") and has_insights)
+
+
 def attach_ros_ai_content_to_payload(
     conn: Any,
     attempt_id: str,
@@ -499,6 +506,12 @@ def attach_ros_ai_content_to_payload(
     gender: str = "female",
 ) -> dict[str, Any]:
     payload = attach_static_copy_to_payload(dict(result_payload))
+    existing_ai = payload.get("ai_content")
+    if isinstance(existing_ai, dict) and ros_ai_content_ready(existing_ai) and not use_ai:
+        if existing_ai.get("insights_list") and not payload.get("insights"):
+            payload["insights"] = existing_ai["insights_list"]
+        return payload
+
     rows = load_attempt_answer_rows(conn, attempt_id)
     rel = payload.get("relationshipType") or {}
     rel_name = str((rel or {}).get("name") or "温水同行")
@@ -534,18 +547,19 @@ def attach_ros_ai_content_to_payload(
                 "tier_label": tier_label(code, scores.get(code, 0)),
             }
         ai_content["layer_expansion"] = layer_expansion
-        scores = {str(k).upper(): float(v) for k, v in (layer_scores or {}).items()}
-        blind = build_blind_spot(scores, rows)
-        if blind:
-            ai_content["blind_spot"] = blind["blind_spot_text"]
-            ai_content["blind_spot_meta"] = {
-                "layer": blind.get("layer"),
-                "self_reported_score": blind.get("self_reported_score"),
-                "behavior_implied_score": blind.get("behavior_implied_score"),
-                "gap": blind.get("gap"),
-            }
-        elif cached.get("blind_spot"):
+        if cached.get("blind_spot"):
             ai_content["blind_spot"] = cached.get("blind_spot")
+        else:
+            scores = {str(k).upper(): float(v) for k, v in (layer_scores or {}).items()}
+            blind = build_blind_spot(scores, rows)
+            if blind:
+                ai_content["blind_spot"] = blind["blind_spot_text"]
+                ai_content["blind_spot_meta"] = {
+                    "layer": blind.get("layer"),
+                    "self_reported_score": blind.get("self_reported_score"),
+                    "behavior_implied_score": blind.get("behavior_implied_score"),
+                    "gap": blind.get("gap"),
+                }
     else:
         ai_content = build_ros_ai_content(
             result_payload=payload,

@@ -9,8 +9,17 @@ export type Dimension = {
   coreQuestion?: string;
   /** 示范档案：人物侧写里对这一维的推演说明 */
   profileNote?: string;
-  /** Layer B 维度长描述 */
+  /** Layer B 维度长描述（headline 一句话） */
   detail?: string;
+  /** Layer B 底层逻辑结构化解读（后端 dimension_summaries.underlying_logic） */
+  underlyingLogic?: {
+    measure?: string;
+    headline?: string;
+    interpretation?: string;
+    inRelationship?: string;
+    growthHint?: string | null;
+    bandKey?: string;
+  };
 };
 export type MatchType = {
   code: string;

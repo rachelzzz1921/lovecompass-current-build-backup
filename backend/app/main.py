@@ -38,15 +38,31 @@ from app.chat_context import (
     save_message,
     summarize_context,
 )
+from app.chat_injection import ChatInjectionState, guard_chat_output
+
+
+def _injection_state_from_meta(meta: dict[str, Any] | None) -> ChatInjectionState | None:
+    if not meta:
+        return None
+    return ChatInjectionState(
+        has_portrait_layer=bool(meta.get("hasPortraitLayer")),
+        has_profile_block=bool(meta.get("hasProfileBlock")),
+        has_completed_tests=bool(meta.get("hasCompletedTests")),
+        bound_product_set=meta.get("boundProductSet"),
+    )
 from app.chat_prompt_layers import assess_crisis, build_crisis_response, triage_counselor
 from app.admin import router as admin_router
 from app.core_traits import attach_core_traits_to_payload
 from app.self_ai_content import attach_self_ai_content_to_payload, enhance_self_ai_background, enhance_self_ai_for_attempt
-from app.ros_ai_content import attach_ros_ai_content_to_payload, enhance_ros_ai_background, enhance_ros_ai_for_attempt
+from app.ros_ai_content import (
+    attach_ros_ai_content_to_payload,
+    enhance_ros_ai_background,
+    enhance_ros_ai_for_attempt,
+    ros_ai_content_ready,
+)
 from app.mate_ai_content import attach_mate_ai_content_to_payload, enhance_mate_ai_for_attempt
 from app.profile_center import rebuild_and_cache_portrait
 from app.attempt_finalize import finalize_attempt_background
-from app.attempt_helpers import batch_insert_attempt_answers
 from app.report_utils import looks_like_placeholder_report
 from app.semantic_translation import guard_ai_output, sanitize_user_facing_payload, FORBIDDEN_RULES_MARKDOWN
 from app.ros_router import router as ros_router
@@ -557,10 +573,13 @@ def list_attempts(limit: int = 20, user_id: str = Depends(resolve_user_id)):
 
 
 @app.get("/profile/portrait")
-def get_profile_portrait(user_id: str = Depends(resolve_user_id)):
+def get_profile_portrait(refresh: bool = False, user_id: str = Depends(resolve_user_id)):
     with get_conn() as conn:
-        portrait = rebuild_and_cache_portrait(conn, user_id)
-        conn.commit()
+        from app.profile_center import load_portrait_for_chat
+
+        portrait = load_portrait_for_chat(conn, user_id, refresh=refresh)
+        if refresh:
+            conn.commit()
     return {"portrait": _jsonable(portrait)}
 
 
@@ -685,14 +704,6 @@ def submit_attempt(data: AttemptIn, background_tasks: BackgroundTasks, user_id: 
             ),
         ).fetchone()
         attempt_id = attempt["id"]
-        numeric_map = scores["numeric_by_external_id"]
-        batch_insert_attempt_answers(
-            conn,
-            attempt_id,
-            questions,
-            answer_by_external,
-            numeric_map,
-        )
         if data.redemptionEventId:
             conn.execute("UPDATE public.redemption_events SET attempt_id = %s WHERE id = %s", (attempt_id, data.redemptionEventId))
 
@@ -727,7 +738,11 @@ def submit_attempt(data: AttemptIn, background_tasks: BackgroundTasks, user_id: 
     return response
 
 @app.get("/attempts/{attempt_id}/result")
-def get_attempt_result(attempt_id: str, user_id: str = Depends(resolve_user_id)):
+def get_attempt_result(
+    attempt_id: str,
+    background_tasks: BackgroundTasks,
+    user_id: str = Depends(resolve_user_id),
+):
     try:
         uuid.UUID(attempt_id)
     except ValueError:
@@ -753,16 +768,18 @@ def get_attempt_result(attempt_id: str, user_id: str = Depends(resolve_user_id))
             result_payload = {}
         suite_slug = str(attempt.get("test_id") or "")
         if is_ros_suite(suite_slug):
-            result_payload = attach_ros_ai_content_to_payload(
-                conn,
-                attempt_id,
-                result_payload,
-                attempt.get("dimension_scores"),
-                use_ai=False,
-                gender=str(attempt.get("archetype_gender") or "female"),
-            )
+            existing_ai = result_payload.get("ai_content")
+            if not ros_ai_content_ready(existing_ai):
+                result_payload = attach_ros_ai_content_to_payload(
+                    conn,
+                    attempt_id,
+                    result_payload,
+                    attempt.get("dimension_scores"),
+                    use_ai=False,
+                    gender=str(attempt.get("archetype_gender") or "female"),
+                )
             if (result_payload.get("ai_content") or {}).get("mode") == "deterministic":
-                enhance_ros_ai_background(attempt_id)
+                background_tasks.add_task(enhance_ros_ai_background, attempt_id)
         elif is_mate_suite(suite_slug):
             result_payload = attach_mate_ai_content_to_payload(
                 conn,
@@ -793,7 +810,7 @@ def get_attempt_result(attempt_id: str, user_id: str = Depends(resolve_user_id))
                 gender=str(attempt.get("archetype_gender") or "female"),
             )
             if (result_payload.get("ai_content") or {}).get("mode") == "deterministic":
-                enhance_self_ai_background(attempt_id)
+                background_tasks.add_task(enhance_self_ai_background, attempt_id)
         attempt = dict(attempt)
         attempt["result_payload"] = sanitize_user_facing_payload(result_payload)
         if attempt.get("ai_report"):
@@ -991,14 +1008,25 @@ def chat_context(
 ):
     """Return bound test result summary, cross-suite profile, and existing session history."""
     with get_conn() as conn:
-        bundle = build_chat_profile_bundle(conn, user_id, attemptId, refresh=False)
-        session_id, messages = load_chat_session_messages(
-            conn,
-            user_id,
-            analystId,
-            attemptId,
-            limit=40,
-        )
+        try:
+            bundle = build_chat_profile_bundle(conn, user_id, attemptId, refresh=False)
+        except Exception as exc:
+            raise HTTPException(
+                status_code=500,
+                detail=f"画像加载失败：{str(exc)[:200]}",
+            ) from exc
+        session_id: str | None = None
+        messages: list[dict[str, str]] = []
+        try:
+            session_id, messages = load_chat_session_messages(
+                conn,
+                user_id,
+                analystId,
+                attemptId,
+                limit=40,
+            )
+        except Exception:
+            session_id, messages = None, []
     return {
         "ok": True,
         "bound": bundle["bound"],
@@ -1012,10 +1040,18 @@ def chat_context(
 @app.post("/chat/sync-profile")
 def chat_sync_profile(user_id: str = Depends(resolve_user_id)):
     """Rebuild portrait cache and return a user-visible sync acknowledgment for chat."""
-    with get_conn() as conn:
-        bundle = build_chat_profile_bundle(conn, user_id, refresh=True)
-        acknowledgment = build_profile_sync_acknowledgment(bundle["portrait"])
-        conn.commit()
+    try:
+        with get_conn() as conn:
+            bundle = build_chat_profile_bundle(conn, user_id, refresh=True)
+            acknowledgment = build_profile_sync_acknowledgment(bundle["portrait"])
+            conn.commit()
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"画像同步失败：{str(exc)[:240]}",
+        ) from exc
     return {
         "ok": True,
         "bound": bundle["bound"],
@@ -1042,12 +1078,14 @@ def _chat_sse_events(
     context_summary: dict[str, Any] | None,
     bound: bool,
     crisis_level: str,
+    injection_meta: dict[str, Any] | None = None,
 ) -> Iterator[str]:
     meta = {
         "conversationId": session_id,
         "context": context_summary,
         "bound": bound,
         "crisis": crisis_level != "none",
+        "injection": injection_meta or {},
     }
     yield f"data: {json.dumps({'meta': meta}, ensure_ascii=False)}\n\n"
 
@@ -1056,7 +1094,10 @@ def _chat_sse_events(
         for chunk in adapter.stream_messages(messages):
             parts.append(chunk)
             yield f"data: {json.dumps({'delta': chunk}, ensure_ascii=False)}\n\n"
-        message = guard_ai_output("".join(parts))
+        message = guard_chat_output(
+            guard_ai_output("".join(parts)),
+            injection=_injection_state_from_meta(injection_meta),
+        )
     except RuntimeError as exc:
         yield f"data: {json.dumps({'error': str(exc)[:300]}, ensure_ascii=False)}\n\n"
         yield "data: [DONE]\n\n"
@@ -1116,7 +1157,7 @@ def chat_message(data: ChatIn, user_id: str = Depends(resolve_user_id)):
                 "crisis": True,
             }
 
-        chat_messages = build_chat_messages(
+        chat_messages, injection = build_chat_messages(
             analyst,
             attempt,
             history,
@@ -1125,6 +1166,7 @@ def chat_message(data: ChatIn, user_id: str = Depends(resolve_user_id)):
             user_id=user_id,
             crisis_level=crisis_level,
         )
+        injection_meta = injection.to_meta()
         adapter = get_ai_adapter()
 
         if data.stream:
@@ -1137,12 +1179,17 @@ def chat_message(data: ChatIn, user_id: str = Depends(resolve_user_id)):
                     context_summary=context_summary,
                     bound=bool(attempt),
                     crisis_level=crisis_level,
+                    injection_meta=injection_meta,
                 ),
                 media_type="text/event-stream",
             )
 
         try:
-            message = adapter.generate_messages(chat_messages)
+            raw = adapter.generate_messages(chat_messages)
+            message = guard_chat_output(
+                guard_ai_output(raw),
+                injection=injection,
+            )
         except RuntimeError as exc:
             raise HTTPException(status_code=502, detail=str(exc)[:300]) from exc
         if session_id:
@@ -1154,4 +1201,5 @@ def chat_message(data: ChatIn, user_id: str = Depends(resolve_user_id)):
         "context": context_summary,
         "bound": bool(attempt),
         "crisis": crisis_level != "none",
+        "injection": injection_meta,
     }

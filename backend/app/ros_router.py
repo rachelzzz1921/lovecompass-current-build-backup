@@ -4,14 +4,14 @@ import re
 import uuid
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from psycopg.types.json import Jsonb
 
 from app.auth import resolve_user_id
 from app.db import get_conn
 from app.json_utils import coerce_dict, jsonable
 from app.ros_couple import attempt_snapshot, build_couple_payload
-from app.ros_ai_content import attach_ros_ai_content_to_payload, enhance_ros_ai_background
+from app.ros_ai_content import attach_ros_ai_content_to_payload, enhance_ros_ai_background, ros_ai_content_ready
 from app.ros_couple_ai_content import (
     attach_ros_couple_ai_content,
     couple_payload_is_legacy,
@@ -91,7 +91,7 @@ def _fetch_latest_self_attachment(conn: Any, user_id: str) -> str | None:
         LEFT JOIN public.test_suites ts ON ts.id = ta.suite_id
         WHERE ta.user_id = %s
           AND ta.status = 'completed'
-          AND (ts.slug ILIKE '%suite1%' OR ts.slug ILIKE '%self%' OR ts.slug ILIKE '%s01%')
+          AND (ts.slug ILIKE '%%suite1%%' OR ts.slug ILIKE '%%self%%' OR ts.slug ILIKE '%%s01%%')
         ORDER BY COALESCE(ta.completed_at, ta.created_at) DESC
         LIMIT 1
         """,
@@ -340,7 +340,11 @@ def get_couple_report(code: str, user_id: str = Depends(resolve_user_id)):
 
 
 @router.get("/attempts/{attempt_id}/single")
-def get_ros_single_result(attempt_id: str, user_id: str = Depends(resolve_user_id)):
+def get_ros_single_result(
+    attempt_id: str,
+    background_tasks: BackgroundTasks,
+    user_id: str = Depends(resolve_user_id),
+):
     try:
         attempt_uuid = uuid.UUID(attempt_id)
     except ValueError as exc:
@@ -355,20 +359,22 @@ def get_ros_single_result(attempt_id: str, user_id: str = Depends(resolve_user_i
 
         payload = attempt.get("result_payload") or {}
         if isinstance(payload, dict):
-            payload = attach_ros_ai_content_to_payload(
-                conn,
-                attempt_id,
-                payload,
-                attempt.get("dimension_scores"),
-                use_ai=False,
-                gender=str(attempt.get("archetype_gender") or "female"),
-            )
+            existing_ai = payload.get("ai_content")
+            if not ros_ai_content_ready(existing_ai):
+                payload = attach_ros_ai_content_to_payload(
+                    conn,
+                    attempt_id,
+                    payload,
+                    attempt.get("dimension_scores"),
+                    use_ai=False,
+                    gender=str(attempt.get("archetype_gender") or "female"),
+                )
         code = attempt.get("relation_code") or (payload.get("relationCode") if isinstance(payload, dict) else None)
         session = _fetch_session_by_code(conn, code) if code else None
 
     single = payload if isinstance(payload, dict) else {}
     if isinstance(single, dict) and (single.get("ai_content") or {}).get("mode") == "deterministic":
-        enhance_ros_ai_background(attempt_id)
+        background_tasks.add_task(enhance_ros_ai_background, attempt_id)
     if isinstance(single, dict) and single.get("layers") and not single.get("layerDetails"):
         layer_scores = {
             str(item.get("code", "")).upper(): float(item.get("score") or item.get("displayScore") or 0)

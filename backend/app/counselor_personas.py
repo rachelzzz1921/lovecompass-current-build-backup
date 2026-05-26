@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -136,6 +137,7 @@ def _strip_frontmatter(text: str) -> str:
     return text[end + 3 :].strip()
 
 
+@lru_cache(maxsize=8)
 def load_counselor_skill(slug: str) -> str:
     """Load full Agent Skill body (SKILL.md without frontmatter)."""
     key = normalize_counselor_slug(slug)

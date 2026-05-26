@@ -36,6 +36,8 @@ export function SelfActThreeInsight({
   onRequestDeepReport,
   deepReportRequesting = false,
 }: Props) {
+  const displayReportMarkdown = result.insights.length >= 3 ? undefined : reportMarkdown;
+
   return (
     <section id="act-iii" className="scroll-mt-32 mt-12 md:mt-16 w-full min-w-0">
       <div className="font-mono text-[10px] tracking-[0.35em] text-muted-foreground">// ACT III</div>
@@ -51,7 +53,7 @@ export function SelfActThreeInsight({
           </div>
           <span className="chip chip-violet font-mono shrink-0 self-start">
             <Sparkles className="h-2.5 w-2.5" />{" "}
-            {exampleSubject ? "EXAMPLE" : reportMarkdown ? "FULL" : result.aiContent?.mode === "ai" ? "AI" : "BASIC"}
+            {exampleSubject ? "EXAMPLE" : displayReportMarkdown ? "FULL" : result.aiContent?.mode === "ai" ? "AI" : "BASIC"}
           </span>
         </div>
 
@@ -66,17 +68,17 @@ export function SelfActThreeInsight({
           </div>
         ) : null}
 
-        <div className="space-y-2.5">
+        <div className="space-y-2.5 min-w-0">
           {result.insights.map((ins, i) => (
             <InsightCard key={ins.kind} insight={ins} index={i} />
           ))}
         </div>
 
-        {showDeepReport && reportMarkdown ? (
-          <article className="mt-6 pt-6 border-t border-border/40 prose prose-invert max-w-none prose-headings:font-display prose-headings:text-gradient-violet prose-p:text-foreground/85 prose-li:text-foreground/85">
-            <ReactMarkdown>{reportMarkdown}</ReactMarkdown>
+        {showDeepReport && displayReportMarkdown ? (
+          <article className="mt-6 pt-6 border-t border-border/40 prose prose-invert max-w-none break-words prose-headings:font-display prose-headings:text-gradient-violet prose-p:text-foreground/85 prose-li:text-foreground/85">
+            <ReactMarkdown>{displayReportMarkdown}</ReactMarkdown>
           </article>
-        ) : showDeepReport && !exampleSubject && !reportMarkdown && !reportLoading ? (
+        ) : showDeepReport && !exampleSubject && !displayReportMarkdown && !reportLoading ? (
           <div className="mt-6 pt-6 border-t border-border/40 text-center">
             <p className="text-[13px] text-muted-foreground mb-3">完整深度报告可在后台继续生成</p>
             {onRequestDeepReport ? (
@@ -119,14 +121,14 @@ function InsightCard({ insight: ins, index: i }: { insight: Insight; index: numb
       whileInView={{ opacity: 1, x: 0 }}
       viewport={{ once: true }}
       transition={{ delay: 0.06 * i }}
-      className="flex gap-3 p-3.5 rounded-xl bg-secondary/40 border border-border/40"
+      className="flex gap-3 p-3.5 rounded-xl bg-secondary/40 border border-border/40 min-w-0"
     >
       <div className={`w-8 h-8 rounded-lg ${cfg.bg} flex items-center justify-center shrink-0`}>
         <Icon className={`h-4 w-4 ${cfg.color}`} />
       </div>
-      <div className="flex-1">
+      <div className="flex-1 min-w-0">
         <div className="text-[13px] font-medium text-foreground">{ins.title}</div>
-        <div className="text-[13px] text-foreground/70 mt-1 leading-relaxed">{ins.body}</div>
+        <div className="text-[13px] text-foreground/70 mt-1 leading-relaxed break-words">{ins.body}</div>
       </div>
     </motion.div>
   );

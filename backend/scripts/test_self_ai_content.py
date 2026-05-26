@@ -23,6 +23,15 @@ def main() -> None:
     summaries = build_dimension_summaries(scores)
     assert summaries["SA2"]["label"] == score_display_summary(38)
     assert "SA2" in summaries
+    sa2_logic = summaries["SA2"].get("underlying_logic") or {}
+    assert sa2_logic.get("bandKey") == "developing"
+    assert sa2_logic.get("measure")
+    assert "感知力" in (sa2_logic.get("headline") or "")
+    assert sa2_logic.get("interpretation")
+    assert sa2_logic.get("inRelationship")
+    assert summaries["SA2"]["detail"] == sa2_logic.get("headline")
+    assert summaries["SA2"]["position_label_low"] == "高焦虑"
+    assert summaries["SA2"]["position_label_high"] == "低焦虑"
 
     insights = build_self_insights(attachment="焦虑型", dimension_scores=scores)
     assert len(insights) == 4

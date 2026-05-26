@@ -12,6 +12,50 @@ export function isPlaceholderReport(report: string | null | undefined): boolean 
   return REPORT_PLACEHOLDER_MARKERS.some((marker) => report.includes(marker));
 }
 
+const REPORT_PENDING_RE = /尚未完成|暂不能生成报告/;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Wait for attempt finalize, then fetch deep report. Avoids racing in_progress status. */
+export async function fetchAttemptReportWhenReady(
+  attemptId: string,
+  options?: { maxWaitMs?: number; pollMs?: number },
+): Promise<{ report: AttemptReport | null; error: string | null }> {
+  const maxWaitMs = options?.maxWaitMs ?? 120_000;
+  const pollMs = options?.pollMs ?? 500;
+  const deadline = Date.now() + maxWaitMs;
+
+  while (Date.now() < deadline) {
+    try {
+      const res = await lovecompassApi.getAttemptResult(attemptId);
+      const status = (res.attempt as Record<string, unknown> | undefined)?.status;
+      if (status === "completed") break;
+    } catch {
+      // keep polling through transient API errors
+    }
+    await sleep(pollMs);
+  }
+
+  while (Date.now() < deadline) {
+    try {
+      const res = await lovecompassApi.getAttemptReport(attemptId);
+      return { report: res.report, error: null };
+    } catch (e) {
+      const message = (e as Error).message || "报告加载失败";
+      if (REPORT_PENDING_RE.test(message)) {
+        await sleep(pollMs);
+        continue;
+      }
+      return { report: null, error: message };
+    }
+  }
+
+  // Insights may already be visible; deep markdown is optional — don't show a false alarm.
+  return { report: null, error: null };
+}
+
 export async function fetchAttemptReportIfNeeded(
   attemptId: string,
   initialReport?: string | null,
@@ -27,10 +71,5 @@ export async function fetchAttemptReportIfNeeded(
       error: null,
     };
   }
-  try {
-    const res = await lovecompassApi.getAttemptReport(attemptId);
-    return { report: res.report, error: null };
-  } catch (e) {
-    return { report: null, error: (e as Error).message || "报告加载失败" };
-  }
+  return fetchAttemptReportWhenReady(attemptId);
 }

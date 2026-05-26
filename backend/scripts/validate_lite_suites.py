@@ -49,13 +49,13 @@ LITE_CASES = [
     {
         "product": "ros",
         "suite": "s02_ros_female_lite",
-        "code": os.getenv("ROS_FEMALE_CODE", "LC-ROS-F-20260524"),
+        "code": os.getenv("ROS_FEMALE_CODE", UNIVERSAL_CODE),
         "gender": "female",
     },
     {
         "product": "ros",
         "suite": "s02_ros_male_lite",
-        "code": os.getenv("ROS_MALE_CODE", "LC-ROS-M-20260524"),
+        "code": os.getenv("ROS_MALE_CODE", UNIVERSAL_CODE),
         "gender": "male",
     },
     {

@@ -1,5 +1,5 @@
 import { createFileRoute, redirect, useNavigate, useParams } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { lovecompassApi, type AttemptReport } from "@/lib/lovecompassApi";
 import { ApiErrorPanel } from "@/components/ApiErrorPanel";
 import { SelfResultView } from "@/components/SelfResultView";
@@ -11,7 +11,8 @@ import {
   type AttemptResultInput,
 } from "@/lib/mapAttemptToSelfResult";
 import { dedicatedResultRouteFromAttempt } from "@/lib/resultRoutes";
-import { takeResultPrefetch } from "@/lib/resultPrefetchCache";
+import { fetchAttemptReportWhenReady, isPlaceholderReport } from "@/lib/attemptReport";
+import { peekResultPrefetch, takeResultPrefetch } from "@/lib/resultPrefetchCache";
 import { ResultDataLoading } from "@/components/ResultDataLoading";
 import { waitForSelfAttemptReady } from "@/lib/waitForResultReady";
 
@@ -38,8 +39,6 @@ export const Route = createFileRoute("/result/$attemptId")({
   component: ResultPage,
 });
 
-const REPORT_PLACEHOLDER_MARKERS = ["正式 AI 深度报告可由后台任务继续生成", "【AI 占位回复】", "【智谱未配置】"];
-
 function applySelfAttempt(
   attemptId: string,
   attempt: AttemptResultInput & Record<string, unknown>,
@@ -62,16 +61,16 @@ function applySelfAttempt(
     return;
   }
   setters.setReportLoading(true);
-  lovecompassApi
-    .getAttemptReport(attemptId)
-    .then((res) => {
+  void fetchAttemptReportWhenReady(attemptId)
+    .then(({ report: nextReport, error }) => {
       if (setters.ignoreRef()) return;
-      setters.setReport(res.report);
-      setters.setData((current) => (current ? { ...current, ai_report: res.report.content } : current));
-    })
-    .catch((e) => {
-      if (setters.ignoreRef()) return;
-      setters.setReportError((e as Error).message);
+      if (nextReport) {
+        setters.setReport(nextReport);
+        setters.setData((current) =>
+          current ? { ...current, ai_report: nextReport.content } : current,
+        );
+      }
+      if (error) setters.setReportError(error);
     })
     .finally(() => {
       if (!setters.ignoreRef()) setters.setReportLoading(false);
@@ -89,9 +88,11 @@ function ResultPage() {
   const [deepReportRequesting, setDeepReportRequesting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const hydratedRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (authPending || !authed) return;
+    if (hydratedRef.current === attemptId) return;
 
     let ignore = false;
     setLoading(true);
@@ -101,14 +102,17 @@ function ResultPage() {
     setReportError(null);
     setReportLoading(false);
 
-    const cached = takeResultPrefetch(attemptId);
+    const cached = peekResultPrefetch(attemptId);
     if (cached?.kind === "self-attempt" && cached.attemptId === attemptId) {
       const attempt = cached.data as AttemptResultInput & Record<string, unknown>;
       const dedicated = dedicatedResultRouteFromAttempt(attemptId, attempt);
       if (dedicated) {
         void nav({ ...dedicated, replace: true });
-        return;
+        return () => {
+          ignore = true;
+        };
       }
+      takeResultPrefetch(attemptId);
       applySelfAttempt(attemptId, attempt, {
         setData,
         setReport,
@@ -117,6 +121,7 @@ function ResultPage() {
         ignoreRef: () => ignore,
       });
       setLoading(false);
+      hydratedRef.current = attemptId;
       return () => {
         ignore = true;
       };
@@ -138,6 +143,7 @@ function ResultPage() {
           setReportError,
           ignoreRef: () => ignore,
         });
+        hydratedRef.current = attemptId;
       })
       .catch((e) => {
         if (!ignore) setError(formatApiErrorMessage(e));
@@ -214,13 +220,14 @@ function ResultPage() {
     if (deepReportRequesting || reportLoading) return;
     setDeepReportRequesting(true);
     setReportError(null);
-    lovecompassApi
-      .getAttemptReport(attemptId)
-      .then((res) => {
-        setReport(res.report);
-        setData((current) => (current ? { ...current, ai_report: res.report.content } : current));
+    void fetchAttemptReportWhenReady(attemptId)
+      .then(({ report: nextReport, error }) => {
+        if (nextReport) {
+          setReport(nextReport);
+          setData((current) => (current ? { ...current, ai_report: nextReport.content } : current));
+        }
+        if (error) setReportError(error);
       })
-      .catch((e) => setReportError((e as Error).message))
       .finally(() => setDeepReportRequesting(false));
   };
 
@@ -243,7 +250,3 @@ function ResultPage() {
   );
 }
 
-function isPlaceholderReport(report?: string | null) {
-  if (!report) return true;
-  return REPORT_PLACEHOLDER_MARKERS.some((marker) => report.includes(marker));
-}

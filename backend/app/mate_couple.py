@@ -1,4 +1,4 @@
-"""MATE Pair (P1–P6) couple report builder — separate from ROS couple storage."""
+"""MATE Pair (P1–P6) couple report builder — v4 payload for frontend rendering."""
 
 from __future__ import annotations
 
@@ -8,7 +8,11 @@ from pathlib import Path
 from typing import Any
 
 from app.json_utils import coerce_dict
-from app.mate_pair_supplement import build_pair_supplement_analysis
+from app.mate_pair_supplement import (
+    _extract_single_context,
+    _user_supplement_complete,
+    resolve_supplement_fields,
+)
 
 DATA_DIR = Path(__file__).resolve().parents[1] / "data"
 
@@ -16,6 +20,14 @@ DATA_DIR = Path(__file__).resolve().parents[1] / "data"
 @lru_cache(maxsize=1)
 def load_pair_model() -> dict[str, Any]:
     path = DATA_DIR / "mate_pair_model_v1.json"
+    if not path.exists():
+        return {}
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+@lru_cache(maxsize=1)
+def load_couple_copy() -> dict[str, Any]:
+    path = DATA_DIR / "mate_couple_copy_v1.json"
     if not path.exists():
         return {}
     return json.loads(path.read_text(encoding="utf-8"))
@@ -33,11 +45,23 @@ def attempt_snapshot(attempt: dict[str, Any]) -> dict[str, Any]:
         "suiteTier": suite_tier,
         "gender": attempt.get("archetype_gender") or payload.get("gender"),
         "mateIndex": attempt.get("ros_index"),
-        "positionType": (payload.get("positionType") or {}).get("name") if isinstance(payload.get("positionType"), dict) else payload.get("positionType"),
-        "moduleScores": dims or {k: payload.get(k) for k in ("FS1", "FS2", "FS3", "FS4", "FS5", "MS1", "MS2", "MS3", "MS4", "MS5") if payload.get(k) is not None},
+        "positionType": (payload.get("positionType") or {}).get("name")
+        if isinstance(payload.get("positionType"), dict)
+        else payload.get("positionType"),
+        "moduleScores": dims
+        or {
+            k: payload.get(k)
+            for k in ("FS1", "FS2", "FS3", "FS4", "FS5", "MS1", "MS2", "MS3", "MS4", "MS5")
+            if payload.get(k) is not None
+        },
         "axisX": payload.get("axisX"),
         "axisY": payload.get("axisY"),
     }
+
+
+def _gender(attempt: dict[str, Any]) -> str:
+    g = attempt.get("archetype_gender") or coerce_dict(attempt.get("result_payload")).get("gender")
+    return str(g or "female").lower()
 
 
 def _module_scores(attempt: dict[str, Any]) -> dict[str, float]:
@@ -52,98 +76,830 @@ def _module_scores(attempt: dict[str, Any]) -> dict[str, float]:
     return out
 
 
-def _gender(attempt: dict[str, Any]) -> str:
-    g = attempt.get("archetype_gender") or coerce_dict(attempt.get("result_payload")).get("gender")
-    return str(g or "female").lower()
-
-
-def _pick(you: dict[str, float], ta: dict[str, float], female_key: str, male_key: str, you_gender: str) -> tuple[float, float]:
-    if you_gender == "female":
-        return float(you.get(female_key, 50)), float(ta.get(male_key, 50))
-    return float(you.get(male_key, 50)), float(ta.get(female_key, 50))
-
-
-def _gap_level(gap: float) -> str:
-    if gap <= 10:
-        return "高适配"
-    if gap <= 20:
-        return "可磨合"
-    if gap <= 30:
-        return "存在落差"
-    return "长期压力较大"
-
-
-def _sync_level(score: float) -> str:
-    if score >= 85:
-        return "高同步"
-    if score >= 70:
-        return "基本同步"
-    if score >= 50:
-        return "存在差异"
-    return "容易累"
-
-
 def _alignment_score(a: float, b: float) -> float:
     return max(0.0, min(100.0, 100.0 - abs(a - b)))
 
 
-def _resolve_spark(p1: float, p2: float, p5_penalty: float, you: dict[str, float], ta: dict[str, float], you_g: str) -> str:
-    fs1, ms4 = _pick(you, ta, "FS1", "MS4", you_g)
-    fs5, ms5 = _pick(you, ta, "FS5", "MS5", you_g)
-    risk_avg = (fs5 + ms5) / 2
-    if fs1 >= 65 and ms4 >= 65 and risk_avg >= 55:
-        return "高压拉扯"
-    if p1 >= 75 and p2 >= 80:
-        return "稳定升温"
-    if fs1 >= 70 and ms4 >= 70:
-        return "一拍即合"
-    if you_g == "female" and you.get("FS3", 50) >= 65 and ta.get("MS1", 50) >= 65:
-        return "双向成长"
-    return "互相照顾"
+def _level_for_score(module: str, score: float) -> str:
+    copy = load_couple_copy()
+    rules = copy.get("p_level_labels", {}).get(module) or copy.get("p_level_labels", {}).get("default") or []
+    for rule in rules:
+        if score >= float(rule.get("min", 0)):
+            return str(rule.get("level") or "")
+    return "需要磨合"
 
 
-def _relationship_status(score: float) -> str:
-    for rule in load_pair_model().get("relationship_status_rules") or []:
-        if score >= float(rule.get("min_score", 0)):
-            return str(rule.get("status") or "")
-    return "需要认真磨合型"
+def _label_map(group: str, value: Any) -> str:
+    copy = load_couple_copy()
+    mapping = copy.get(f"{group}_labels") or copy.get(group) or {}
+    key = str(value)
+    return str(mapping.get(key, value))
 
 
-def _risk_lab(you: dict[str, float], ta: dict[str, float], you_g: str) -> dict[str, Any]:
-    fs5, ms5 = _pick(you, ta, "FS5", "MS5", you_g)
-    fs4, ms2 = _pick(you, ta, "FS4", "MS2", you_g)
-    fs1, ms4 = _pick(you, ta, "FS1", "MS4", you_g)
+def _gap_badge(diff: float, rules: list[dict[str, Any]]) -> tuple[str, str]:
+    for rule in rules:
+        lo, hi = rule.get("range") or [0, 0]
+        if float(lo) <= diff <= float(hi):
+            return str(rule.get("label") or ""), str(rule.get("badge") or "ok")
+    return "有出入", "warn"
 
-    if fs5 >= 60 and ms5 >= 60:
-        return {
-            "risk_name": "双向拉扯",
-            "risk_level": "高",
-            "risk_visual": "████████░░",
-            "manifest": ["双方都有未处理完的关系包袱", "容易把旧模式带入新关系"],
-            "repair": ["先各自梳理边界", "慢速推进，不急于定义关系"],
-        }
-    if fs1 < 50 and ms2 >= 70:
-        return {
-            "risk_name": "边界冲突",
-            "risk_level": "中",
-            "risk_visual": "██████░░░░",
-            "manifest": ["一方需要知道动态", "另一方需要空间"],
-            "repair": ["提前定义边界", "约定固定的高质量相处时间"],
-        }
-    if fs4 >= 70 and ms2 < 50:
-        return {
-            "risk_name": "推进差异",
-            "risk_level": "中",
-            "risk_visual": "█████░░░░░",
-            "manifest": ["一方想确认关系", "另一方还在观察"],
-            "repair": ["增加共同场景", "用经历代替口头确认"],
-        }
+
+def _resolve_ref(ref: str, ctx: dict[str, Any]) -> Any:
+    node: Any = ctx
+    for part in str(ref).split("."):
+        if not isinstance(node, dict):
+            return None
+        node = node.get(part)
+    return node
+
+
+def _eval_compare(left: Any, op: str, right: Any) -> bool:
+    if left is None:
+        return False
+    try:
+        l_val = float(left)
+        r_val = float(right)
+    except (TypeError, ValueError):
+        return str(left) == str(right) if op == "eq" else False
+
+    if op == "gte":
+        return l_val >= r_val
+    if op == "gt":
+        return l_val > r_val
+    if op == "lte":
+        return l_val <= r_val
+    if op == "lt":
+        return l_val < r_val
+    if op == "eq":
+        return l_val == r_val
+    if op == "neq":
+        return l_val != r_val
+    return False
+
+
+def _eval_condition(condition: dict[str, Any], ctx: dict[str, Any]) -> bool:
+    ref = condition.get("ref")
+    if ref is None:
+        return False
+    return _eval_compare(_resolve_ref(str(ref), ctx), str(condition.get("op") or "eq"), condition.get("value"))
+
+
+def _eval_when(when: dict[str, Any] | None, ctx: dict[str, Any]) -> bool:
+    if not when:
+        return False
+    if "all" in when:
+        items = [item for item in (when.get("all") or []) if isinstance(item, dict)]
+        return all(_eval_condition(item, ctx) for item in items)
+    if "any" in when:
+        items = [item for item in (when.get("any") or []) if isinstance(item, dict)]
+        return any(_eval_condition(item, ctx) for item in items)
+    return _eval_condition(when, ctx)
+
+
+def _build_rule_context(
+    male: dict[str, Any],
+    female: dict[str, Any],
+    *,
+    modules: dict[str, dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    m_scores = male.get("scores") or {}
+    f_scores = female.get("scores") or {}
+    m_risk = float(m_scores.get("MS5", 35))
+    f_risk = float(f_scores.get("FS5", 35))
     return {
-        "risk_name": "摩擦可控",
-        "risk_level": "低",
-        "risk_visual": "███░░░░░░░",
-        "manifest": ["暂无明显雷区对撞"],
-        "repair": ["保持现有沟通节奏"],
+        "male": male,
+        "female": female,
+        "modules": modules or {},
+        "derived": {
+            "risk_avg": (m_risk + f_risk) / 2,
+        },
+    }
+
+
+def _first_matching_rule(
+    rules: list[dict[str, Any]],
+    ctx: dict[str, Any],
+) -> dict[str, Any] | None:
+    ordered = sorted(rules, key=lambda item: int(item.get("priority") or 0), reverse=True)
+    for rule in ordered:
+        if _eval_when(rule.get("when"), ctx):
+            return rule
+    return None
+
+
+def _p5_level_for_penalty(penalty: float, config: dict[str, Any]) -> str:
+    for rule in config.get("score_levels") or []:
+        if penalty >= float(rule.get("min_penalty", 0)):
+            return str(rule.get("level") or "")
+    return "低"
+
+
+def _aggregate_metric(spec: dict[str, Any], ctx: dict[str, Any]) -> float:
+    values: list[float] = []
+    for ref in spec.get("refs") or []:
+        raw = _resolve_ref(str(ref), ctx)
+        if raw is None:
+            continue
+        try:
+            values.append(float(raw))
+        except (TypeError, ValueError):
+            continue
+    if not values:
+        return 50.0
+    aggregate = str(spec.get("aggregate") or "avg")
+    if aggregate == "max":
+        result = max(values)
+    elif aggregate == "min":
+        result = min(values)
+    else:
+        result = sum(values) / len(values)
+    cap = spec.get("cap")
+    if cap is not None:
+        result = min(float(cap), result)
+    return result
+
+
+def compute_P5(male: dict[str, Any], female: dict[str, Any]) -> dict[str, Any]:
+    config = load_pair_model().get("p5_config") or {}
+    ctx = _build_rule_context(male, female)
+    hit = _first_matching_rule(config.get("rules") or [], ctx)
+
+    if hit:
+        penalty = float(hit.get("penalty") or 0)
+        atoms = [str(hit.get("atom") or hit.get("risk_name") or "")]
+        level = str(hit.get("level") or _p5_level_for_penalty(penalty, config))
+    else:
+        fallback = config.get("fallback_rule") or {}
+        if _eval_when(fallback.get("when"), ctx):
+            penalty = float(fallback.get("penalty") or 0)
+            atoms = [str(fallback.get("atom") or fallback.get("risk_name") or "")]
+            level = str(fallback.get("level") or _p5_level_for_penalty(penalty, config))
+        else:
+            penalty = 0.0
+            atoms = []
+            level = _p5_level_for_penalty(penalty, config)
+
+    score = min(100.0, penalty)
+    return {"score": score, "level": level, "atoms": [a for a in atoms if a]}
+
+
+def compute_P6(
+    male: dict[str, Any],
+    female: dict[str, Any],
+    p1: dict[str, Any],
+    p2: dict[str, Any],
+    p5: dict[str, Any],
+) -> dict[str, Any]:
+    config = load_pair_model().get("p6_config") or {}
+    modules = {"P1": p1, "P2": p2, "P5": p5}
+    ctx = _build_rule_context(male, female, modules=modules)
+
+    hit = _first_matching_rule(config.get("spark_rules") or [], ctx)
+    spark_key = str((hit or {}).get("key") or config.get("default_spark_key") or "mutual_care")
+    spark_types = config.get("spark_types") or {}
+    spark = str(spark_types.get(spark_key) or spark_key)
+
+    bonus = _aggregate_metric(config.get("bonus") or {}, ctx)
+    dampening = config.get("p5_dampening") or {}
+    if _eval_when(dampening.get("when"), ctx):
+        bonus = max(float(dampening.get("floor") or 0), bonus - float(dampening.get("subtract") or 0))
+
+    return {"score": bonus, "level": spark, "atoms": [spark], "spark_key": spark_key}
+
+
+def extract_profiles(
+    initiator: dict[str, Any],
+    partner: dict[str, Any],
+    conn: Any | None = None,
+) -> dict[str, Any]:
+    profiles: dict[str, dict[str, Any]] = {}
+    for attempt in (initiator, partner):
+        g = _gender(attempt)
+        scores = _module_scores(attempt)
+        payload = coerce_dict(attempt.get("result_payload"))
+        fields = resolve_supplement_fields(attempt, conn)
+        context = _extract_single_context(attempt, conn)
+
+        if g == "male":
+            density = scores.get("MS3", 50.0)
+            stability = 100.0 - scores.get("MS5", 50.0)
+            independence = scores.get("MS4", 50.0)
+            family_interference = scores.get("MS5", 50.0)
+            reality = scores.get("MS1", 50.0)
+            housing_status = "no_own" if "租" in context.get("housing_status", "") else "has_own"
+        else:
+            density = scores.get("FS2", 50.0)
+            stability = 100.0 - scores.get("FS5", 50.0)
+            independence = scores.get("FS1", 50.0)
+            family_interference = scores.get("FS5", 50.0)
+            reality = scores.get("FS3", 50.0)
+            housing_status = "no_own" if "租" in context.get("housing_status", "") else "has_own"
+
+        childcare = fields.get("childcare_flexibility_score")
+        profiles[g] = {
+            "gender": g,
+            "attempt": attempt,
+            "scores": scores,
+            "payload": payload,
+            "fields": fields,
+            "context": context,
+            "derived": {
+                "emotional_density_score": density,
+                "emotional_stability_score": stability,
+                "independence_score": independence,
+                "childcare_flexibility": float(childcare) if childcare is not None else None,
+                "family_interference_score": family_interference,
+                "reality_score": reality,
+                "housing_status": housing_status,
+                "huji": fields.get("huji"),
+                "education_level": fields.get("education_level"),
+            },
+        }
+
+    male = profiles.get("male") or profiles.get(_gender(partner if _gender(initiator) == "female" else initiator))
+    female = profiles.get("female") or profiles.get(_gender(initiator if _gender(partner) == "male" else partner))
+    if male is None:
+        male = profiles.get(_gender(partner), {})
+    if female is None:
+        female = profiles.get(_gender(initiator), {})
+
+    return {"male": male, "female": female}
+
+
+def compute_P1(male: dict[str, Any], female: dict[str, Any]) -> dict[str, Any]:
+    m_score = float(male.get("derived", {}).get("reality_score", 50))
+    f_score = float(female.get("derived", {}).get("reality_score", 50))
+    score = _alignment_score(m_score, f_score)
+    gap = abs(m_score - f_score)
+    atoms: list[str] = []
+    if gap <= 15:
+        atoms.append("现实差距小")
+    elif gap >= 25:
+        atoms.append("现实落差")
+    return {"score": score, "level": _level_for_score("P1", score), "atoms": atoms}
+
+
+def compute_P2(male: dict[str, Any], female: dict[str, Any]) -> dict[str, Any]:
+    m_score = float(male.get("derived", {}).get("emotional_density_score", 50))
+    f_score = float(female.get("derived", {}).get("emotional_density_score", 50))
+    score = _alignment_score(m_score, f_score)
+    atoms: list[str] = []
+    if score >= 75:
+        atoms.append("需求同步")
+    elif score < 55:
+        atoms.append("情感浓度差")
+    return {"score": score, "level": _level_for_score("P2", score), "atoms": atoms}
+
+
+def compute_P3(male: dict[str, Any], female: dict[str, Any]) -> dict[str, Any]:
+    m_score = float(male.get("scores", {}).get("MS2", 50))
+    f_score = float(female.get("scores", {}).get("FS4", 50))
+    score = _alignment_score(m_score, f_score)
+    atoms: list[str] = []
+    if score >= 70:
+        atoms.append("节奏同频")
+    else:
+        atoms.append("相处节奏差")
+    return {"score": score, "level": _level_for_score("P3", score), "atoms": atoms}
+
+
+def compute_P4(male: dict[str, Any], female: dict[str, Any]) -> dict[str, Any]:
+    m_fields = male.get("fields") or {}
+    f_fields = female.get("fields") or {}
+    alignments: list[float] = []
+
+    yc, tc = str(m_fields.get("target_city_plan") or ""), str(f_fields.get("target_city_plan") or "")
+    if yc and tc:
+        if yc == tc:
+            alignments.append(100.0)
+        elif yc == tc == "current_flexible" or ("flexible" in yc and "flexible" in tc):
+            alignments.append(85.0)
+        elif "undecided" in (yc, tc):
+            alignments.append(55.0)
+        else:
+            alignments.append(35.0)
+
+    yw, tw = str(m_fields.get("want_children") or ""), str(f_fields.get("want_children") or "")
+    if yw and tw:
+        alignments.append(100.0 if yw == tw else 20.0)
+
+    yt, tt = m_fields.get("children_timing"), f_fields.get("children_timing")
+    if yt is not None and tt is not None and float(yt) >= 0 and float(tt) >= 0:
+        diff = abs(float(yt) - float(tt))
+        alignments.append(_alignment_score(0, diff * 20))
+
+    yh, th = str(m_fields.get("housing_plan") or ""), str(f_fields.get("housing_plan") or "")
+    if yh and th:
+        alignments.append(100.0 if yh == th else 60.0)
+
+    if not alignments:
+        p3 = compute_P3(male, female)
+        score = p3["score"]
+    else:
+        score = sum(alignments) / len(alignments)
+
+    atoms: list[str] = []
+    if score >= 75:
+        atoms.append("长期稳定")
+    else:
+        atoms.append("规划待对齐")
+    return {"score": score, "level": _level_for_score("P4", score), "atoms": atoms}
+
+
+def aggregate_score(modules: dict[str, dict[str, Any]]) -> int:
+    weights = load_pair_model().get("module_weights") or {
+        "P1": 0.30,
+        "P2": 0.25,
+        "P3": 0.15,
+        "P4": 0.15,
+        "P5": 0.10,
+        "P6": 0.05,
+    }
+    raw = (
+        float(modules["P1"]["score"]) * float(weights.get("P1", 0.30))
+        + float(modules["P2"]["score"]) * float(weights.get("P2", 0.25))
+        + float(modules["P3"]["score"]) * float(weights.get("P3", 0.15))
+        + float(modules["P4"]["score"]) * float(weights.get("P4", 0.15))
+        + (100.0 - float(modules["P5"]["score"])) * float(weights.get("P5", 0.10))
+        + float(modules["P6"]["score"]) * float(weights.get("P6", 0.05))
+    )
+    return round(max(0.0, min(100.0, raw)))
+
+
+def extract_atoms(modules: dict[str, dict[str, Any]]) -> list[str]:
+    atoms: list[str] = []
+    for mod in modules.values():
+        for atom in mod.get("atoms") or []:
+            if atom not in atoms:
+                atoms.append(str(atom))
+    return atoms
+
+
+def _resolve_huji_badge(m_huji: str, f_huji: str) -> tuple[str, str]:
+    rules = load_couple_copy().get("huji_rules") or {}
+    if m_huji == f_huji == "local":
+        hit = rules.get("both_local") or {}
+    elif "local" in (m_huji, f_huji) and "transferring" in (m_huji, f_huji):
+        hit = rules.get("one_local_transferring") or {}
+    elif m_huji == f_huji == "nonlocal":
+        hit = rules.get("both_nonlocal") or {}
+    elif ("local" in (m_huji, f_huji)) ^ ("nonlocal" in (m_huji, f_huji)):
+        hit = rules.get("one_local_one_nonlocal") or {}
+    else:
+        hit = rules.get("default") or {}
+    return str(hit.get("badge") or "warn"), str(hit.get("label") or "存在差异")
+
+
+def _resolve_city_plan_badge(m_plan: str, f_plan: str) -> tuple[str, str]:
+    rules = load_couple_copy().get("city_plan_rules") or {}
+    if m_plan == f_plan == "current_fixed":
+        hit = rules.get("both_fixed_same") or {}
+    elif m_plan == f_plan == "current_flexible":
+        hit = rules.get("both_flexible") or {}
+    elif "undecided" in (m_plan, f_plan):
+        hit = rules.get("either_undecided") or {}
+    elif m_plan != f_plan:
+        hit = rules.get("differ_meaningfully") or {}
+    else:
+        hit = rules.get("default") or {}
+    return str(hit.get("badge") or "ok"), str(hit.get("label") or "基本一致")
+
+
+def build_condition_table(male: dict[str, Any], female: dict[str, Any]) -> list[dict[str, Any]]:
+    copy = load_couple_copy()
+    gap_rules = copy.get("gap_rules") or {}
+    m_fields = male.get("fields") or {}
+    f_fields = female.get("fields") or {}
+    m_ctx = male.get("context") or {}
+    f_ctx = female.get("context") or {}
+    rows: list[dict[str, Any]] = []
+
+    m_age, f_age = m_fields.get("age"), f_fields.get("age")
+    if m_age is not None and f_age is not None:
+        diff = abs(int(m_age) - int(f_age))
+        label, badge = _gap_badge(diff, gap_rules.get("age") or [])
+        rows.append({
+            "field": "age",
+            "label": "年龄",
+            "source": "PR1-01",
+            "male_value": f"{m_age}岁",
+            "female_value": f"{f_age}岁",
+            "male_sub": "",
+            "female_sub": "",
+            "badge": badge,
+            "badge_label": label,
+        })
+
+    m_edu, f_edu = m_fields.get("education_level"), f_fields.get("education_level")
+    if m_edu is not None and f_edu is not None:
+        diff = abs(int(m_edu) - int(f_edu))
+        label, badge = _gap_badge(diff, gap_rules.get("education") or [])
+        rows.append({
+            "field": "education",
+            "label": "学历",
+            "source": "PR1-02",
+            "male_value": _label_map("education", m_edu),
+            "female_value": _label_map("education", f_edu),
+            "male_sub": "",
+            "female_sub": "",
+            "badge": badge,
+            "badge_label": label,
+        })
+
+    rows.append({
+        "field": "income_level",
+        "label": "收入水平",
+        "source": "MS1-A-M-01",
+        "male_value": m_ctx.get("income_level", "—"),
+        "female_value": f_ctx.get("income_level", "—"),
+        "male_sub": "",
+        "female_sub": "",
+        "badge": "ok",
+        "badge_label": "接近",
+    })
+
+    rows.append({
+        "field": "housing",
+        "label": "住房情况",
+        "source": "MS1-A-M-02",
+        "male_value": m_ctx.get("housing_status", "—"),
+        "female_value": f_ctx.get("housing_status", "—"),
+        "male_sub": "",
+        "female_sub": "",
+        "badge": "warn" if m_ctx.get("housing_status") != f_ctx.get("housing_status") else "ok",
+        "badge_label": "待确认" if m_ctx.get("housing_status") != f_ctx.get("housing_status") else "接近",
+    })
+
+    if m_fields.get("huji") and f_fields.get("huji"):
+        badge, label = _resolve_huji_badge(str(m_fields["huji"]), str(f_fields["huji"]))
+        rows.append({
+            "field": "huji",
+            "label": "户籍",
+            "source": "PR1-03",
+            "male_value": _label_map("huji", m_fields["huji"]),
+            "female_value": _label_map("huji", f_fields["huji"]),
+            "male_sub": "",
+            "female_sub": "",
+            "badge": badge,
+            "badge_label": label,
+        })
+
+    if m_fields.get("target_city_plan") and f_fields.get("target_city_plan"):
+        badge, label = _resolve_city_plan_badge(str(m_fields["target_city_plan"]), str(f_fields["target_city_plan"]))
+        rows.append({
+            "field": "city_plan",
+            "label": "定居规划",
+            "source": "PR1-04",
+            "male_value": _label_map("city_plan", m_fields["target_city_plan"]),
+            "female_value": _label_map("city_plan", f_fields["target_city_plan"]),
+            "male_sub": "",
+            "female_sub": "",
+            "badge": badge,
+            "badge_label": label,
+        })
+
+    rows.append({
+        "field": "career_track",
+        "label": "事业轨道",
+        "source": "MS1_B",
+        "male_value": m_ctx.get("career_track", "—"),
+        "female_value": f_ctx.get("career_track", "—"),
+        "male_sub": "",
+        "female_sub": "",
+        "badge": "ok",
+        "badge_label": "匹配",
+    })
+
+    rows.append({
+        "field": "family_support",
+        "label": "家庭助力",
+        "source": "MS1_C / FS3_B",
+        "male_value": m_ctx.get("family_support", "—"),
+        "female_value": f_ctx.get("family_support", "—"),
+        "male_sub": "不干涉",
+        "female_sub": "独立程度高",
+        "badge": "ok",
+        "badge_label": "接近",
+    })
+
+    return rows
+
+
+def _deal_item(
+    *,
+    field: str,
+    label: str,
+    source: str,
+    male_text: str,
+    female_text: str,
+    badge: str,
+    status_text: str | None = None,
+) -> dict[str, Any]:
+    copy = load_couple_copy()
+    status = status_text or copy.get("deal_status_text", {}).get(badge, "—")
+    return {
+        "field": field,
+        "label": label,
+        "source": source,
+        "male_text": male_text,
+        "female_text": female_text,
+        "badge": badge,
+        "status_text": status,
+        "highlight": badge in ("warn", "alert"),
+    }
+
+
+def build_deal_items(male: dict[str, Any], female: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
+    m_fields = male.get("fields") or {}
+    f_fields = female.get("fields") or {}
+    items: list[dict[str, Any]] = []
+
+    if m_fields.get("want_children") and f_fields.get("want_children"):
+        yw, tw = str(m_fields["want_children"]), str(f_fields["want_children"])
+        badge = "ok" if yw == tw else "alert"
+        items.append(_deal_item(
+            field="want_children",
+            label="要不要孩子",
+            source="PR2-01",
+            male_text=_label_map("want_children", yw),
+            female_text=_label_map("want_children", tw),
+            badge=badge,
+        ))
+
+    if (
+        m_fields.get("want_children") == "want"
+        and f_fields.get("want_children") == "want"
+        and m_fields.get("children_timing") is not None
+        and f_fields.get("children_timing") is not None
+    ):
+        yt, tt = m_fields["children_timing"], f_fields["children_timing"]
+        if float(yt) >= 0 and float(tt) >= 0:
+            diff = abs(float(yt) - float(tt))
+            _, badge = _gap_badge(diff, [
+                {"range": [0, 0], "label": "一致", "badge": "ok"},
+                {"range": [0.1, 1.5], "label": "接近", "badge": "ok"},
+                {"range": [1.5, 3], "label": "有出入", "badge": "warn"},
+                {"range": [3, 99], "label": "差距大", "badge": "alert"},
+            ])
+            items.append(_deal_item(
+                field="children_timing",
+                label="要孩子的时间",
+                source="PR2-02",
+                male_text=_label_map("children_timing", yt),
+                female_text=_label_map("children_timing", tt),
+                badge=badge,
+            ))
+
+    female_plan = f_fields.get("female_work_plan")
+    male_expect = m_fields.get("male_expect_female_work")
+    if female_plan and male_expect:
+        badge = "ok" if str(female_plan) == str(male_expect) else "warn"
+        items.append(_deal_item(
+            field="female_work_plan",
+            label="婚后工作安排",
+            source="PR2-03/04",
+            male_text=_label_map("work_plan", male_expect),
+            female_text=_label_map("work_plan", female_plan),
+            badge=badge,
+        ))
+
+    if m_fields.get("target_city_plan") and f_fields.get("target_city_plan"):
+        badge, _ = _resolve_city_plan_badge(str(m_fields["target_city_plan"]), str(f_fields["target_city_plan"]))
+        items.append(_deal_item(
+            field="target_city_plan",
+            label="定居城市",
+            source="PR1-04",
+            male_text=_label_map("city_plan", m_fields["target_city_plan"]),
+            female_text=_label_map("city_plan", f_fields["target_city_plan"]),
+            badge=badge,
+        ))
+
+    if m_fields.get("long_distance_tolerance") is not None and f_fields.get("long_distance_tolerance") is not None:
+        diff = abs(int(m_fields["long_distance_tolerance"]) - int(f_fields["long_distance_tolerance"]))
+        _, badge = _gap_badge(diff, [
+            {"range": [0, 0], "label": "一致", "badge": "ok"},
+            {"range": [1, 1], "label": "接近", "badge": "ok"},
+            {"range": [2, 3], "label": "有差距", "badge": "warn"},
+        ])
+        items.append(_deal_item(
+            field="long_distance_tolerance",
+            label="异地接受度",
+            source="PR2-06",
+            male_text=_label_map("long_distance", m_fields["long_distance_tolerance"]),
+            female_text=_label_map("long_distance", f_fields["long_distance_tolerance"]),
+            badge=badge,
+        ))
+
+    for field, label, source, label_group in (
+        ("financial_model", "婚后财务模式", "PR3-01", "financial_model"),
+        ("housing_plan", "婚后住房规划", "PR3-02", "housing_plan"),
+        ("bride_price_attitude", "彩礼嫁妆", "PR3-03", "bride_price"),
+        ("living_with_parents", "与父母同住", "PR3-04", "living_with_parents"),
+    ):
+        if m_fields.get(field) and f_fields.get(field):
+            mv, fv = str(m_fields[field]), str(f_fields[field])
+            badge = "ok" if mv == fv else "warn"
+            items.append(_deal_item(
+                field=field,
+                label=label,
+                source=source,
+                male_text=_label_map(label_group, mv),
+                female_text=_label_map(label_group, fv),
+                badge=badge,
+            ))
+
+    highlight = [item for item in items if item["badge"] in ("warn", "alert")]
+    dim = [item for item in items if item["badge"] == "ok"]
+    return {"highlight": highlight, "dim": dim}
+
+
+def build_rhythm(male: dict[str, Any], female: dict[str, Any]) -> list[dict[str, Any]]:
+    copy = load_couple_copy()
+    rows: list[dict[str, Any]] = []
+    m_derived = male.get("derived") or {}
+    f_derived = female.get("derived") or {}
+
+    for spec in copy.get("rhythm_fields") or []:
+        field = str(spec.get("male_field") or "")
+        m_val = float(m_derived.get(field) or 50)
+        f_val = float(f_derived.get(field) or 50)
+        if field == "childcare_flexibility":
+            m_val = float(m_derived.get("childcare_flexibility") or 60)
+            f_val = float(f_derived.get("childcare_flexibility") or 60)
+
+        diff = abs(m_val - f_val)
+        note = ""
+        for rule in spec.get("note_rules") or []:
+            if diff <= float(rule.get("max_diff", 99)):
+                note = str(rule.get("note") or "")
+                break
+
+        rows.append({
+            "label": str(spec.get("label") or ""),
+            "male_score": round(m_val),
+            "female_score": round(f_val),
+            "note": note,
+        })
+
+    return rows
+
+
+def _eval_attention_condition(condition: str, ctx: dict[str, Any]) -> bool:
+    male = ctx.get("male") or {}
+    female = ctx.get("female") or {}
+    m_derived = male.get("derived") or {}
+    f_derived = female.get("derived") or {}
+    m_fields = male.get("fields") or {}
+    f_fields = female.get("fields") or {}
+
+    if condition == "female.emotional_density_score > 65":
+        return float(f_derived.get("emotional_density_score", 0)) > 65
+    if condition == "male.housing_status == 'no_own' AND male.huji == 'nonlocal'":
+        return m_derived.get("housing_status") == "no_own" and str(m_fields.get("huji")) == "nonlocal"
+    if condition == "female.education_level > male.education_level":
+        me = m_fields.get("education_level")
+        fe = f_fields.get("education_level")
+        return me is not None and fe is not None and int(fe) > int(me)
+    if condition == "male.family_interference_score < 40 AND female.family_interference_score < 40":
+        return float(m_derived.get("family_interference_score", 99)) < 40 and float(
+            f_derived.get("family_interference_score", 99)
+        ) < 40
+    if condition == "children_timing_badge in ('warn', 'alert')":
+        return ctx.get("children_timing_badge") in ("warn", "alert")
+    if condition == "financial_model_badge == 'warn'":
+        return ctx.get("financial_model_badge") == "warn"
+    return False
+
+
+def build_attention(
+    male: dict[str, Any],
+    female: dict[str, Any],
+    deal_items: dict[str, list[dict[str, Any]]],
+) -> list[dict[str, Any]]:
+    copy = load_couple_copy()
+    ctx: dict[str, Any] = {"male": male, "female": female}
+    for item in deal_items.get("highlight", []) + deal_items.get("dim", []):
+        if item.get("field") == "children_timing":
+            ctx["children_timing_badge"] = item.get("badge")
+        if item.get("field") == "financial_model":
+            ctx["financial_model_badge"] = item.get("badge")
+
+    matched: list[dict[str, Any]] = []
+    for rule in copy.get("attention_rules") or []:
+        if _eval_attention_condition(str(rule.get("condition") or ""), ctx):
+            matched.append({
+                "id": rule.get("id"),
+                "icon": rule.get("icon"),
+                "title": rule.get("title"),
+                "desc": rule.get("desc"),
+                "source": rule.get("source"),
+            })
+
+    warns = [item for item in matched if item.get("icon") == "warn"]
+    oks = [item for item in matched if item.get("icon") == "ok"]
+    ordered = warns + oks
+    if oks and not any(item.get("icon") == "ok" for item in ordered[:4]):
+        ordered = warns[:3] + oks[:1]
+    return ordered[:4]
+
+
+def build_verdict(score: int, modules: dict[str, dict[str, Any]], deal_items: dict[str, list[dict[str, Any]]]) -> dict[str, Any]:
+    copy = load_couple_copy()
+    title_map = copy.get("verdict_title") or {}
+    if score >= 85:
+        title = title_map.get("85-100", "")
+    elif score >= 70:
+        title = title_map.get("70-84", "")
+    elif score >= 55:
+        title = title_map.get("55-69", "")
+    else:
+        title = title_map.get("0-54", "")
+
+    p1, p2, p4, p5 = modules["P1"], modules["P2"], modules["P4"], modules["P5"]
+    oneliner = copy.get("verdict_oneliner_rules", [])[-1].get("text", "")
+    for rule in copy.get("verdict_oneliner_rules") or []:
+        when = str(rule.get("when") or "")
+        if when == "default":
+            continue
+        if when == "P1_high+P4_high" and float(p1["score"]) >= 75 and float(p4["score"]) >= 75:
+            oneliner = rule.get("text", oneliner)
+            break
+        if when == "P1_high+P4_mid" and float(p1["score"]) >= 75 and 55 <= float(p4["score"]) < 75:
+            oneliner = rule.get("text", oneliner)
+            break
+        if when == "P1_mid+P2_high" and 55 <= float(p1["score"]) < 75 and float(p2["score"]) >= 75:
+            oneliner = rule.get("text", oneliner)
+            break
+        if when == "P5_high" and float(p5["score"]) >= 50:
+            oneliner = rule.get("text", oneliner)
+            break
+
+    parts: list[str] = []
+    part_keys = copy.get("verdict_desc_parts") or {}
+    parts.append(part_keys.get("income_ok", "收入区间接近"))
+    if not deal_items.get("highlight"):
+        parts.append(part_keys.get("family_low_risk", "家庭干预风险低"))
+    else:
+        if any(item.get("field") == "children_timing" for item in deal_items["highlight"]):
+            parts.append(part_keys.get("children_warn", "婚育时间表有出入"))
+        if any(item.get("field") == "financial_model" for item in deal_items["highlight"]):
+            parts.append(part_keys.get("finance_warn", "财务模式有出入"))
+
+    desc = "，".join(dict.fromkeys(p for p in parts if p)) + "。"
+    return {
+        "score": score,
+        "title": title,
+        "oneliner": oneliner,
+        "desc": desc,
+        "texture": None,
+    }
+
+
+def build_conclusion(
+    score: int,
+    deal_items: dict[str, list[dict[str, Any]]],
+    modules: dict[str, dict[str, Any]],
+) -> dict[str, Any]:
+    copy = load_couple_copy()
+    highlight = deal_items.get("highlight") or []
+    alert_count = sum(1 for item in highlight if item.get("badge") == "alert")
+    warn_count = sum(1 for item in highlight if item.get("badge") == "warn")
+
+    summary_map = copy.get("conclusion_summary") or {}
+    if score >= 85 and not alert_count:
+        summary = summary_map.get("high_score", "")
+    elif alert_count >= 2 or warn_count >= 2:
+        summary = summary_map.get("multiple_alerts", "")
+    elif alert_count >= 1:
+        summary = summary_map.get("has_alert", "")
+    else:
+        summary = summary_map.get("no_alert", "")
+
+    templates = copy.get("conclusion_item_templates") or {}
+    items: list[dict[str, Any]] = []
+    for deal in highlight[:3]:
+        field = str(deal.get("field") or "")
+        template = templates.get(field)
+        if not template:
+            continue
+        text = template.format(
+            male_text=deal.get("male_text", ""),
+            female_text=deal.get("female_text", ""),
+        )
+        items.append({"field": field, "text": text})
+
+    problem = ""
+    base_suggestion = ""
+    if highlight:
+        problem = str(highlight[0].get("label") or "")
+        base_suggestion = "先把预期摆上桌，比拖着更省力"
+
+    return {
+        "summary": summary,
+        "items": items,
+        "action_item": None,
+        "ai_pending": bool(problem),
+        "ai_context": {"problem": problem, "base_suggestion": base_suggestion},
     }
 
 
@@ -154,111 +910,57 @@ def build_couple_payload(
     partner: dict[str, Any],
     conn: Any | None = None,
 ) -> dict[str, Any]:
-    you_g = _gender(initiator)
-    ta_g = _gender(partner)
-    you = _module_scores(initiator)
-    ta = _module_scores(partner)
+    profiles = extract_profiles(initiator, partner, conn)
+    male, female = profiles["male"], profiles["female"]
+
+    modules = {
+        "P1": compute_P1(male, female),
+        "P2": compute_P2(male, female),
+        "P3": compute_P3(male, female),
+        "P4": compute_P4(male, female),
+        "P5": compute_P5(male, female),
+    }
+    modules["P6"] = compute_P6(male, female, modules["P1"], modules["P2"], modules["P5"])
+
+    score = aggregate_score(modules)
+    atoms = extract_atoms(modules)
+    deal_items = build_deal_items(male, female)
+    condition_table = build_condition_table(male, female)
+    rhythm = build_rhythm(male, female)
+    attention = build_attention(male, female, deal_items)
+    verdict = build_verdict(score, modules, deal_items)
+    conclusion = build_conclusion(score, deal_items, modules)
+
     you_payload = coerce_dict(initiator.get("result_payload"))
     ta_payload = coerce_dict(partner.get("result_payload"))
-
-    you_real, ta_real = _pick(you, ta, "FS3", "MS1", you_g)
-    p1_gap = abs(you_real - ta_real)
-    p1 = _alignment_score(you_real, ta_real)
-
-    you_em, ta_em = _pick(you, ta, "FS2", "MS3", you_g)
-    p2 = _alignment_score(you_em, ta_em)
-
-    you_rhythm, ta_rhythm = _pick(you, ta, "FS4", "MS2", you_g)
-    p3 = _alignment_score(you_rhythm, ta_rhythm)
-
-    you_future, ta_future = _pick(you, ta, "FS4", "MS2", you_g)
-    p4 = (p3 + _alignment_score(you_future, ta_future)) / 2
-
-    fs5, ms5 = _pick(you, ta, "FS5", "MS5", you_g)
-    risk_penalty = 0.0
-    if fs5 >= 60 and ms5 >= 60:
-        risk_penalty = 18
-    elif fs5 >= 55 or ms5 >= 55:
-        risk_penalty = 8
-
-    weights = load_pair_model().get("module_weights") or {
-        "P1": 0.30, "P2": 0.25, "P3": 0.15, "P4": 0.15, "P5": 0.10, "P6": 0.05,
-    }
-    p5_score = max(0.0, 100.0 - risk_penalty * 5)
-    p6_bonus = min(12.0, (you.get("FS1", you.get("MS4", 50)) + ta.get("MS4", ta.get("FS1", 50))) / 20)
-
-    raw = (
-        p1 * float(weights.get("P1", 0.3))
-        + p2 * float(weights.get("P2", 0.25))
-        + p3 * float(weights.get("P3", 0.15))
-        + p4 * float(weights.get("P4", 0.15))
-        + p5_score * float(weights.get("P5", 0.1))
-        + p6_bonus
-    )
-    matching_score = round(max(45.0, min(96.0, raw)))
-
-    spark = _resolve_spark(p1, p2, risk_penalty, you, ta, you_g)
-    status = _relationship_status(float(matching_score))
-    risk_lab = _risk_lab(you, ta, you_g)
-
-    keywords: list[str] = []
-    if p1_gap <= 15:
-        keywords.append("现实差距小")
-    if p2 >= 75:
-        keywords.append("需求同步")
-    if p3 >= 70 and p4 >= 70:
-        keywords.append("长期稳定")
-    if not keywords:
-        keywords = ["真实相处", "需要磨合", "值得认真看"]
-
+    you_g, ta_g = _gender(initiator), _gender(partner)
     you_pos = str((you_payload.get("positionType") or {}).get("name") or you_payload.get("identityCard", {}).get("title") or "")
     ta_pos = str((ta_payload.get("positionType") or {}).get("name") or ta_payload.get("identityCard", {}).get("title") or "")
 
-    common = ["稳定感", "长期关系"]
-    if p1 >= 70:
-        common.append("现实预期接近")
-    if p2 >= 75:
-        common.append("情感需求同频")
-    differences: list[str] = []
-    if p3 < 65:
-        differences.append("相处节奏差")
-    if abs(float(you_payload.get("axisX") or 50) - float(ta_payload.get("axisX") or 50)) >= 18:
-        differences.append("推进速度差")
-    if not differences:
-        differences.append("表达浓度略有差异")
+    you_sup = you_payload.get("pair_supplement") or {}
+    ta_sup = ta_payload.get("pair_supplement") or {}
+    spark = str(modules["P6"].get("level") or "")
 
-    stable_prob = round(min(92, matching_score * 0.95))
-    marriage_score = round(min(94, (p1 * 0.4 + p4 * 0.35 + p2 * 0.25)))
-
-    advice_problem = differences[0]
-    advice_base = "增加共同场景" if "推进" in advice_problem else "把边界说清楚"
-    matchmaker_suggestion = (
-        f"你们的问题不是现实条件，而是{advice_problem.replace('差', '不同')}。"
-        f"先建立更多共同经历，比快速定义关系更有效。"
-        if "推进" in advice_problem
-        else f"你们的问题不是条件，而是相处节奏。{advice_base}，比反复确认更有效。"
-    )
-
-    pair_supplement = build_pair_supplement_analysis(
-        initiator=initiator,
-        partner=partner,
-        conn=conn,
-    )
+    risk_atoms = list(modules["P5"].get("atoms") or [])
+    ai_context = {
+        "pair_atoms": atoms,
+        "spark": spark,
+        "risk_atoms": risk_atoms,
+        "problem": conclusion.get("ai_context", {}).get("problem"),
+        "base_suggestion": conclusion.get("ai_context", {}).get("base_suggestion"),
+        "score": score,
+    }
 
     return {
-        "model": "MATE_PAIR_V1",
+        "model": "MATE_PAIR_V4",
         "engine": "MATE_PAIR_ENGINE_V1.0",
         "productSet": "MATE",
         "code": code,
         "participants": {
             "initiatorAttemptId": str(initiator.get("id") or ""),
             "partnerAttemptId": str(partner.get("id") or ""),
-            "initiatorSuiteTier": (
-                "lite" if "_lite" in str(initiator.get("suite_slug") or "") else "full"
-            ),
-            "partnerSuiteTier": (
-                "lite" if "_lite" in str(partner.get("suite_slug") or "") else "full"
-            ),
+            "initiatorSuiteTier": "lite" if "_lite" in str(initiator.get("suite_slug") or "") else "full",
+            "partnerSuiteTier": "lite" if "_lite" in str(partner.get("suite_slug") or "") else "full",
             "initiatorSuiteSlug": str(initiator.get("suite_slug") or "") or None,
             "partnerSuiteSlug": str(partner.get("suite_slug") or "") or None,
             "youGender": you_g,
@@ -266,62 +968,26 @@ def build_couple_payload(
             "youPosition": you_pos,
             "taPosition": ta_pos,
         },
+        "verdict": verdict,
+        "condition_table": condition_table,
+        "deal_items": deal_items,
+        "rhythm": rhythm,
+        "attention": attention,
+        "conclusion": conclusion,
+        "ai_context": ai_context,
+        "modules": {k: {"score": v["score"], "level": v.get("level"), "atoms": v.get("atoms") or []} for k, v in modules.items()},
+        "supplementComplete": bool(_user_supplement_complete(you_sup) and _user_supplement_complete(ta_sup)),
+        "youSupplementComplete": _user_supplement_complete(you_sup),
+        "taSupplementComplete": _user_supplement_complete(ta_sup),
         "relationship_summary": {
-            "matching_score": matching_score,
-            "relationship_status": status,
+            "matching_score": score,
+            "relationship_status": verdict.get("title"),
             "relationship_spark": spark,
-            "keywords": keywords,
-        },
-        "coordinate": {
-            "matching_score": matching_score,
-            "relationship_status": status,
-            "relationship_spark": spark,
-            "keywords": keywords,
-            "you": {"position": you_pos, "axisX": you_payload.get("axisX"), "axisY": you_payload.get("axisY")},
-            "ta": {"position": ta_pos, "axisX": ta_payload.get("axisX"), "axisY": ta_payload.get("axisY")},
+            "keywords": atoms[:5],
         },
         "relationship_analysis": {
-            "P1": {"level": _gap_level(p1_gap), "desc": "双方生活预期接近" if p1_gap <= 15 else "现实位置存在一定差距，需要预期管理"},
-            "P2": {"level": _sync_level(p2), "desc": "双方都偏重陪伴和稳定感" if p2 >= 75 else "关系浓度期待需要慢慢对齐"},
-            "P3": {"level": _sync_level(p3), "desc": "日常相处节奏基本同频" if p3 >= 70 else "作息与冲突处理方式需要磨合"},
-            "P4": {"level": _sync_level(p4), "desc": "未来方向基本一致" if p4 >= 70 else "长期规划还需要更多对话"},
+            code: {"level": mod.get("level"), "desc": "", "score": mod.get("score")}
+            for code, mod in modules.items()
+            if code != "P6"
         },
-        "relationship_portrait": {
-            "common": common,
-            "difference": differences,
-            "portrait": {
-                "现实适配": "高" if p1 >= 75 else "中",
-                "现实适配_desc": "双方生活预期接近，家庭环境差异较小" if p1_gap <= 15 else "现实差距需要被正视和讨论",
-                "情感需求": _sync_level(p2),
-                "情感需求_desc": "双方都偏重陪伴和稳定感" if p2 >= 75 else "一方可能需要更高浓度的情感确认",
-                "长期规划": "中高" if p4 >= 70 else "中",
-                "长期规划_desc": "未来方向基本一致" if p4 >= 70 else "婚育与城市节奏还需要对齐",
-            },
-        },
-        "risk_lab": risk_lab,
-        "future_prediction": {
-            "stable_relationship_probability": stable_prob,
-            "marriage_adaptation_score": marriage_score,
-            "timeline": [
-                {"stage": "认识阶段", "text": "第一印象更多来自显示度与相处轻松感，别急着下结论。"},
-                {"stage": "磨合阶段", "text": f"{'推进速度' if '推进' in advice_problem else '相处节奏'}会是主要课题，共同经历比口头确认更有效。"},
-                {"stage": "长期阶段", "text": "若现实与情感需求持续同频，关系会越处越稳。"},
-            ],
-        },
-        "matchmaker_advice": {
-            "goodNews": "现实条件没有明显硬伤，你们属于可以认真往下推进的一类。" if p1 >= 65 else "你们并非不能在一起，而是需要更诚实地对齐期待。",
-            "caution": f"注意{risk_lab['risk_name']}：{'、'.join(risk_lab['manifest'][:2])}",
-            "oneChange": matchmaker_suggestion,
-        },
-        "profile_atoms": {
-            "pair_atoms": keywords + differences,
-            "spark": spark,
-        },
-        "ai_context": {
-            "pair_atoms": keywords + differences,
-            "spark": spark,
-            "problem": advice_problem,
-            "base_suggestion": advice_base,
-        },
-        **pair_supplement,
     }

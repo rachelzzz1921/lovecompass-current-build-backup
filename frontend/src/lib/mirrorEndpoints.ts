@@ -137,7 +137,11 @@ export function getEndpointProfile(): EndpointProfile {
 function requestTimeoutMs(path: string, init?: RequestInit): number {
   const method = (init?.method ?? "GET").toUpperCase();
   if (method === "POST" && path === "/attempts") return 90_000;
+  if (method === "POST" && path === "/chat/sync-profile") return 90_000;
   if (method === "POST" && path.includes("/report")) return 60_000;
+  if (method === "GET" && path === "/profile/portrait") return 35_000;
+  if (method === "GET" && path.startsWith("/chat/context")) return 35_000;
+  if (method === "POST" && path === "/chat/message") return 120_000;
   return 20_000;
 }
 

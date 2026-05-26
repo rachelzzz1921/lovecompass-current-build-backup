@@ -1,58 +1,68 @@
-export type MateCoupleCompareRow = {
+export type MateCoupleBadge = "ok" | "warn" | "alert" | string;
+
+export type MateConditionRow = {
+  field: string;
   label: string;
-  you: string;
-  ta: string;
-  verdict: string;
-  badge: "ok" | "warn" | "alert" | string;
+  source: string;
+  male_value: string;
+  female_value: string;
+  male_sub?: string;
+  female_sub?: string;
+  badge: MateCoupleBadge;
+  badge_label: string;
 };
 
-export type MateCoupleModule = { level: string; desc: string };
+export type MateDealItem = {
+  field: string;
+  label: string;
+  source: string;
+  male_text: string;
+  female_text: string;
+  badge: MateCoupleBadge;
+  status_text: string;
+  highlight: boolean;
+};
+
+export type MateRhythmRow = {
+  label: string;
+  male_score: number;
+  female_score: number;
+  note: string;
+};
+
+export type MateAttentionItem = {
+  id?: string;
+  icon: "ok" | "warn" | string;
+  title: string;
+  desc: string;
+  source?: string;
+};
 
 export type MateCoupleResult = {
   code: string;
-  matchingScore: number;
-  relationshipStatus: string;
-  relationshipSpark: string;
-  keywords: string[];
-  youPosition: string;
-  taPosition: string;
-  analysis: Record<string, MateCoupleModule>;
-  portrait: {
-    common: string[];
-    difference: string[];
-    detail: Record<string, string>;
+  verdict: {
+    score: number;
+    title: string;
+    oneliner: string;
+    desc: string;
+    texture?: string | null;
   };
-  riskLab: {
-    riskName: string;
-    riskLevel: string;
-    riskVisual: string;
-    manifest: string[];
-    repair: string[];
+  conditionTable: MateConditionRow[];
+  dealItems: {
+    highlight: MateDealItem[];
+    dim: MateDealItem[];
   };
-  future: {
-    stableRelationshipProbability: number;
-    marriageAdaptationScore: number;
-    timeline: Array<{ stage: string; text: string }>;
+  rhythm: MateRhythmRow[];
+  attention: MateAttentionItem[];
+  conclusion: {
+    summary: string;
+    items: Array<{ field: string; text: string }>;
+    action_item?: string | null;
+    ai_pending?: boolean;
   };
-  advice: {
-    goodNews: string;
-    caution: string;
-    oneChange: string;
-  };
-  pairSupplement?: {
-    supplementComplete: boolean;
-    youSupplementComplete: boolean;
-    taSupplementComplete: boolean;
-    conditionCompareTable: MateCoupleCompareRow[];
-    dealItemsTable: MateCoupleCompareRow[];
-    rhythmSection: {
-      label: string;
-      youScore: number | null;
-      taScore: number | null;
-      note: string;
-    };
-    attentionItems: Array<{ label: string; message: string; desc: string; badge: string }>;
-  };
+  supplementComplete: boolean;
+  youSupplementComplete: boolean;
+  taSupplementComplete: boolean;
   participants?: {
     initiatorSuiteTier?: "lite" | "full";
     partnerSuiteTier?: "lite" | "full";

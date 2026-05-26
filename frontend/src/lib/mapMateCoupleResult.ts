@@ -1,4 +1,10 @@
-import type { MateCoupleCompareRow, MateCoupleResult } from "@/data/mateCoupleTypes";
+import type {
+  MateAttentionItem,
+  MateConditionRow,
+  MateCoupleResult,
+  MateDealItem,
+  MateRhythmRow,
+} from "@/data/mateCoupleTypes";
 
 function asString(v: unknown, fallback = ""): string {
   return typeof v === "string" ? v : fallback;
@@ -9,107 +15,108 @@ function asNumber(v: unknown, fallback = 0): number {
   return Number.isFinite(n) ? n : fallback;
 }
 
-function mapCompareRows(raw: unknown): MateCoupleCompareRow[] {
+function mapConditionRows(raw: unknown): MateConditionRow[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((item) => {
+    const row = item as Record<string, unknown>;
+    return {
+      field: asString(row.field),
+      label: asString(row.label),
+      source: asString(row.source),
+      male_value: asString(row.male_value),
+      female_value: asString(row.female_value),
+      male_sub: asString(row.male_sub) || undefined,
+      female_sub: asString(row.female_sub) || undefined,
+      badge: asString(row.badge, "ok"),
+      badge_label: asString(row.badge_label),
+    };
+  });
+}
+
+function mapDealItems(raw: unknown): MateDealItem[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((item) => {
+    const row = item as Record<string, unknown>;
+    return {
+      field: asString(row.field),
+      label: asString(row.label),
+      source: asString(row.source),
+      male_text: asString(row.male_text),
+      female_text: asString(row.female_text),
+      badge: asString(row.badge, "ok"),
+      status_text: asString(row.status_text),
+      highlight: Boolean(row.highlight),
+    };
+  });
+}
+
+function mapRhythm(raw: unknown): MateRhythmRow[] {
   if (!Array.isArray(raw)) return [];
   return raw.map((item) => {
     const row = item as Record<string, unknown>;
     return {
       label: asString(row.label),
-      you: asString(row.you),
-      ta: asString(row.ta),
-      verdict: asString(row.verdict),
-      badge: asString(row.badge, "ok"),
+      male_score: asNumber(row.male_score),
+      female_score: asNumber(row.female_score),
+      note: asString(row.note),
+    };
+  });
+}
+
+function mapAttention(raw: unknown): MateAttentionItem[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((item) => {
+    const row = item as Record<string, unknown>;
+    return {
+      id: asString(row.id) || undefined,
+      icon: asString(row.icon, "warn"),
+      title: asString(row.title),
+      desc: asString(row.desc),
+      source: asString(row.source) || undefined,
     };
   });
 }
 
 export function mapApiMateCouplePayload(raw: Record<string, unknown>): MateCoupleResult {
-  const summary = (raw.relationship_summary ?? raw.coordinate ?? {}) as Record<string, unknown>;
-  const analysisRaw = (raw.relationship_analysis ?? {}) as Record<string, Record<string, unknown>>;
-  const portraitRaw = (raw.relationship_portrait ?? {}) as Record<string, unknown>;
-  const portraitDetail = (portraitRaw.portrait ?? {}) as Record<string, string>;
+  const verdictRaw = (raw.verdict ?? {}) as Record<string, unknown>;
+  const dealRaw = (raw.deal_items ?? {}) as Record<string, unknown>;
+  const conclusionRaw = (raw.conclusion ?? {}) as Record<string, unknown>;
   const participants = (raw.participants ?? {}) as Record<string, unknown>;
-  const risk = (raw.risk_lab ?? {}) as Record<string, unknown>;
-  const future = (raw.future_prediction ?? {}) as Record<string, unknown>;
-  const advice = (raw.matchmaker_advice ?? {}) as Record<string, unknown>;
 
-  const analysis: MateCoupleResult["analysis"] = {};
-  for (const [key, val] of Object.entries(analysisRaw)) {
-    analysis[key] = {
-      level: asString(val?.level),
-      desc: asString(val?.desc),
-    };
-  }
-
-  const rhythmRaw = raw.rhythm_section as Record<string, unknown> | undefined;
-  const youScoreRaw = rhythmRaw?.youScore;
-  const taScoreRaw = rhythmRaw?.taScore;
-  const hasSupplement = Boolean(raw.condition_compare_table || raw.deal_items_table || raw.engine);
+  const legacyScore = asNumber(
+    (raw.relationship_summary as Record<string, unknown> | undefined)?.matching_score,
+  );
 
   return {
     code: asString(raw.code),
-    matchingScore: asNumber(summary.matching_score),
-    relationshipStatus: asString(summary.relationship_status),
-    relationshipSpark: asString(summary.relationship_spark),
-    keywords: Array.isArray(summary.keywords) ? summary.keywords.map(String) : [],
-    youPosition: asString(participants.youPosition),
-    taPosition: asString(participants.taPosition),
-    analysis,
-    portrait: {
-      common: Array.isArray(portraitRaw.common) ? portraitRaw.common.map(String) : [],
-      difference: Array.isArray(portraitRaw.difference) ? portraitRaw.difference.map(String) : [],
-      detail: portraitDetail,
+    verdict: {
+      score: asNumber(verdictRaw.score, legacyScore),
+      title: asString(verdictRaw.title),
+      oneliner: asString(verdictRaw.oneliner),
+      desc: asString(verdictRaw.desc),
+      texture: asString(verdictRaw.texture) || null,
     },
-    riskLab: {
-      riskName: asString(risk.risk_name),
-      riskLevel: asString(risk.risk_level),
-      riskVisual: asString(risk.risk_visual),
-      manifest: Array.isArray(risk.manifest) ? risk.manifest.map(String) : [],
-      repair: Array.isArray(risk.repair) ? risk.repair.map(String) : [],
+    conditionTable: mapConditionRows(raw.condition_table),
+    dealItems: {
+      highlight: mapDealItems(dealRaw.highlight),
+      dim: mapDealItems(dealRaw.dim),
     },
-    future: {
-      stableRelationshipProbability: asNumber(future.stable_relationship_probability),
-      marriageAdaptationScore: asNumber(future.marriage_adaptation_score),
-      timeline: Array.isArray(future.timeline)
-        ? future.timeline.map((item) => {
+    rhythm: mapRhythm(raw.rhythm),
+    attention: mapAttention(raw.attention),
+    conclusion: {
+      summary: asString(conclusionRaw.summary),
+      items: Array.isArray(conclusionRaw.items)
+        ? conclusionRaw.items.map((item) => {
             const row = item as Record<string, unknown>;
-            return { stage: asString(row.stage), text: asString(row.text) };
+            return { field: asString(row.field), text: asString(row.text) };
           })
         : [],
+      action_item: asString(conclusionRaw.action_item) || null,
+      ai_pending: Boolean(conclusionRaw.ai_pending),
     },
-    advice: {
-      goodNews: asString(advice.goodNews),
-      caution: asString(advice.caution),
-      oneChange: asString(advice.oneChange),
-    },
-    pairSupplement: hasSupplement
-      ? {
-          supplementComplete: Boolean(raw.supplementComplete),
-          youSupplementComplete: Boolean(raw.youSupplementComplete),
-          taSupplementComplete: Boolean(raw.taSupplementComplete),
-          conditionCompareTable: mapCompareRows(raw.condition_compare_table),
-          dealItemsTable: mapCompareRows(raw.deal_items_table),
-          rhythmSection: {
-            label: asString(rhythmRaw?.label, "育儿分工灵活度"),
-            youScore:
-              youScoreRaw != null && Number.isFinite(Number(youScoreRaw)) ? Number(youScoreRaw) : null,
-            taScore:
-              taScoreRaw != null && Number.isFinite(Number(taScoreRaw)) ? Number(taScoreRaw) : null,
-            note: asString(rhythmRaw?.note),
-          },
-          attentionItems: Array.isArray(raw.attention_items)
-            ? raw.attention_items.map((item) => {
-                const row = item as Record<string, unknown>;
-                return {
-                  label: asString(row.label),
-                  message: asString(row.message),
-                  desc: asString(row.desc),
-                  badge: asString(row.badge, "warn"),
-                };
-              })
-            : [],
-        }
-      : undefined,
+    supplementComplete: Boolean(raw.supplementComplete),
+    youSupplementComplete: Boolean(raw.youSupplementComplete),
+    taSupplementComplete: Boolean(raw.taSupplementComplete),
     participants: {
       initiatorSuiteTier:
         participants.initiatorSuiteTier === "lite" || participants.initiatorSuiteTier === "full"

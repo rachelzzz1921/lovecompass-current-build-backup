@@ -1,15 +1,14 @@
 import { motion } from "framer-motion";
-import { useRef, useState } from "react";
-import { ArrowUpRight, ArrowRight, Eye, EyeOff, KeyRound, Shield } from "lucide-react";
-import type { CoreTrait, Dimension, RadarBaselinePoint, SelfResult } from "@/data/mockResult";
-import { RadarChart } from "@/components/RadarChart";
+import { useState } from "react";
+import { ArrowUpRight, ArrowRight, EyeOff, KeyRound, Shield } from "lucide-react";
+import type { CoreTrait, Dimension, SelfResult } from "@/data/mockResult";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BehaviorCarousel } from "@/components/self-result/BehaviorCarousel";
 import { DimensionProfileCard } from "@/components/self-result/DimensionProfileCard";
+import { SelfDimensionRadar } from "@/components/self-result/SelfDimensionRadar";
 import { TraitEvidenceSheet } from "@/components/self-result/TraitEvidenceSheet";
 import type { ExampleSubject } from "@/lib/exampleSubjectCopy";
 import { subjectPossessive, subjectPronoun } from "@/lib/exampleSubjectCopy";
-import { useContainerWidth } from "@/hooks/use-container-width";
 
 const TRAIT_ICON = {
   shield: { Icon: Shield, tint: "oklch(0.82 0.14 200)" },
@@ -25,27 +24,11 @@ type Props = {
 
 export function SelfActOneMirror({ result, attemptId, exampleSubject }: Props) {
   const [subTab, setSubTab] = useState("traits");
-  const [activeAxis, setActiveAxis] = useState<number | null>(null);
   const [evidenceTrait, setEvidenceTrait] = useState<CoreTrait | null>(null);
-  const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
-  const radarWrapRef = useRef<HTMLDivElement>(null);
-  const radarSize = useContainerWidth(radarWrapRef, 300);
 
   const possessive = exampleSubject ? subjectPossessive(exampleSubject) : "你的";
   const pronoun = exampleSubject ? subjectPronoun(exampleSubject) : "你";
   const name = exampleSubject?.name;
-
-  const baseline: RadarBaselinePoint[] =
-    result.radarBaseline ??
-    result.dimensions.map((d) => ({ key: d.key, label: d.label, value: Math.round(d.value * 0.82) }));
-
-  const handleAxisClick = (index: number) => {
-    setActiveAxis(index);
-    const key = result.dimensions[index]?.key;
-    if (!key) return;
-    const el = cardRefs.current[key];
-    el?.scrollIntoView({ behavior: "smooth", block: "center" });
-  };
 
   const subTabs = [
     { v: "traits", step: 1, label: `${possessive}特质`, hint: "三个核心侧写" },
@@ -141,61 +124,29 @@ export function SelfActOneMirror({ result, attemptId, exampleSubject }: Props) {
           </div>
         </TabsContent>
 
-        <TabsContent value="radar" className="mt-5 space-y-5">
+        <TabsContent value="radar" className="mt-5">
           <div className="bg-glass rounded-2xl p-4 sm:p-6 md:p-7 min-w-0">
             <div className="font-mono text-[10px] tracking-[0.35em] text-muted-foreground">// SIX-AXIS MAP</div>
             <h3 className="font-display text-lg mt-1 text-foreground">六维画像</h3>
-            <p className="text-[12px] text-muted-foreground mt-1 mb-4 leading-relaxed">
-              虚线 = 该类型的平均轮廓 · 实线 = {exampleSubject ? `${name} 的` : "你的"}实际得分 · 点击轴查看详情
+            <p className="text-[12px] text-muted-foreground mt-1 mb-5 leading-relaxed max-w-md mx-auto text-center lg:mx-0 lg:text-left">
+              外圈六轴为关系六维；实线为{exampleSubject ? `${name} 的` : "你的"}得分，虚线为同依恋类型的平均轮廓。
             </p>
-            <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-5 lg:gap-6 min-w-0">
-              <div ref={radarWrapRef} className="w-full max-w-[320px] mx-auto lg:mx-0 shrink-0">
-                {radarSize >= 260 ? (
-                  <RadarChart
-                    data={result.dimensions}
-                    baseline={baseline}
-                    size={radarSize}
-                    onAxisClick={handleAxisClick}
-                    activeAxis={activeAxis}
-                  />
-                ) : null}
-              </div>
-              <div className="flex-1 w-full min-w-0 space-y-2">
-                {result.dimensions.map((d, i) => (
-                  <button
-                    key={d.key}
-                    type="button"
-                    onClick={() => handleAxisClick(i)}
-                    className={`flex w-full min-w-0 flex-col gap-1 sm:flex-row sm:items-start sm:gap-2.5 text-sm text-left rounded-lg px-2 py-2 transition ${
-                      activeAxis === i ? "bg-secondary/50" : "hover:bg-secondary/30"
-                    }`}
-                  >
-                    <span className="inline-flex items-center gap-2 min-w-0 sm:flex-1">
-                      <span className="w-2 h-2 rounded-full shrink-0" style={{ background: d.color }} />
-                      <span className="text-foreground/80">{d.label}</span>
-                    </span>
-                    <span className="text-[11px] text-muted-foreground leading-relaxed sm:max-w-[52%] sm:text-right">
-                      {d.displaySummary}
-                    </span>
-                  </button>
+            <SelfDimensionRadar
+              dimensions={result.dimensions}
+              baseline={result.radarBaseline}
+              subjectLabel={exampleSubject ? `${name} 的` : undefined}
+            />
+
+            <div className="mt-8 pt-6 border-t border-border/40">
+              <h4 className="font-display text-base text-foreground mb-1">各维位置</h4>
+              <p className="text-[11px] text-muted-foreground mb-4 leading-relaxed">
+                横轴为得分区间；右侧短句是当前区间的描述，不是定论。
+              </p>
+              <div className="space-y-3">
+                {result.dimensions.map((d) => (
+                  <DimensionProfileCard key={d.key} dimension={d} exampleSubject={exampleSubject} />
                 ))}
               </div>
-            </div>
-          </div>
-          <div className="bg-glass rounded-2xl p-4 sm:p-6 md:p-7 min-w-0">
-            <div className="font-mono text-[10px] tracking-[0.35em] text-muted-foreground">// DIMENSION PROFILES</div>
-            <h3 className="font-display text-lg mt-1 mb-5 text-foreground">维度档案</h3>
-            <div className="space-y-3">
-              {result.dimensions.map((d) => (
-                <div key={d.key} ref={(el) => { cardRefs.current[d.key] = el; }}>
-                  <DimensionProfileCard
-                    dimension={d}
-                    attemptId={attemptId}
-                    exampleSubject={exampleSubject}
-                    defaultOpen={activeAxis !== null && result.dimensions[activeAxis]?.key === d.key}
-                  />
-                </div>
-              ))}
             </div>
           </div>
         </TabsContent>

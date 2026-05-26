@@ -63,13 +63,21 @@ export async function loadChatState(options: {
     });
 
   let res;
+  let lastError: unknown;
   try {
     res = await fetchContext(options.attemptId);
-  } catch {
+  } catch (firstError) {
+    lastError = firstError;
     if (options.attemptId) {
-      res = await fetchContext(undefined);
-    } else {
-      throw new Error("无法读取测评画像，请检查网络或稍后重试");
+      try {
+        res = await fetchContext(undefined);
+        lastError = undefined;
+      } catch (retryError) {
+        lastError = retryError;
+      }
+    }
+    if (!res) {
+      throw lastError ?? new Error("无法读取测评画像，请检查网络或稍后重试");
     }
   }
 

@@ -1,12 +1,10 @@
-import { Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
-import { ChevronDown, MessageCircle } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { useState } from "react";
 import type { Dimension } from "@/data/mockResult";
-import { SELF_DIMENSION_BY_CODE, type SelfDimensionCode } from "@/data/selfSuiteSpec";
-import { chatRouteSearch } from "@/lib/chatRouteSearch";
 import type { ExampleSubject } from "@/lib/exampleSubjectCopy";
-import { subjectLabel, subjectPossessive, subjectPronoun } from "@/lib/exampleSubjectCopy";
+import { subjectLabel } from "@/lib/exampleSubjectCopy";
+import { positionLabelsForDimension } from "@/lib/selfDimensionLogic";
 import {
   Collapsible,
   CollapsibleContent,
@@ -15,35 +13,19 @@ import {
 
 type Props = {
   dimension: Dimension;
-  attemptId?: string;
-  defaultOpen?: boolean;
   exampleSubject?: ExampleSubject;
 };
 
-function positionLabels(code: string): { low: string; high: string } {
-  const spec = SELF_DIMENSION_BY_CODE[code as SelfDimensionCode];
-  if (!spec) return { low: "偏低", high: "偏高" };
-  if (code === "SA2") return { low: "低焦虑", high: "高焦虑" };
-  if (code === "SA3") return { low: "低回避", high: "高回避" };
-  if (spec.scoreDirection === "reverse") return { low: "更开放", high: "更保守" };
-  return { low: "还在展开", high: "更成熟" };
-}
-
-export function DimensionProfileCard({ dimension: d, attemptId, defaultOpen, exampleSubject }: Props) {
-  const [open, setOpen] = useState(defaultOpen ?? false);
-  const labels = positionLabels(d.key);
-  const possessive = exampleSubject ? subjectPossessive(exampleSubject) : "你的";
-  const pronoun = exampleSubject ? subjectPronoun(exampleSubject) : "你";
+export function DimensionProfileCard({ dimension: d, exampleSubject }: Props) {
+  const [open, setOpen] = useState(false);
+  const labels = positionLabelsForDimension(d.key);
   const name = exampleSubject ? subjectLabel(exampleSubject) : null;
-  const chatPrefill = `我想聊聊我的「${d.label}」维度。测试显示：${d.displaySummary ?? "这一维值得被看见"}。`;
-  const coreQuestion = d.coreQuestion ?? "这一维在关系里的位置";
-  const positionCaption = exampleSubject ? `${name} 在这一维上的位置` : `${possessive}在这段旅途里的位置`;
-  const logicLead = exampleSubject
-    ? `这一维要回答：${coreQuestion}`
-    : `这一维要回答：${coreQuestion}`;
-  const logicTail = exampleSubject
-    ? `推演显示，${pronoun}在这一维是「${d.displaySummary}」—— 描述性语言，不是定论。`
-    : `${possessive}当前表现是「${d.displaySummary}」—— 这是描述性语言，不是定论。`;
+  const logic = d.underlyingLogic;
+  const headline = d.detail ?? logic?.headline;
+  const positionCaption = exampleSubject ? `${name} 在这一维上的位置` : "你在这段旅途里的位置";
+  const hasLogic = Boolean(
+    logic?.measure || logic?.interpretation || logic?.inRelationship || logic?.growthHint,
+  );
 
   return (
     <motion.div
@@ -55,7 +37,7 @@ export function DimensionProfileCard({ dimension: d, attemptId, defaultOpen, exa
         <div className="min-w-0">
           <div className="text-[15px] font-medium text-foreground">{d.label}</div>
         </div>
-        <span className="text-[11px] text-muted-foreground leading-relaxed sm:text-right sm:max-w-[11rem]">
+        <span className="text-[11px] text-muted-foreground leading-relaxed sm:text-right sm:max-w-[11rem] shrink-0">
           {d.displaySummary}
         </span>
       </div>
@@ -85,35 +67,45 @@ export function DimensionProfileCard({ dimension: d, attemptId, defaultOpen, exa
         </div>
       </div>
 
-      {d.coreQuestion || d.profileNote || d.detail ? (
+      {headline ? (
+        <p className="mt-4 text-[13px] leading-[1.75] text-foreground/80 italic border-l-2 border-border/50 pl-3">
+          「{headline}」
+        </p>
+      ) : null}
+
+      {hasLogic ? (
         <Collapsible open={open} onOpenChange={setOpen} className="mt-3">
           <CollapsibleTrigger className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition w-full">
             <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? "rotate-180" : ""}`} />
-            底层逻辑{exampleSubject ? "" : `：${coreQuestion}`}
+            底层逻辑
           </CollapsibleTrigger>
-          <CollapsibleContent className="text-[12px] text-foreground/65 mt-2 leading-relaxed pl-5 space-y-2">
-            {d.detail ? (
-              <p className="text-foreground/75 leading-[1.75]">{d.detail}</p>
+          <CollapsibleContent className="mt-2 pl-5 space-y-3 text-[12px] leading-[1.75] text-foreground/70">
+            {logic?.measure ? (
+              <div>
+                <div className="text-[10px] font-mono tracking-wider text-muted-foreground mb-1">测的是什么</div>
+                <p>{logic.measure}</p>
+              </div>
             ) : null}
-            {d.profileNote ? (
-              <p className="text-foreground/75 leading-[1.75]">{d.profileNote}</p>
+            {logic?.interpretation ? (
+              <div>
+                <div className="text-[10px] font-mono tracking-wider text-muted-foreground mb-1">你的位置</div>
+                <p>{logic.interpretation}</p>
+              </div>
             ) : null}
-            <p>
-              {logicLead}。{logicTail}
-            </p>
+            {logic?.inRelationship ? (
+              <div>
+                <div className="text-[10px] font-mono tracking-wider text-muted-foreground mb-1">在关系里</div>
+                <p>{logic.inRelationship}</p>
+              </div>
+            ) : null}
+            {logic?.growthHint ? (
+              <div className="rounded-lg border border-[oklch(0.82_0.14_200/0.22)] bg-[oklch(0.50_0.16_200/0.06)] px-3 py-2.5 text-foreground/75">
+                <div className="text-[10px] font-mono tracking-wider text-[oklch(0.82_0.14_200)] mb-1">可以试着</div>
+                <p>{logic.growthHint}</p>
+              </div>
+            ) : null}
           </CollapsibleContent>
         </Collapsible>
-      ) : null}
-
-      {attemptId && !exampleSubject ? (
-        <Link
-          to="/chat"
-          search={chatRouteSearch(attemptId, undefined, chatPrefill)}
-          className="mt-4 inline-flex items-center gap-1.5 text-[12px] text-[oklch(0.82_0.14_200)] hover:underline"
-        >
-          <MessageCircle className="h-3.5 w-3.5" />
-          这个维度跟我聊聊
-        </Link>
       ) : null}
     </motion.div>
   );

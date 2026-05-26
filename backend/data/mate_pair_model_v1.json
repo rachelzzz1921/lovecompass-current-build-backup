@@ -1,6 +1,6 @@
 {
   "model_name": "MATE Pair 婚恋适配模型",
-  "version": "V1.0",
+  "version": "V1.1",
   "engineering_code": "MATE_PAIR_ENGINE_V1.0",
   "model_positioning": "相亲/婚恋平台辅助模型",
   "core_orientation": "现实适配优先 + 情感需求补充",
@@ -51,25 +51,142 @@
       "module_code": "P5",
       "module_name": "风险碰撞",
       "core_question": "雷区是否冲突",
-      "risk_matrix": [
-        {"you_high": "FS5", "ta_high": "MS5", "risk_name": "双向拉扯", "level": "高", "deduction": 18},
-        {"you_low_display": true, "ta_high_emotion_need": true, "risk_name": "边界冲突", "level": "中", "deduction": 12},
-        {"you_high_family": true, "ta_high_boundary": true, "risk_name": "家庭介入冲突", "level": "中", "deduction": 10}
-      ]
+      "config_ref": "p5_config"
     },
     {
       "module_code": "P6",
       "module_name": "火花增益",
       "core_question": "有没有自然吸引",
-      "spark_types": [
-        {"key": "stable_warm", "name": "稳定升温", "trigger": "P1高且P2同步"},
-        {"key": "instant_click", "name": "一拍即合", "trigger": "吸引高且兴趣相近"},
-        {"key": "mutual_growth", "name": "双向成长", "trigger": "双方成长性高"},
-        {"key": "mutual_care", "name": "互相照顾", "trigger": "一方外放一方稳定"},
-        {"key": "high_tension", "name": "高压拉扯", "trigger": "吸引高且风险高"}
-      ]
+      "config_ref": "p6_config"
     }
   ],
+  "p5_config": {
+    "score_levels": [
+      {"min_penalty": 60, "level": "高"},
+      {"min_penalty": 30, "level": "中"},
+      {"min_penalty": 0, "level": "低"}
+    ],
+    "rules": [
+      {
+        "id": "mutual_pull",
+        "priority": 100,
+        "when": {
+          "all": [
+            {"ref": "male.scores.MS5", "op": "gte", "value": 60},
+            {"ref": "female.scores.FS5", "op": "gte", "value": 60}
+          ]
+        },
+        "penalty": 72,
+        "risk_name": "双向拉扯",
+        "level": "高",
+        "atom": "双向拉扯"
+      },
+      {
+        "id": "boundary_clash",
+        "priority": 90,
+        "when": {
+          "all": [
+            {"ref": "male.scores.MS4", "op": "lt", "value": 50},
+            {"ref": "female.derived.emotional_density_score", "op": "gte", "value": 70}
+          ]
+        },
+        "penalty": 48,
+        "risk_name": "边界冲突",
+        "level": "中",
+        "atom": "边界冲突"
+      },
+      {
+        "id": "family_interference",
+        "priority": 80,
+        "when": {
+          "all": [
+            {"ref": "female.scores.FS5", "op": "gte", "value": 60},
+            {"ref": "male.scores.MS5", "op": "gte", "value": 55}
+          ]
+        },
+        "penalty": 40,
+        "risk_name": "家庭介入冲突",
+        "level": "中",
+        "atom": "家庭介入"
+      }
+    ],
+    "fallback_rule": {
+      "id": "elevated_risk_signal",
+      "when": {
+        "any": [
+          {"ref": "male.scores.MS5", "op": "gte", "value": 55},
+          {"ref": "female.scores.FS5", "op": "gte", "value": 55}
+        ]
+      },
+      "penalty": 24,
+      "risk_name": "风险信号",
+      "level": "低",
+      "atom": "风险信号"
+    }
+  },
+  "p6_config": {
+    "default_spark_key": "mutual_care",
+    "bonus": {
+      "refs": ["female.scores.FS1", "male.scores.MS4"],
+      "aggregate": "avg",
+      "cap": 100
+    },
+    "p5_dampening": {
+      "when": {"ref": "modules.P5.score", "op": "gte", "value": 60},
+      "subtract": 15,
+      "floor": 30
+    },
+    "spark_types": {
+      "stable_warm": "稳定升温",
+      "instant_click": "一拍即合",
+      "mutual_growth": "双向成长",
+      "mutual_care": "互相照顾",
+      "high_tension": "高压拉扯"
+    },
+    "spark_rules": [
+      {
+        "key": "high_tension",
+        "priority": 100,
+        "when": {
+          "all": [
+            {"ref": "female.scores.FS1", "op": "gte", "value": 65},
+            {"ref": "male.scores.MS4", "op": "gte", "value": 65},
+            {"ref": "derived.risk_avg", "op": "gte", "value": 55}
+          ]
+        }
+      },
+      {
+        "key": "stable_warm",
+        "priority": 90,
+        "when": {
+          "all": [
+            {"ref": "modules.P1.score", "op": "gte", "value": 75},
+            {"ref": "modules.P2.score", "op": "gte", "value": 80}
+          ]
+        }
+      },
+      {
+        "key": "instant_click",
+        "priority": 80,
+        "when": {
+          "all": [
+            {"ref": "female.scores.FS1", "op": "gte", "value": 70},
+            {"ref": "male.scores.MS4", "op": "gte", "value": 70}
+          ]
+        }
+      },
+      {
+        "key": "mutual_growth",
+        "priority": 70,
+        "when": {
+          "all": [
+            {"ref": "female.scores.FS3", "op": "gte", "value": 65},
+            {"ref": "male.scores.MS1", "op": "gte", "value": 65}
+          ]
+        }
+      }
+    ]
+  },
   "relationship_status_rules": [
     {"min_score": 82, "status": "稳定升温型"},
     {"min_score": 70, "status": "可磨合推进型"},

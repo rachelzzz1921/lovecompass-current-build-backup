@@ -5,7 +5,17 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from app.mate_couple import build_couple_payload
+from app.mate_couple import (
+    aggregate_score,
+    build_couple_payload,
+    compute_P1,
+    compute_P2,
+    compute_P3,
+    compute_P4,
+    compute_P5,
+    compute_P6,
+    extract_profiles,
+)
 
 
 def test_mate_couple_payload_shape() -> None:
@@ -21,7 +31,19 @@ def test_mate_couple_payload_shape() -> None:
             "axisX": 68,
             "axisY": 72,
             "positionType": {"name": "让人想留下来的人"},
-            "identityCard": {"title": "让人想留下来的人"},
+            "pair_supplement": {
+                "fields": {
+                    "age": 27,
+                    "education_level": 4,
+                    "huji": "local",
+                    "target_city_plan": "current_fixed",
+                    "want_children": "want",
+                    "children_timing": 2.5,
+                    "female_work_plan": "fulltime",
+                    "financial_model": "full_joint",
+                },
+                "completed_at": "2026-01-01T00:00:00Z",
+            },
         },
     }
     partner = {
@@ -36,17 +58,46 @@ def test_mate_couple_payload_shape() -> None:
             "axisX": 65,
             "axisY": 70,
             "positionType": {"name": "让人想留下来的人"},
-            "identityCard": {"title": "让人想留下来的人"},
+            "pair_supplement": {
+                "fields": {
+                    "age": 29,
+                    "education_level": 3,
+                    "huji": "nonlocal",
+                    "target_city_plan": "current_fixed",
+                    "want_children": "want",
+                    "children_timing": 0,
+                    "male_expect_female_work": "fulltime",
+                    "financial_model": "aa_equal",
+                    "childcare_flexibility_score": 55,
+                },
+                "completed_at": "2026-01-01T00:00:00Z",
+            },
         },
     }
+
+    profiles = extract_profiles(initiator, partner)
+    male, female = profiles["male"], profiles["female"]
+    modules = {
+        "P1": compute_P1(male, female),
+        "P2": compute_P2(male, female),
+        "P3": compute_P3(male, female),
+        "P4": compute_P4(male, female),
+        "P5": compute_P5(male, female),
+    }
+    modules["P6"] = compute_P6(male, female, modules["P1"], modules["P2"], modules["P5"])
+    score = aggregate_score(modules)
+    assert 0 <= score <= 100
+    assert all(mod.get("score") is not None for mod in modules.values())
+
     payload = build_couple_payload(code="ROS-TEST-0001", initiator=initiator, partner=partner)
-    assert payload["model"] == "MATE_PAIR_V1"
-    assert payload["relationship_summary"]["matching_score"] >= 45
-    assert payload["relationship_analysis"]["P1"]["level"]
-    assert payload["risk_lab"]["risk_name"]
-    assert payload["matchmaker_advice"]["oneChange"]
-    assert payload.get("engine") == "MATE_PAIR_SUPPLEMENT_V1.1"
-    assert isinstance(payload.get("condition_compare_table"), list)
+    assert payload["model"] == "MATE_PAIR_V4"
+    assert payload["verdict"]["score"] == score
+    assert payload["verdict"]["title"]
+    assert isinstance(payload["condition_table"], list)
+    assert isinstance(payload["deal_items"]["highlight"], list)
+    assert isinstance(payload["rhythm"], list)
+    assert payload["conclusion"]["summary"]
+    assert payload["ai_context"]["pair_atoms"]
 
 
 if __name__ == "__main__":

@@ -8,7 +8,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Literal
 
-from app.profile_center import PRODUCT_SETS, build_portrait, rebuild_and_cache_portrait
+from app.profile_center import PRODUCT_SETS, build_portrait, load_portrait_for_chat
 
 PHRASE_LIBRARY_PATH = Path(__file__).resolve().parents[1] / "data" / "analysis_phrase_library_v1.json"
 SHARED_SKILLS_DIR = Path(__file__).resolve().parent / "shared_skills"
@@ -443,12 +443,14 @@ def build_portrait_reader_layer(
     user_id: str,
     *,
     exclude_product_set: str | None = None,
+    portrait: dict[str, Any] | None = None,
 ) -> str:
     """跨套画像摘要；exclude_product_set = 当前绑定套（详情在 profile_block，此处只列其他套）。"""
-    try:
-        portrait = rebuild_and_cache_portrait(conn, user_id)
-    except Exception:
-        portrait = build_portrait(conn, user_id)
+    if portrait is None:
+        try:
+            portrait = load_portrait_for_chat(conn, user_id, refresh=False)
+        except Exception:
+            portrait = build_portrait(conn, user_id)
 
     latest = _portrait_latest_map(portrait)
     if not any(latest.values()):

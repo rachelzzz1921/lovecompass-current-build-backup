@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import os
+import threading
 import uuid
 from typing import Any
 
 from psycopg.types.json import Jsonb
 
-from app.attempt_helpers import rebuild_portrait_background
+from app.attempt_helpers import rebuild_portrait_background, persist_attempt_answers_for_attempt
 from app.core_traits import attach_core_traits_to_payload
 from app.db import get_conn
 from app.mate_ai_content import attach_mate_ai_content_to_payload, enhance_mate_ai_for_attempt
@@ -51,6 +52,15 @@ def _enhance_ai_after_finalize(conn: Any, attempt_id: str, suite_slug: str) -> N
         return
 
 
+def _run_post_finalize_ai(attempt_id: str, suite_slug: str) -> None:
+    try:
+        with get_conn() as conn:
+            _enhance_ai_after_finalize(conn, attempt_id, suite_slug)
+            conn.commit()
+    except Exception:
+        return
+
+
 def finalize_attempt_background(attempt_id: str, user_id: str) -> None:
     try:
         with get_conn() as conn:
@@ -78,6 +88,8 @@ def finalize_attempt_background(attempt_id: str, user_id: str) -> None:
             ).fetchone()
             if not row or row.get("status") == "completed":
                 return
+
+            persist_attempt_answers_for_attempt(conn, attempt_id)
 
             suite_slug = str(row["suite_slug"] or row["test_id"] or "")
             gender = str(row.get("archetype_gender") or row.get("suite_gender") or "female")
@@ -249,7 +261,6 @@ def finalize_attempt_background(attempt_id: str, user_id: str) -> None:
                         ),
                     )
 
-            _enhance_ai_after_finalize(conn, attempt_id, suite_slug)
             if is_ros_suite(suite_slug) and partner_code:
                 session_row = conn.execute(
                     "SELECT id FROM public.ros_relation_sessions WHERE code = %s",
@@ -258,6 +269,13 @@ def finalize_attempt_background(attempt_id: str, user_id: str) -> None:
                 if session_row and session_row.get("id"):
                     enhance_ros_couple_session_background(str(session_row["id"]))
             conn.commit()
+
+            if os.getenv("AI_PROVIDER", "mock").strip().lower() == "zhipu":
+                threading.Thread(
+                    target=_run_post_finalize_ai,
+                    args=(attempt_id, suite_slug),
+                    daemon=True,
+                ).start()
     except Exception:
         try:
             with get_conn() as conn:

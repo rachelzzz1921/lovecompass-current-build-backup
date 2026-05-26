@@ -54,12 +54,21 @@ export type ChatSyncProfileResponse = ChatContextResponse & {
   acknowledgment: string;
 };
 
+export type ChatInjectionMeta = {
+  hasPortraitLayer?: boolean;
+  hasProfileBlock?: boolean;
+  hasCompletedTests?: boolean;
+  profileReady?: boolean;
+  boundProductSet?: string | null;
+};
+
 export type ChatMessageResponse = {
   message: string;
   conversationId?: string | null;
   bound?: boolean;
   context?: ChatContext | null;
   crisis?: boolean;
+  injection?: ChatInjectionMeta;
 };
 
 export type TriageResponse = {
@@ -318,8 +327,12 @@ export const lovecompassApi = {
       undefined,
       true,
     ),
-  getProfilePortrait: () =>
-    requestJson<{ portrait: UserPortrait }>("/profile/portrait", undefined, true),
+  getProfilePortrait: (refresh = false) =>
+    requestJson<{ portrait: UserPortrait }>(
+      `/profile/portrait${refresh ? "?refresh=1" : ""}`,
+      undefined,
+      true,
+    ),
   sendChatMessage: (data: { attemptId?: string; analystId?: string; message: string }) =>
     requestJson<ChatMessageResponse>(
       "/chat/message",

@@ -1,5 +1,5 @@
 import { createFileRoute, useParams } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { MateResult } from "@/data/mateTypes";
 import { MateResultView } from "@/components/mate/MateResultView";
 import { ApiErrorPanel } from "@/components/ApiErrorPanel";
@@ -7,7 +7,7 @@ import { formatApiErrorMessage } from "@/lib/apiErrors";
 import { mapApiSingleToMateResult, mapAttemptToMateResult } from "@/lib/mapMateResult";
 import { lovecompassApi } from "@/lib/lovecompassApi";
 import { AuthChecking, useRequireAuth } from "@/lib/requireAuth";
-import { takeResultPrefetch } from "@/lib/resultPrefetchCache";
+import { peekResultPrefetch, takeResultPrefetch } from "@/lib/resultPrefetchCache";
 import { ResultDataLoading } from "@/components/ResultDataLoading";
 
 export const Route = createFileRoute("/result/mate/$id")({
@@ -32,13 +32,16 @@ function MateResultRoute() {
   const [coupleUnlocked, setCoupleUnlocked] = useState(false);
   const [pairSupplementComplete, setPairSupplementComplete] = useState(false);
   const [accuracyNote, setAccuracyNote] = useState<string | null>(null);
+  const hydratedRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (authPending || !authed) return;
+    if (hydratedRef.current === id) return;
     let cancelled = false;
 
-    const cached = takeResultPrefetch(id);
+    const cached = peekResultPrefetch(id);
     if (cached?.kind === "mate-single" && cached.attemptId === id) {
+      takeResultPrefetch(id);
       setResult(mapApiSingleToMateResult(id, cached.data.single));
       setRelationCode(cached.data.relationCode || null);
       setCoupleUnlocked(Boolean(cached.data.coupleUnlocked));
@@ -47,7 +50,10 @@ function MateResultRoute() {
       const single = cached.data.single;
       setAccuracyNote(typeof single.accuracyNote === "string" ? single.accuracyNote : null);
       setLoading(false);
-      return;
+      hydratedRef.current = id;
+      return () => {
+        cancelled = true;
+      };
     }
 
     setLoading(true);
@@ -61,6 +67,7 @@ function MateResultRoute() {
         setPairSupplementComplete(Boolean(res.pairSupplementComplete));
         const single = res.single as Record<string, unknown>;
         setAccuracyNote(typeof single.accuracyNote === "string" ? single.accuracyNote : null);
+        hydratedRef.current = id;
       })
       .catch(async (primaryError) => {
         if (cancelled) return;
@@ -73,6 +80,7 @@ function MateResultRoute() {
           if (mapped) {
             setResult(mapped);
             setSuiteSlug(String(fallback.attempt?.test_id ?? ""));
+            hydratedRef.current = id;
             return;
           }
         } catch {

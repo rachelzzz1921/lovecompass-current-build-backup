@@ -1,0 +1,254 @@
+{
+  "verdict_title": {
+    "85-100": "条件很扎实，值得认真走",
+    "70-84": "值得继续，有几件事要早聊",
+    "55-69": "有潜力，但有一些事要先处理",
+    "0-54": "需要认真评估现实情况"
+  },
+  "verdict_oneliner_rules": [
+    { "when": "P1_high+P4_high", "text": "条件相当，方向一致，主要需要对齐节奏和时间表。" },
+    { "when": "P1_high+P4_mid", "text": "现实基础扎实，未来规划还需要对齐。" },
+    { "when": "P1_mid+P2_high", "text": "条件有小差距，但需求上很同步。" },
+    { "when": "P5_high", "text": "吸引力在，但有几个地方需要正视。" },
+    { "when": "default", "text": "现实条件基本对得上，值得深入了解。" }
+  ],
+  "verdict_desc_parts": {
+    "income_ok": "收入区间接近",
+    "city_ok": "城市规划一致",
+    "family_low_risk": "家庭干预风险低",
+    "children_warn": "婚育时间表有出入",
+    "finance_warn": "财务模式有出入",
+    "default_tail": "值得继续了解彼此。"
+  },
+  "conclusion_summary": {
+    "no_alert": "核心条件对得上，没有明显硬伤。",
+    "has_alert": "有一个分歧点需要认真对待，其他条件基本对得上。",
+    "multiple_alerts": "有几个方向需要提前谈清楚，建议在深入之前先把这些摆上桌。",
+    "high_score": "整体适配度高，现实基础扎实。"
+  },
+  "conclusion_item_templates": {
+    "children_timing": "婚育时间表有出入（{male_text}，她想{female_text}）——现阶段最需要谈的一件事，早说比晚说轻松。",
+    "financial_model": "婚后财务模式需要对齐（{male_text} vs {female_text}），不难谈拢，但要在关系深入前摆上桌。",
+    "living_with_parents": "和父母的居住安排预期不同（{male_text} vs {female_text}），这件事影响的不只是住在哪，值得认真聊。",
+    "want_children": "要不要孩子这件事分歧明显，这是最需要直接谈的话题，没有中间答案。",
+    "target_city_plan": "定居城市规划有差异，这个不是小事，建议在关系深入之前明确各自的预期和底线。",
+    "female_work_plan": "婚后工作安排预期有出入（{male_text} vs {female_text}），建议提前对齐彼此期待。",
+    "housing_plan": "婚后住房规划有差异（{male_text} vs {female_text}），值得在关系深入前聊清楚。",
+    "long_distance_tolerance": "异地接受度有差距，需要提前确认各自的底线。"
+  },
+  "deal_status_text": {
+    "ok": "✓ 一致",
+    "warn": "△ 有出入，需对齐",
+    "alert": "△ 分歧明显"
+  },
+  "education_labels": {
+    "1": "高中及以下",
+    "2": "大专",
+    "3": "本科",
+    "4": "硕士",
+    "5": "博士及以上"
+  },
+  "children_timing_labels": {
+    "0": "结婚后尽快",
+    "1": "结婚1年内",
+    "2.5": "结婚2–3年后",
+    "4": "结婚3年以上",
+    "-1": "还没想好"
+  },
+  "financial_model_labels": {
+    "full_joint": "完全共同账户",
+    "partial_joint": "部分共同，留私房钱",
+    "aa_proportional": "AA，按比例分",
+    "aa_equal": "AA，对半分",
+    "male_primary": "男方主要承担"
+  },
+  "housing_plan_labels": {
+    "buy_now": "尽快买房",
+    "rent_then_buy": "先租后买",
+    "rent_long": "长期租房",
+    "undecided": "尚未规划"
+  },
+  "living_with_parents_labels": {
+    "separate": "分开住",
+    "nearby": "住得近不同住",
+    "same_roof": "同住",
+    "depends": "看情况"
+  },
+  "want_children_labels": {
+    "want": "要",
+    "no_or_undecided": "不要/未定"
+  },
+  "huji_labels": {
+    "local": "本地户籍",
+    "transferring": "落户办理中",
+    "nonlocal": "外地户籍"
+  },
+  "city_plan_labels": {
+    "current_fixed": "定居现城市",
+    "current_flexible": "现城市，可变动",
+    "other_fixed": "计划换城市",
+    "undecided": "尚未规划"
+  },
+  "work_plan_labels": {
+    "fulltime": "继续工作",
+    "flexible_after_birth": "产后灵活",
+    "parttime_after_birth": "可能全职在家",
+    "fulltime_home": "以家庭为主"
+  },
+  "long_distance_labels": {
+    "0": "不接受异地",
+    "1": "短期可以",
+    "2": "半年内可以",
+    "3": "可以接受"
+  },
+  "bride_price_labels": {
+    "none": "不需要",
+    "symbolic": "象征性",
+    "moderate": "适度",
+    "significant": "有明确预期"
+  },
+  "gap_rules": {
+    "age": [
+      { "range": [0, 2], "badge": "ok", "label": "年龄相当" },
+      { "range": [3, 5], "badge": "ok", "label": "差距合理" },
+      { "range": [6, 9], "badge": "warn", "label": "有一定差距" },
+      { "range": [10, 99], "badge": "warn", "label": "年龄差较大" }
+    ],
+    "education": [
+      { "range": [0, 1], "badge": "ok", "label": "学历相当" },
+      { "range": [2, 2], "badge": "warn", "label": "有差距" },
+      { "range": [3, 99], "badge": "warn", "label": "差距较大" }
+    ],
+    "income": [
+      { "range": [0, 1], "badge": "ok", "label": "接近" },
+      { "range": [2, 2], "badge": "warn", "label": "有差距" },
+      { "range": [3, 99], "badge": "warn", "label": "差距明显" }
+    ]
+  },
+  "huji_rules": {
+    "both_local": { "badge": "ok", "label": "户籍一致" },
+    "one_local_transferring": { "badge": "ok", "label": "基本无问题" },
+    "both_nonlocal": { "badge": "warn", "label": "均为外地，需规划落户" },
+    "one_local_one_nonlocal": { "badge": "warn", "label": "存在差异" },
+    "default": { "badge": "warn", "label": "存在差异" }
+  },
+  "city_plan_rules": {
+    "both_fixed_same": { "badge": "ok", "label": "城市规划一致" },
+    "both_flexible": { "badge": "ok", "label": "方向一致，细节待定" },
+    "differ_meaningfully": { "badge": "warn", "label": "城市规划存在分歧" },
+    "either_undecided": { "badge": "warn", "label": "一方尚未规划" },
+    "default": { "badge": "ok", "label": "基本一致" }
+  },
+  "rhythm_fields": [
+    {
+      "label": "情感需求浓度",
+      "male_field": "emotional_density_score",
+      "female_field": "emotional_density_score",
+      "note_rules": [
+        { "max_diff": 15, "note": "两人情感需求浓度接近" },
+        { "max_diff": 30, "note": "她需要的回应频率略高，值得对齐节奏" },
+        { "max_diff": 99, "note": "情感需求差距较大，需要提前说清楚各自的期待" }
+      ]
+    },
+    {
+      "label": "情绪稳定程度",
+      "male_field": "emotional_stability_score",
+      "female_field": "emotional_stability_score",
+      "note_rules": [
+        { "max_diff": 15, "note": "两人情绪稳定度接近" },
+        { "max_diff": 30, "note": "他更稳，形成互补" },
+        { "max_diff": 99, "note": "稳定度差距明显，高波动方需要自我觉察" }
+      ]
+    },
+    {
+      "label": "独立自主程度",
+      "male_field": "independence_score",
+      "female_field": "independence_score",
+      "note_rules": [
+        { "max_diff": 15, "note": "两人独立性水平接近" },
+        { "max_diff": 30, "note": "她独立性更强，两人都不依赖对方" },
+        { "max_diff": 99, "note": "独立性差距大，需要建立清晰的个人空间约定" }
+      ]
+    },
+    {
+      "label": "育儿分工灵活度",
+      "male_field": "childcare_flexibility",
+      "female_field": "childcare_flexibility",
+      "note_rules": [
+        { "max_diff": 15, "note": "两人在育儿安排上灵活度接近" },
+        { "max_diff": 30, "note": "她在育儿上更灵活，他有一定倾向，可以聊" },
+        { "max_diff": 99, "note": "育儿分工预期差距较大，值得提前讨论" }
+      ]
+    }
+  ],
+  "attention_rules": [
+    {
+      "id": "female_response_need",
+      "condition": "female.emotional_density_score > 65",
+      "icon": "warn",
+      "title": "她对回应节奏有一定需求",
+      "desc": "在关系里需要一定频率的确认，长时间没有反馈容易不安。不是问题，但两人早点对齐节奏期待会省很多摩擦。",
+      "source": "FS2"
+    },
+    {
+      "id": "male_housing_huji",
+      "condition": "male.housing_status == 'no_own' AND male.huji == 'nonlocal'",
+      "icon": "warn",
+      "title": "他的住房与户籍需要提前规划",
+      "desc": "目前名下无独立房产，户籍在外地。如有子女就学等长期规划，建议提前讨论时间表和各自的预期。",
+      "source": "MS1_A + PR1-03"
+    },
+    {
+      "id": "edu_gap_female_higher",
+      "condition": "female.education_level > male.education_level",
+      "icon": "warn",
+      "title": "她的学历高于他，部分家庭会在意",
+      "desc": "学历差距本身不是问题，但在某些家庭场景下可能带来额外的外部压力。两人提前知道对方家里的态度，比被动面对要好。",
+      "source": "PR1-02"
+    },
+    {
+      "id": "low_family_interference",
+      "condition": "male.family_interference_score < 40 AND female.family_interference_score < 40",
+      "icon": "ok",
+      "title": "双方家庭干预风险都低",
+      "desc": "父母对感情生活的参与度都在合理范围内，不太会成为关系的外部压力来源。",
+      "source": "MS5_C + FS5_C"
+    },
+    {
+      "id": "children_timing_gap",
+      "condition": "children_timing_badge in ('warn', 'alert')",
+      "icon": "warn",
+      "title": "婚育时间表需要对齐",
+      "desc": "双方对要孩子的时间预期不完全一致，这不是谁对谁错，但越早谈越轻松。",
+      "source": "PR2-02"
+    },
+    {
+      "id": "financial_gap",
+      "condition": "financial_model_badge == 'warn'",
+      "icon": "warn",
+      "title": "婚后财务模式需要提前聊",
+      "desc": "两人对钱怎么管的想法不完全一样，提前摆上桌比婚后被动磨合更省力。",
+      "source": "PR3-01"
+    }
+  ],
+  "p_level_labels": {
+    "P1": [
+      { "min": 85, "level": "高适配" },
+      { "min": 70, "level": "可磨合" },
+      { "min": 50, "level": "存在落差" },
+      { "min": 0, "level": "长期压力较大" }
+    ],
+    "P2": [
+      { "min": 85, "level": "高同步" },
+      { "min": 70, "level": "基本同步" },
+      { "min": 50, "level": "存在差异" },
+      { "min": 0, "level": "容易累" }
+    ],
+    "default": [
+      { "min": 85, "level": "高同步" },
+      { "min": 70, "level": "基本同步" },
+      { "min": 50, "level": "存在差异" },
+      { "min": 0, "level": "需要磨合" }
+    ]
+  }
+}

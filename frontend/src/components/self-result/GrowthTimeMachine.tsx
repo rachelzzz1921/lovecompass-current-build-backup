@@ -10,6 +10,17 @@ type Props = {
   attemptId?: string;
 };
 
+function formatGrowthPathText(text: string): { lead: string; bullets: string[] } {
+  const normalized = text.replace(/这意味着：/g, "这意味着：\n").replace(/\s·\s/g, "\n· ");
+  const lines = normalized
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const bullets = lines.filter((line) => line.startsWith("·")).map((line) => line.replace(/^·\s*/, ""));
+  const lead = lines.filter((line) => !line.startsWith("·")).join("\n");
+  return { lead, bullets };
+}
+
 export function GrowthTimeMachine({ result, attemptId }: Props) {
   const path = growthPathForCharacter(result.character.name);
   if (!path && !result.growthPathText) return null;
@@ -20,12 +31,31 @@ export function GrowthTimeMachine({ result, attemptId }: Props) {
     : "我想聊聊我的成长路径。";
 
   return (
-    <div className="mt-6 rounded-2xl border border-[oklch(0.82_0.14_200/0.25)] bg-[oklch(0.50_0.16_200/0.06)] p-5 md:p-6">
+    <div className="mt-6 rounded-2xl border border-[oklch(0.82_0.14_200/0.25)] bg-[oklch(0.50_0.16_200/0.06)] p-5 md:p-6 min-w-0 overflow-hidden">
       <div className="font-mono text-[10px] tracking-[0.35em] text-muted-foreground flex items-center gap-2">
         <Sparkles className="h-3 w-3" /> // 如果是三年后的你
       </div>
       {result.growthPathText ? (
-        <p className="text-[14px] text-foreground/85 mt-3 leading-relaxed">{result.growthPathText}</p>
+        (() => {
+          const { lead, bullets } = formatGrowthPathText(result.growthPathText);
+          return (
+            <>
+              <p className="text-[14px] text-foreground/85 mt-3 leading-relaxed break-words whitespace-pre-line">
+                {lead}
+              </p>
+              {bullets.length ? (
+                <ul className="mt-3 space-y-1.5 text-[13px] text-foreground/75">
+                  {bullets.map((line) => (
+                    <li key={line} className="flex gap-2 break-words">
+                      <span className="text-[oklch(0.82_0.14_200)] shrink-0">·</span>
+                      <span>{line}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </>
+          );
+        })()
       ) : path ? (
         <>
           <p className="text-[14px] text-foreground/85 mt-3 leading-relaxed">

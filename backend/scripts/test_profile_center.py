@@ -42,7 +42,8 @@ def main() -> None:
             "suite_name": "自我关系模式测试",
             "suite_gender": "female",
             "completed_at": "2026-05-23T12:00:00Z",
-        }
+        },
+        include_detail=True,
     )
     assert summary["productSet"] == "SELF"
     assert summary["archetypeCode"] == "薛宝钗"

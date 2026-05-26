@@ -6,7 +6,7 @@ import { resultRouteFromSuiteSlug } from "@/lib/resultRoutes";
 import { formatApiErrorMessage, getApiErrorHint } from "@/lib/apiErrors";
 import { AuthChecking, useRequireAuth } from "@/lib/requireAuth";
 import {
-  buildCounselorConnectionFallback,
+  buildCounselorGreeting,
   counselorActiveRing,
   counselorAvatarGradient,
   COUNSELORS,
@@ -57,7 +57,7 @@ function applyChatLoad(
 
 function ChatPage() {
   const nav = useNavigate();
-  const { pending: authPending } = useRequireAuth();
+  const { pending: authPending, authed } = useRequireAuth();
   const { attemptId: attemptIdFromUrl, analystId: analystIdFromUrl, prefill: prefillFromUrl } = Route.useSearch();
   const [active, setActive] = useState<Counselor>(() => getCounselor(analystIdFromUrl));
   const [boundAttemptId, setBoundAttemptId] = useState<string | undefined>(attemptIdFromUrl);
@@ -73,6 +73,7 @@ function ChatPage() {
   const [triageHint, setTriageHint] = useState<string | null>(null);
   const [triageLoading, setTriageLoading] = useState(false);
   const [contextReloadKey, setContextReloadKey] = useState(0);
+  const [lastInjectionReady, setLastInjectionReady] = useState<boolean | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -86,6 +87,8 @@ function ChatPage() {
   }, [analystIdFromUrl]);
 
   useEffect(() => {
+    if (authPending || !authed) return;
+
     let ignore = false;
     setContextLoading(true);
     setContextError(null);
@@ -111,16 +114,11 @@ function ChatPage() {
       .catch((error) => {
         if (ignore) return;
         const message = formatApiErrorMessage(error);
+        const counselor = getCounselor(analystIdFromUrl);
         setContextError(message);
         setChatContext(null);
         setProfileSnapshot(null);
-        setMessages([
-          {
-            role: "ai",
-            text: buildCounselorConnectionFallback(getCounselor(analystIdFromUrl), message),
-            ts: Date.now(),
-          },
-        ]);
+        setMessages([{ role: "ai", text: buildCounselorGreeting(counselor, null, null), ts: Date.now() }]);
       })
       .finally(() => {
         if (!ignore) setContextLoading(false);
@@ -128,7 +126,7 @@ function ChatPage() {
     return () => {
       ignore = true;
     };
-  }, [attemptIdFromUrl, analystIdFromUrl, nav, contextReloadKey]);
+  }, [attemptIdFromUrl, analystIdFromUrl, nav, contextReloadKey, authPending, authed]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -136,6 +134,8 @@ function ChatPage() {
 
   const { profileBound, completedSuiteCount } = deriveChatFlags(profileSnapshot, chatContext);
   const showAiConfigHint = messages.some((m) => m.role === "ai" && isAiPlaceholderReply(m.text));
+  const showInjectionHint =
+    profileBound && lastInjectionReady === false && !contextLoading && !contextError;
   const showQuickStarts = !messages.some((m) => m.role === "user") && active.prompts.length > 0;
 
   const send = async (text: string) => {
@@ -161,6 +161,9 @@ function ChatPage() {
             if (partial.context) {
               setChatContext(partial.context);
               if (partial.context.attemptId) setBoundAttemptId(partial.context.attemptId);
+            }
+            if (partial.injection && typeof partial.injection.profileReady === "boolean") {
+              setLastInjectionReady(partial.injection.profileReady);
             }
           },
           onDelta: (chunk) => {
@@ -212,23 +215,38 @@ function ChatPage() {
   const syncProfileToAi = async () => {
     if (syncingProfile || thinking) return;
     setSyncingProfile(true);
+    setContextError(null);
     try {
       const res = await lovecompassApi.syncChatProfile();
-      setProfileSnapshot(res.profile ?? null);
+      if (!res.ok) {
+        throw new Error("画像同步未成功，请稍后重试");
+      }
+      const profile = res.profile ?? null;
+      setProfileSnapshot(profile);
       if (res.context) {
         setChatContext(res.context);
         if (res.context.attemptId) setBoundAttemptId(res.context.attemptId);
+      } else if (profile?.suites?.length) {
+        const primary = profile.suites.find((s) => s.status === "completed" && s.attemptId);
+        if (primary?.attemptId) setBoundAttemptId(primary.attemptId);
       }
       setProfileSyncedAt(Date.now());
+      setLastInjectionReady(null);
+      const ack = (res.acknowledgment ?? "").trim();
+      if (!ack) {
+        throw new Error("同步完成但服务端未返回确认文案");
+      }
       setMessages((m) => [
         ...m,
         { role: "user", text: "【同步我的全部测评画像】", ts: Date.now() },
-        { role: "ai", text: res.acknowledgment, ts: Date.now() + 1 },
+        { role: "ai", text: ack, ts: Date.now() + 1 },
       ]);
     } catch (error) {
+      const message = formatApiErrorMessage(error);
+      setContextError(message);
       setMessages((m) => [
         ...m,
-        { role: "ai", text: formatApiErrorMessage(error), ts: Date.now() },
+        { role: "ai", text: `画像同步失败：${message}`, ts: Date.now() },
       ]);
     } finally {
       setSyncingProfile(false);
@@ -403,7 +421,11 @@ function ChatPage() {
                 className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-[oklch(0.68_0.18_285_/_0.45)] bg-[oklch(0.50_0.20_285_/_0.12)] px-3 py-2.5 text-[12px] font-medium text-foreground/90 hover:bg-[oklch(0.50_0.20_285_/_0.18)] transition disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <RefreshCw className={`h-3.5 w-3.5 ${syncingProfile ? "animate-spin" : ""}`} />
-                {syncingProfile ? "正在同步…" : profileBound ? "同步全部测评到 AI" : "刷新画像状态"}
+                {syncingProfile
+                  ? "正在同步（约 15–60 秒）…"
+                  : profileBound
+                    ? "同步全部测评到 AI"
+                    : "刷新画像状态"}
               </button>
               {profileSyncedAt ? (
                 <p className="text-[10px] font-mono text-muted-foreground text-center">
@@ -412,6 +434,12 @@ function ChatPage() {
               ) : profileBound ? (
                 <p className="text-[10px] text-muted-foreground/80 leading-relaxed text-center">
                   完成新测试后点一次，确保顾问读到最新分数
+                </p>
+              ) : null}
+
+              {showInjectionHint ? (
+                <p className="text-[10px] text-amber-200/90 leading-relaxed text-center">
+                  画像已加载，但上一轮未注入对话。请先点「同步全部测评到 AI」再提问。
                 </p>
               ) : null}
 

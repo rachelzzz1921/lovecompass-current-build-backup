@@ -129,29 +129,20 @@ def score_display_summary(score: float) -> str:
     return "这个维度是你的核心竞争力"
 
 
-def _position_labels(code: str) -> tuple[str, str]:
-    if code == "SA2":
-        return "低焦虑", "高焦虑"
-    if code == "SA3":
-        return "低回避", "高回避"
-    return "还在展开", "更成熟"
-
 
 def build_dimension_summaries(dimension_scores: dict[str, float] | None) -> dict[str, dict[str, Any]]:
+    from app.self_dimension_logic import enrich_dimension_summary
+
     scores = {str(k): float(v) for k, v in (dimension_scores or {}).items()}
     out: dict[str, dict[str, Any]] = {}
     for code, meta in DIMENSION_META.items():
         raw = scores.get(code, 0.0)
-        low, high = _position_labels(code)
-        out[code] = {
-            "label": score_display_summary(raw),
-            "detail": f"{meta['core']} 你目前是「{score_display_summary(raw)}」。",
-            "position": max(0, min(100, round(raw))),
-            "position_label_low": low,
-            "position_label_high": high,
-            "name": meta["name"],
-            "coreQuestion": meta["core"],
-        }
+        out[code] = enrich_dimension_summary(
+            code,
+            raw,
+            meta,
+            label=score_display_summary(raw),
+        )
     return out
 
 

@@ -1,12 +1,14 @@
 import { getRequiredAccessToken } from "@/lib/supabaseSession";
 import { fetchWithMirrorFallback } from "@/lib/mirrorEndpoints";
-import type { ChatContext, ChatMessageResponse } from "@/lib/lovecompassApi";
+import type { ChatContext, ChatInjectionMeta, ChatMessageResponse } from "@/lib/lovecompassApi";
 
 const API_BASE =
   (import.meta.env.VITE_LOVECOMPASS_API_BASE_URL as string | undefined)?.replace(/\/$/, "") ?? "";
 
 export type ChatStreamHandlers = {
-  onMeta?: (partial: Pick<ChatMessageResponse, "conversationId" | "context" | "bound" | "crisis">) => void;
+  onMeta?: (
+    partial: Pick<ChatMessageResponse, "conversationId" | "context" | "bound" | "crisis" | "injection">,
+  ) => void;
   onDelta: (chunk: string) => void;
   onDone: (response: ChatMessageResponse) => void;
 };
@@ -62,7 +64,10 @@ export async function streamChatMessage(
   const decoder = new TextDecoder();
   let buffer = "";
   let fullText = "";
-  let meta: Pick<ChatMessageResponse, "conversationId" | "context" | "bound" | "crisis"> = {};
+  let meta: Pick<
+    ChatMessageResponse,
+    "conversationId" | "context" | "bound" | "crisis" | "injection"
+  > = {};
 
   while (true) {
     const { done, value } = await reader.read();
@@ -99,5 +104,6 @@ export async function streamChatMessage(
     context: (meta.context as ChatContext | null) ?? null,
     bound: meta.bound,
     crisis: meta.crisis,
+    injection: meta.injection as ChatInjectionMeta | undefined,
   });
 }

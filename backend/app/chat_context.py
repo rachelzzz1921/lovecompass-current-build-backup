@@ -12,7 +12,13 @@ from app.chat_prompt_layers import (
     build_portrait_reader_layer,
 )
 from app.counselor_personas import enrich_analyst_with_skill, normalize_counselor_slug, persona_fallback
-from app.profile_center import build_portrait, rebuild_and_cache_portrait
+from app.chat_injection import (
+    ChatInjectionState,
+    load_portrait_bundle,
+    portrait_has_completed_tests,
+    profile_ready_requirement,
+)
+from app.profile_center import load_portrait_for_chat
 from app.suite_context import (
     build_suite_profile_context_block,
     build_unbound_context_message,
@@ -21,6 +27,7 @@ from app.suite_context import (
 )
 
 from app.report_utils import looks_like_placeholder_report
+from app.chat_case_library import CHAT_CASE_ANCHOR_ACK, build_case_examples_layer
 from app.ros_chat_layers import build_ros_inquiry_layer
 from app.suite_context import resolve_attempt_product_set
 
@@ -115,51 +122,6 @@ def resolve_attempt_or_latest(conn: Any, user_id: str, attempt_id: str | None) -
     return fetch_latest_attempt_row(conn, user_id)
 
 
-def load_chat_session_messages(
-    conn: Any,
-    user_id: str,
-    analyst_slug: str | None,
-    attempt_id: str | None,
-    *,
-    limit: int = 40,
-) -> tuple[str | None, list[dict[str, str]]]:
-    """Return existing chat session id and recent messages for analyst/attempt binding."""
-    analyst = resolve_analyst_row(conn, analyst_slug)
-    analyst_id = analyst.get("id")
-    if not analyst_id:
-        return None, []
-
-    bound_attempt_id: str | None = None
-    if attempt_id:
-        try:
-            uuid.UUID(attempt_id)
-            bound_attempt_id = attempt_id
-        except ValueError:
-            bound_attempt_id = None
-    else:
-        latest = fetch_latest_attempt_row(conn, user_id)
-        bound_attempt_id = str(latest["id"]) if latest else None
-
-    existing = conn.execute(
-        """
-        SELECT id
-        FROM public.chat_sessions
-        WHERE user_id = %s
-          AND analyst_id = %s
-          AND attempt_id IS NOT DISTINCT FROM %s
-          AND is_archived = false
-        ORDER BY updated_at DESC
-        LIMIT 1
-        """,
-        (user_id, analyst_id, bound_attempt_id),
-    ).fetchone()
-    if not existing:
-        return None, []
-
-    session_id = str(existing["id"])
-    return session_id, load_recent_messages(conn, session_id, limit=limit)
-
-
 def summarize_context(attempt: dict[str, Any]) -> dict[str, Any]:
     summary = summarize_suite_context(attempt)
     summary["hasAiReport"] = not looks_like_placeholder_report(attempt.get("ai_report"))
@@ -247,10 +209,15 @@ def build_chat_profile_bundle(
     else:
         attempt = fetch_latest_attempt_row(conn, user_id)
 
-    portrait = rebuild_and_cache_portrait(conn, user_id) if refresh else build_portrait(conn, user_id)
+    portrait = load_portrait_for_chat(conn, user_id, refresh=refresh)
 
     suites = [_suite_snapshot(product) for product in portrait.get("products") or []]
     primary = summarize_context(attempt) if attempt else None
+    if primary is None and any(item.get("status") == "completed" for item in suites):
+        latest = fetch_latest_attempt_row(conn, user_id)
+        if latest:
+            primary = summarize_context(latest)
+            attempt = attempt or latest
     bound = any(item.get("status") == "completed" for item in suites)
 
     return {
@@ -306,12 +273,20 @@ def build_portrait_aggregate_profile_block(portrait: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def build_effective_profile_block(conn: Any, user_id: str, attempt: dict[str, Any] | None) -> str:
+def build_effective_profile_block(
+    conn: Any,
+    user_id: str,
+    attempt: dict[str, Any] | None,
+    *,
+    portrait: dict[str, Any] | None = None,
+) -> str:
     if attempt:
         return build_profile_context_block(attempt)
-    portrait = build_portrait(conn, user_id)
-    if _portrait_has_completed_tests(portrait):
-        return build_portrait_aggregate_profile_block(portrait)
+    portrait_data = portrait
+    if portrait_data is None and conn is not None:
+        portrait_data = load_portrait_for_chat(conn, user_id)
+    if portrait_data and _portrait_has_completed_tests(portrait_data):
+        return build_portrait_aggregate_profile_block(portrait_data)
     return build_unbound_context_message()
 
 
@@ -384,20 +359,38 @@ def load_chat_session_messages(
     *,
     limit: int = 40,
 ) -> tuple[str | None, list[dict[str, str]]]:
-    """读取已有会话消息（不创建新会话）。"""
+    """读取已有会话消息（不创建新会话）；无 DB 分析师行时返回空历史。"""
     analyst = resolve_analyst_row(conn, analyst_slug)
-    if not analyst.get("id"):
+    analyst_id = analyst.get("id")
+    if not analyst_id:
         return None, []
-    attempt = resolve_attempt_or_latest(conn, user_id, attempt_id)
-    bound_attempt_id = str(attempt["id"]) if attempt else None
-    session_id = find_session(conn, user_id, bound_attempt_id, str(analyst["id"]))
+
+    bound_attempt_id: str | None = None
+    if attempt_id:
+        try:
+            uuid.UUID(attempt_id)
+            bound_attempt_id = attempt_id
+        except ValueError:
+            bound_attempt_id = None
+    else:
+        latest = fetch_latest_attempt_row(conn, user_id)
+        bound_attempt_id = str(latest["id"]) if latest else None
+
+    session_id = find_session(conn, user_id, bound_attempt_id, str(analyst_id))
     if not session_id:
         return None, []
+
     rows = load_recent_messages(conn, session_id, limit=limit)
     mapped: list[dict[str, str]] = []
     for row in rows:
-        role = "ai" if row["role"] == "assistant" else "user"
-        mapped.append({"role": role, "content": row["content"]})
+        role = str(row.get("role") or "user")
+        if role == "assistant":
+            role = "ai"
+        elif role != "user":
+            role = "user"
+        content = str(row.get("content") or "").strip()
+        if content:
+            mapped.append({"role": role, "content": content})
     return session_id, mapped
 
 
@@ -503,7 +496,7 @@ def build_chat_messages(
     conn: Any | None = None,
     user_id: str | None = None,
     crisis_level: str = "none",
-) -> list[dict[str, str]]:
+) -> tuple[list[dict[str, str]], ChatInjectionState]:
     """OpenAI 多轮 messages：system 锁人格，画像锚定，历史多轮，末条 user 为当前问题。"""
     system = str(analyst.get("system_prompt") or "").strip()
     skill_body = str(analyst.get("persona_prompt") or "").strip()
@@ -511,35 +504,33 @@ def build_chat_messages(
     crisis_layer = build_crisis_guard_layer(crisis_level)  # type: ignore[arg-type]
     ros_inquiry_layer = build_ros_inquiry_layer(user_message, attempt)
 
-    bound_product_set: str | None = None
-    if attempt:
-        try:
-            bound_product_set = resolve_attempt_product_set(attempt)
-        except Exception:
-            bound_product_set = None
+    portrait, bound_product_set = load_portrait_bundle(conn, user_id or "", attempt)
 
     portrait_layer = ""
     if conn is not None and user_id:
         try:
             if attempt and bound_product_set:
                 portrait_layer = build_portrait_reader_layer(
-                    conn, user_id, exclude_product_set=bound_product_set
+                    conn,
+                    user_id,
+                    exclude_product_set=bound_product_set,
+                    portrait=portrait,
                 )
             else:
-                portrait_layer = build_portrait_reader_layer(conn, user_id)
+                portrait_layer = build_portrait_reader_layer(
+                    conn, user_id, portrait=portrait
+                )
         except Exception:
             portrait_layer = ""
 
-    if attempt:
-        profile_block = (
-            build_effective_profile_block(conn, user_id, attempt)
-            if conn is not None and user_id
-            else build_profile_context_block(attempt)
+    if conn is not None and user_id:
+        profile_block = build_effective_profile_block(
+            conn, user_id, attempt, portrait=portrait
         )
-    elif conn is not None and user_id:
-        profile_block = ""
+    elif attempt:
+        profile_block = build_profile_context_block(attempt)
     else:
-        profile_block = build_unbound_context_message() if not attempt else build_profile_context_block(attempt)
+        profile_block = build_unbound_context_message()
 
     system_parts = [system, tone_layer]
     if crisis_layer:
@@ -568,6 +559,17 @@ def build_chat_messages(
     elif not has_portrait and not attempt:
         messages.append({"role": "assistant", "content": _profile_anchor_ack(None, False, False)})
 
+    counselor_slug = str(analyst.get("slug") or "sage").strip().lower()
+    case_layer, _case_ids = build_case_examples_layer(
+        conn,
+        counselor_slug=counselor_slug,
+        user_message=user_message,
+        product_set=bound_product_set,
+    )
+    if case_layer:
+        messages.append({"role": "user", "content": case_layer})
+        messages.append({"role": "assistant", "content": CHAT_CASE_ANCHOR_ACK})
+
     for item in history:
         role = str(item.get("role") or "user")
         if role not in ("user", "assistant"):
@@ -580,10 +582,18 @@ def build_chat_messages(
     if ros_inquiry_layer:
         final_user_parts.append(ros_inquiry_layer)
     final_user_parts.append(user_message.strip())
-    final_user_parts.append(CHAT_ANSWER_REQUIREMENTS)
+    injection = ChatInjectionState(
+        has_portrait_layer=has_portrait,
+        has_profile_block=has_profile,
+        has_completed_tests=portrait_has_completed_tests(portrait),
+        bound_product_set=bound_product_set,
+    )
+    final_user_parts.append(
+        CHAT_ANSWER_REQUIREMENTS + profile_ready_requirement(injection)
+    )
     messages.append({"role": "user", "content": "\n\n".join(final_user_parts)})
 
-    return messages
+    return messages, injection
 
 
 def build_chat_prompt(
@@ -598,7 +608,7 @@ def build_chat_prompt(
 ) -> str:
     """Deprecated：单条 prompt 拼接，仅供调试；生产路径用 build_chat_messages。"""
     parts = []
-    for item in build_chat_messages(
+    messages, _injection = build_chat_messages(
         analyst,
         attempt,
         history,
@@ -606,6 +616,7 @@ def build_chat_prompt(
         conn=conn,
         user_id=user_id,
         crisis_level=crisis_level,
-    ):
+    )
+    for item in messages:
         parts.append(f"[{item['role']}]\n{item['content']}")
     return "\n\n---\n\n".join(parts)

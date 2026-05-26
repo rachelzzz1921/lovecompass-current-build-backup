@@ -68,6 +68,32 @@ function MateCouplePage() {
     };
   }, [authPending, code]);
 
+  useEffect(() => {
+    const needsAi =
+      result?.conclusion.ai_pending ||
+      (Boolean(result && result.verdict.score >= 80 && !result.verdict.texture));
+    if (!needsAi) return;
+
+    let cancelled = false;
+    const timer = window.setInterval(() => {
+      void lovecompassApi.getMateCoupleReport(code).then((res) => {
+        if (cancelled) return;
+        const next = mapApiMateCouplePayload(res.couple);
+        setResult(next);
+        const stillPending =
+          next.conclusion.ai_pending ||
+          (next.verdict.score >= 80 && !next.verdict.texture);
+        if (!stillPending) {
+          window.clearInterval(timer);
+        }
+      });
+    }, 4000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [code, result?.conclusion.ai_pending, result?.verdict.score, result?.verdict.texture]);
+
   if (authPending) return <AuthChecking />;
   if (loading) return <ResultDataLoading label="读取双人报告…" />;
 

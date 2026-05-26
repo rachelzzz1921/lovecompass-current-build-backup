@@ -8,7 +8,7 @@ import { SuiteCrossSell } from "@/components/SuiteCrossSell";
 import { SuiteUpgradeBanner } from "@/components/SuiteUpgradeBanner";
 import { inferSuiteTier } from "@/lib/suiteTier";
 import { SectionDivider } from "@/components/self-result/SectionDivider";
-import { ShareCardDialog } from "@/components/self-result/ShareCardDialog";
+import { SelfShareCardDialog } from "@/components/self-result/ShareCardDialog";
 
 type Props = {
   result: SelfResult;
@@ -74,7 +74,7 @@ export function SelfResultCoda({
         </button>
       </div>
       {!exampleMode ? (
-        <ShareCardDialog result={result} open={shareOpen} onOpenChange={setShareOpen} characterRevealed={characterRevealed} />
+        <SelfShareCardDialog result={result} open={shareOpen} onOpenChange={setShareOpen} characterRevealed={characterRevealed} />
       ) : null}
     </section>
   );

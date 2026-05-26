@@ -122,6 +122,7 @@ const beUpdates = {
     "http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173",
   AI_PROVIDER: existingBe.get("AI_PROVIDER") || "mock",
   LOVECOMPASS_UNIVERSAL_CODE: existingBe.get("LOVECOMPASS_UNIVERSAL_CODE") || "MIRROR-ALL-ACCESS",
+  DATABASE_POOL_MAX_SIZE: existingBe.get("DATABASE_POOL_MAX_SIZE") || "5",
 };
 
 if (existsSync(paths.beEnv)) {

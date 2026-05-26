@@ -1,6 +1,22 @@
 /** Canvas helpers for ROS result share exports (heartbeat + prescription). */
 
 import type { RosCoupleResult, RosSingleResult } from "@/data/rosTypes";
+import {
+  copyCanvasToClipboard,
+  downloadCanvas,
+  setupCanvas,
+  strokeDashedRect,
+  wrapText,
+} from "@/lib/share/shareCanvasCore";
+import { drawRosCoupleSummaryShareCard } from "@/lib/share/templates/drawRosCoupleSummaryShareCard";
+import { drawRosSummaryShareCard } from "@/lib/share/templates/drawRosSummaryShareCard";
+
+export {
+  copyCanvasToClipboard,
+  downloadCanvas,
+  drawRosCoupleSummaryShareCard,
+  drawRosSummaryShareCard,
+};
 
 export function normalizeHeartbeatY(score: number) {
   return 0.1 + (Math.max(0, Math.min(100, score)) / 100) * 0.8;
@@ -28,54 +44,11 @@ export function buildHeartbeatGeometry(scores: Record<string, number>, rk: numbe
   return { d, points, rkRisk: rk > 60 };
 }
 
-function wrapText(
-  ctx: CanvasRenderingContext2D,
-  text: string,
-  x: number,
-  y: number,
-  maxWidth: number,
-  lineHeight: number,
-) {
-  const paragraphs = text.split("\n");
-  let cy = y;
-  for (const para of paragraphs) {
-    const chars = [...para];
-    let line = "";
-    for (const ch of chars) {
-      const test = line + ch;
-      if (ctx.measureText(test).width > maxWidth && line) {
-        ctx.fillText(line, x, cy);
-        line = ch;
-        cy += lineHeight;
-      } else {
-        line = test;
-      }
-    }
-    if (line) {
-      ctx.fillText(line, x, cy);
-      cy += lineHeight;
-    }
-  }
-  return cy;
-}
-
-function strokeDashedRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) {
-  ctx.save();
-  ctx.setLineDash([8, 6]);
-  ctx.strokeStyle = "rgba(165, 168, 255, 0.45)";
-  ctx.lineWidth = 2;
-  ctx.strokeRect(x, y, w, h);
-  ctx.restore();
-}
-
 export function drawHeartbeatShareCard(canvas: HTMLCanvasElement, result: RosSingleResult) {
   const W = 900;
   const H = 520;
-  const ctx = canvas.getContext("2d");
+  const ctx = setupCanvas(canvas, W, H);
   if (!ctx) return;
-
-  canvas.width = W;
-  canvas.height = H;
 
   ctx.fillStyle = "#0c0e11";
   ctx.fillRect(0, 0, W, H);
@@ -164,11 +137,9 @@ export function drawHeartbeatShareCard(canvas: HTMLCanvasElement, result: RosSin
 export function drawPrescriptionShareCard(canvas: HTMLCanvasElement, result: RosSingleResult) {
   const W = 800;
   const H = 960;
-  const ctx = canvas.getContext("2d");
+  const ctx = setupCanvas(canvas, W, H);
   if (!ctx) return;
 
-  canvas.width = W;
-  canvas.height = H;
   ctx.fillStyle = "#0c0e11";
   ctx.fillRect(0, 0, W, H);
 
@@ -238,87 +209,6 @@ export function drawPrescriptionShareCard(canvas: HTMLCanvasElement, result: Ros
   ctx.fillText(`${result.type.name} · 共鸣 ${result.resonance?.score ?? ""}`, pad + 24, H - pad - 36);
 }
 
-export function downloadCanvas(canvas: HTMLCanvasElement, filename: string) {
-  const url = canvas.toDataURL("image/png");
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-}
-
-export async function copyCanvasToClipboard(canvas: HTMLCanvasElement): Promise<boolean> {
-  try {
-    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
-    if (!blob) return false;
-    await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-export function drawRosSummaryShareCard(canvas: HTMLCanvasElement, result: RosSingleResult) {
-  const W = 1080;
-  const H = 1440;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return;
-
-  canvas.width = W;
-  canvas.height = H;
-  const bg = ctx.createLinearGradient(0, 0, W, H);
-  bg.addColorStop(0, "#141828");
-  bg.addColorStop(0.45, "#10131a");
-  bg.addColorStop(1, "#0c0e11");
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, W, H);
-
-  strokeDashedRect(ctx, 48, 48, W - 96, H - 96);
-
-  ctx.fillStyle = "rgba(165, 168, 255, 0.7)";
-  ctx.font = "500 28px ui-monospace, monospace";
-  ctx.fillText("MIRROR · 关系画像", 96, 120);
-
-  ctx.fillStyle = result.weather?.label === "晴天" ? "#fcd34d" : "#c2c4ff";
-  ctx.font = "600 36px Inter, sans-serif";
-  ctx.fillText(`关系天气 · ${result.weather?.label ?? "多云转晴"}`, 96, 200);
-
-  ctx.fillStyle = "#ffffff";
-  ctx.font = "700 80px Georgia, 'Noto Serif SC', serif";
-  ctx.fillText(String(result.resonance?.score ?? ""), 96, 320);
-  ctx.fillStyle = "rgba(255,255,255,0.45)";
-  ctx.font = "400 32px Inter, sans-serif";
-  ctx.fillText("/100", 96 + ctx.measureText(String(result.resonance?.score ?? "")).width + 12, 320);
-
-  ctx.fillStyle = "#a5a8ff";
-  ctx.font = "500 40px Inter, sans-serif";
-  ctx.fillText(result.resonance?.tier ?? "", 96, 380);
-
-  ctx.fillStyle = "#f0f0f5";
-  ctx.font = "700 56px Georgia, serif";
-  ctx.fillText(result.type.name, 96, 480);
-
-  ctx.fillStyle = "rgba(255,255,255,0.65)";
-  ctx.font = "400 30px Inter, sans-serif";
-  wrapText(ctx, result.type.one_liner, 96, 540, W - 192, 40);
-
-  const topDim = [...result.dims].filter((d) => d.key !== "rk").sort((a, b) => b.value - a.value)[0];
-  if (topDim) {
-    ctx.fillStyle = "rgba(200, 195, 230, 0.75)";
-    ctx.font = "500 28px Inter, sans-serif";
-    ctx.fillText(`高光维度 · ${topDim.label}`, 96, 720);
-    ctx.fillStyle = "rgba(255,255,255,0.85)";
-    ctx.font = "700 48px ui-monospace, monospace";
-    ctx.fillText(String(topDim.value), 96, 780);
-  }
-
-  ctx.fillStyle = "rgba(180, 170, 220, 0.55)";
-  ctx.font = "400 26px Inter, sans-serif";
-  ctx.fillText(`# 关系画像 # ROS # ${result.code}`, 96, 920);
-
-  ctx.fillStyle = "rgba(160, 150, 200, 0.55)";
-  ctx.fillText("mirror.app", 96, H - 96);
-}
-
 function coupleScoreMaps(result: RosCoupleResult) {
   const you: Record<string, number> = {};
   const ta: Record<string, number> = {};
@@ -334,11 +224,9 @@ function coupleScoreMaps(result: RosCoupleResult) {
 export function drawDualHeartbeatShareCard(canvas: HTMLCanvasElement, result: RosCoupleResult) {
   const W = 900;
   const H = 560;
-  const ctx = canvas.getContext("2d");
+  const ctx = setupCanvas(canvas, W, H);
   if (!ctx) return;
 
-  canvas.width = W;
-  canvas.height = H;
   ctx.fillStyle = "#0c0e11";
   ctx.fillRect(0, 0, W, H);
 
@@ -395,11 +283,9 @@ export function drawDualHeartbeatShareCard(canvas: HTMLCanvasElement, result: Ro
 export function drawCouplePrescriptionShareCard(canvas: HTMLCanvasElement, result: RosCoupleResult) {
   const W = 800;
   const H = 960;
-  const ctx = canvas.getContext("2d");
+  const ctx = setupCanvas(canvas, W, H);
   if (!ctx) return;
 
-  canvas.width = W;
-  canvas.height = H;
   ctx.fillStyle = "#0c0e11";
   ctx.fillRect(0, 0, W, H);
 
@@ -433,54 +319,4 @@ export function drawCouplePrescriptionShareCard(canvas: HTMLCanvasElement, resul
   ctx.fillStyle = "rgba(255,255,255,0.92)";
   ctx.textAlign = "right";
   ctx.fillText(rx.followUp, W - pad - 24, y);
-}
-
-export function drawRosCoupleSummaryShareCard(canvas: HTMLCanvasElement, result: RosCoupleResult) {
-  const W = 1080;
-  const H = 1440;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return;
-
-  canvas.width = W;
-  canvas.height = H;
-  const bg = ctx.createLinearGradient(0, 0, W, H);
-  bg.addColorStop(0, "#141828");
-  bg.addColorStop(1, "#0c0e11");
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, W, H);
-
-  strokeDashedRect(ctx, 48, 48, W - 96, H - 96);
-
-  ctx.fillStyle = "rgba(165, 168, 255, 0.7)";
-  ctx.font = "500 28px ui-monospace, monospace";
-  ctx.fillText("MIRROR · 双人关系报告", 96, 120);
-
-  ctx.fillStyle = "#ffffff";
-  ctx.font = "700 80px Georgia, serif";
-  ctx.fillText(String(result.resonance.score), 96, 280);
-  ctx.fillStyle = "#a5a8ff";
-  ctx.font = "500 40px Inter, sans-serif";
-  ctx.fillText(result.resonance.tier, 96, 340);
-
-  ctx.fillStyle = "#f0f0f5";
-  ctx.font = "700 52px Georgia, serif";
-  ctx.fillText(result.type.name, 96, 430);
-
-  const gap = result.perceptionGap;
-  if (gap) {
-    ctx.fillStyle = "rgba(255,255,255,0.65)";
-    ctx.font = "400 28px Inter, sans-serif";
-    wrapText(ctx, `感知差值 ${gap.value} · ${gap.label}`, 96, 500, W - 192, 36);
-  }
-
-  if (result.bond?.name) {
-    ctx.fillStyle = "rgba(200, 195, 230, 0.75)";
-    ctx.font = "500 28px Inter, sans-serif";
-    ctx.fillText(`依恋碰撞 · ${result.bond.name}`, 96, 620);
-  }
-
-  ctx.fillStyle = "rgba(180, 170, 220, 0.55)";
-  ctx.font = "400 26px Inter, sans-serif";
-  ctx.fillText(`# 双人报告 # ${result.code}`, 96, 920);
-  ctx.fillText("mirror.app", 96, H - 96);
 }

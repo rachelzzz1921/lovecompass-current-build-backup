@@ -63,6 +63,9 @@ export function getApiErrorHint(message: string): string | null {
     return "本地预览请用 http://localhost:5173（不要用 127.0.0.1）；并确认后端 CORS_ORIGINS 含当前前端域名。";
   }
   if (/请求超时/.test(message)) {
+    if (/同步|sync-profile|画像/.test(message)) {
+      return "「同步全部测评到 AI」会重建画像缓存，通常需 15–60 秒。请保持页面打开后重试；若仍失败，检查 Vercel Functions 是否 ≥60s。";
+    }
     return "完整版题量较大时，提交与算分可能需要 30–90 秒。若多次超时，可改试快速版或检查后端日志。";
   }
   return null;

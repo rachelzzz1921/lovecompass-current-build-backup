@@ -1,16 +1,11 @@
 import { formatApiErrorMessage } from "@/lib/apiErrors";
+import { fetchWithMirrorFallback } from "@/lib/mirrorEndpoints";
 import { getRequiredAccessToken } from "@/lib/supabaseSession";
 
-const API_BASE =
-  (import.meta.env.VITE_LOVECOMPASS_API_BASE_URL as string | undefined)?.replace(/\/$/, "") ?? "";
-
 async function adminRequest<T>(path: string, init?: RequestInit): Promise<T> {
-  if (!API_BASE) {
-    throw new Error("未配置 VITE_LOVECOMPASS_API_BASE_URL");
-  }
   let res: Response;
   try {
-    res = await fetch(`${API_BASE}${path}`, {
+    res = await fetchWithMirrorFallback(path, {
       ...init,
       headers: {
         "Content-Type": "application/json",

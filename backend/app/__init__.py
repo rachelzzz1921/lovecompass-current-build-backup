@@ -1,0 +1,1 @@
+"""LoveCompass FastAPI application package."""

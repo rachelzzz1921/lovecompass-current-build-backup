@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, Field
 from psycopg.types.json import Jsonb
 
 from app.auth import resolve_user_id
@@ -11,6 +13,15 @@ from app.db import get_conn
 from app.json_utils import coerce_dict, jsonable
 from app.mate_couple import attempt_snapshot, build_couple_payload
 from app.mate_couple_ai_content import attach_mate_couple_ai_content
+from app.mate_pair_supplement import (
+    _user_supplement_complete,
+    extract_single_mapped_supplement_fields,
+    load_supplement_spec,
+    normalize_supplement_answers,
+    questions_for_gender,
+    resolve_supplement_fields,
+    skip_question_ids_from_single,
+)
 from app.mate_scoring import is_mate_suite
 from app.mate_ai_content import attach_mate_ai_content_to_payload
 from app.ros_router import RELATION_CODE_PATTERN
@@ -61,6 +72,68 @@ def _infer_suite_tier(slug: str | None) -> str:
     return "lite" if slug and "_lite" in slug.lower() else "full"
 
 
+def _assert_mate_couple_eligible(*attempts: dict[str, Any]) -> None:
+    for attempt in attempts:
+        tier = _infer_suite_tier(str(attempt.get("suite_slug") or ""))
+        if tier == "lite":
+            raise HTTPException(
+                status_code=403,
+                detail="MATE 双人匹配需完整版测评，快速版不支持生成双人报告",
+            )
+
+
+class PairSupplementAnswerIn(BaseModel):
+    questionId: str = Field(min_length=1, max_length=40)
+    optionKey: str | None = None
+    value: float | int | None = None
+
+
+class PairSupplementSubmitIn(BaseModel):
+    answers: list[PairSupplementAnswerIn] = Field(min_length=1, max_length=20)
+
+
+def _supplement_questions_api(gender: str, *, skip_ids: set[str] | None = None) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for q in questions_for_gender(gender, skip_ids=skip_ids):
+        q_type = str(q.get("type") or "choice")
+        options = []
+        for opt in q.get("options") or []:
+            if not isinstance(opt, dict):
+                continue
+            opt_row: dict[str, Any] = {
+                "key": str(opt.get("key") or ""),
+                "text": str(opt.get("text") or ""),
+                "sub": opt.get("sub"),
+            }
+            if "value" in opt:
+                opt_row["value"] = opt.get("value")
+            options.append(opt_row)
+        ui: dict[str, Any] = {"component": q_type}
+        slider = q.get("slider")
+        if isinstance(slider, dict):
+            ui.update({
+                "min": slider.get("min"),
+                "max": slider.get("max"),
+                "step": slider.get("step") or 1,
+                "unit": slider.get("unit"),
+            })
+        rows.append({
+            "id": q.get("id"),
+            "externalId": q.get("id"),
+            "order": q.get("order"),
+            "type": q_type,
+            "kind": q_type if q_type in {"choice", "binary", "slider"} else "choice",
+            "text": q.get("text"),
+            "note": q.get("note"),
+            "showIf": q.get("show_if"),
+            "required": True,
+            "ui": ui,
+            "options": options,
+            "dimensionCode": str(q.get("module") or "PR"),
+        })
+    return rows
+
+
 def _fetch_latest_self_attachment(conn: Any, user_id: str) -> str | None:
     row = conn.execute(
         """
@@ -101,11 +174,14 @@ def merge_and_store_couple_report(conn: Any, session_id: uuid.UUID) -> dict[str,
         if not is_mate_suite(attempt.get("suite_slug")):
             raise HTTPException(status_code=400, detail=f"{label} 测评不是 MATE 套三")
 
+    _assert_mate_couple_eligible(initiator, partner)
+
     couple_payload = jsonable(
         build_couple_payload(
             code=session["code"],
             initiator=initiator,
             partner=partner,
+            conn=conn,
         )
     )
     couple_payload = attach_mate_couple_ai_content(couple_payload, use_ai=True)
@@ -149,6 +225,7 @@ def link_partner_to_session(
     if initiator:
         if _infer_suite_tier(initiator.get("suite_slug")) != _infer_suite_tier(partner_attempt.get("suite_slug")):
             raise HTTPException(status_code=400, detail="伴侣需使用与发起人相同的测试版本（快速版/完整版）")
+        _assert_mate_couple_eligible(initiator, partner_attempt)
 
     conn.execute(
         """
@@ -282,14 +359,125 @@ def get_mate_single_result(attempt_id: str, user_id: str = Depends(resolve_user_
 
         code = attempt.get("relation_code") or payload.get("relationCode")
         session = _fetch_session_by_code(conn, code) if code else None
+        pair_fields = resolve_supplement_fields(attempt, conn)
+        suite_tier = _infer_suite_tier(str(attempt.get("suite_slug") or ""))
+        skip_ids = skip_question_ids_from_single(conn, attempt)
 
     return {
         "ok": True,
         "attemptId": attempt_id,
         "single": payload,
         "gender": attempt.get("suite_gender") or payload.get("gender"),
+        "suiteTier": suite_tier,
         "relationCode": code,
         "partnerStatus": (session or {}).get("status"),
         "coupleUnlocked": (session or {}).get("status") == "completed",
+        "pairSupplementComplete": _user_supplement_complete(payload.get("pair_supplement")),
+        "pairSupplementFieldsFromSingle": {
+            k: v for k, v in pair_fields.items() if not str(k).startswith("_") and k in (
+                "education_level",
+            )
+        },
+        "pairSupplementSkipQuestionIds": sorted(skip_ids),
         "invitePath": f"/mate/invite/{code}" if code else None,
+        "pairSupplementPath": f"/mate/pair-supplement/{attempt_id}",
     }
+
+
+@router.get("/pair-supplement/spec")
+def get_pair_supplement_spec():
+    spec = load_supplement_spec()
+    return {
+        "ok": True,
+        "productSet": "MATE",
+        "suiteSupplement": spec.get("suite_supplement"),
+        "modulesSpec": spec.get("modules_spec"),
+        "scoringNote": spec.get("scoring_note"),
+    }
+
+
+@router.get("/pair-supplement/questions")
+def get_pair_supplement_questions(
+    gender: str = "female",
+    attemptId: str | None = None,
+):
+    g = gender.strip().lower()
+    if g not in {"female", "male"}:
+        raise HTTPException(status_code=400, detail="gender 应为 female 或 male")
+
+    skip_ids: set[str] = set()
+    prefilled_fields: dict[str, Any] = {}
+    if attemptId:
+        try:
+            attempt_uuid = uuid.UUID(attemptId)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail="attemptId 格式不正确") from exc
+        with get_conn() as conn:
+            attempt = _fetch_attempt(conn, attempt_uuid)
+            if attempt and is_mate_suite(attempt.get("suite_slug")):
+                skip_ids = skip_question_ids_from_single(conn, attempt)
+                prefilled_fields = {
+                    k: v for k, v in extract_single_mapped_supplement_fields(conn, attempt).items()
+                    if not str(k).startswith("_")
+                }
+
+    visible = questions_for_gender(g, skip_ids=skip_ids)
+    return {
+        "ok": True,
+        "productSet": "MATE",
+        "gender": g,
+        "questions": _supplement_questions_api(g, skip_ids=skip_ids),
+        "totalQuestions": len(visible),
+        "skipQuestionIds": sorted(skip_ids),
+        "prefilledFromSingle": prefilled_fields,
+        "singleMappedNote": "学历等已在单人测评中作答的题目会自动带入，无需重复填写。" if skip_ids else None,
+    }
+
+
+@router.post("/attempts/{attempt_id}/pair-supplement")
+def submit_pair_supplement(
+    attempt_id: str,
+    data: PairSupplementSubmitIn,
+    user_id: str = Depends(resolve_user_id),
+):
+    try:
+        attempt_uuid = uuid.UUID(attempt_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="attemptId 格式不正确") from exc
+
+    with get_conn() as conn:
+        attempt = _fetch_attempt(conn, attempt_uuid, user_id)
+        if not attempt:
+            raise HTTPException(status_code=404, detail="测评不存在")
+        if not is_mate_suite(attempt.get("suite_slug")):
+            raise HTTPException(status_code=400, detail="仅 MATE 测评可提交双人补充题")
+        _assert_mate_couple_eligible(attempt)
+
+        gender = str(attempt.get("suite_gender") or attempt.get("archetype_gender") or "female").lower()
+        raw_map: dict[str, Any] = {}
+        for item in data.answers:
+            if item.value is not None:
+                raw_map[item.questionId] = {"value": item.value}
+            elif item.optionKey:
+                raw_map[item.questionId] = {"optionKey": item.optionKey}
+
+        fields = normalize_supplement_answers(raw_map, gender=gender)
+        single_fields = extract_single_mapped_supplement_fields(conn, attempt)
+        merged_fields = {**single_fields, **fields}
+        payload = coerce_dict(attempt.get("result_payload"))
+        payload["pair_supplement"] = {
+            "version": load_supplement_spec().get("suite_supplement", {}).get("version", "1.1"),
+            "completed_at": datetime.now(timezone.utc).isoformat(),
+            "answers": raw_map,
+            "fields": {k: v for k, v in merged_fields.items() if not str(k).startswith("_")},
+            "prefilled_from_single": {
+                k: v for k, v in single_fields.items() if not str(k).startswith("_")
+            },
+        }
+        conn.execute(
+            "UPDATE public.test_attempts SET result_payload = %s WHERE id = %s AND user_id = %s",
+            (Jsonb(payload), attempt_uuid, user_id),
+        )
+        conn.commit()
+
+    return {"ok": True, "attemptId": attempt_id, "fields": fields}

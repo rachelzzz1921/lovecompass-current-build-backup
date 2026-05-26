@@ -16,12 +16,19 @@ from app.ros_couple_ai_content import attach_ros_couple_ai_content  # noqa: E402
 def test_ros_pair_context() -> None:
     payload = {
         "type": {"name": "温水同行"},
+        "bond": {"you_type": "焦虑型", "ta_type": "回避型"},
+        "dims": [
+            {"key": "ev", "you": 78, "ta": 58},
+            {"key": "at", "you": 80, "ta": 70},
+        ],
+        "layerCompare": {"ev": {"gap": 20, "gap_text": "test"}},
         "keywords": ["真实", "安稳"],
         "gap": {"dimLabel": "亲密"},
         "perceptionGap": {"label": "感知高度一致"},
         "collision": {"body": "你们的依恋组合需要更多真实沟通"},
         "bridge": "你先说我现在很慌",
         "insights": [{"kind": "strength", "title": "t", "body": "b"}] * 4,
+        "prescription": {"chiefComplaint": "c", "rx": "r", "followUp": "三个月后"},
     }
     ctx = assemble_ros_pair_context(payload)
     assert ctx.product_set == "ROS"

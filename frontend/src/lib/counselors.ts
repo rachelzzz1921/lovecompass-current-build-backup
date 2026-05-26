@@ -131,7 +131,6 @@ import type { ChatContext, ChatProfileSnapshot } from "@/lib/lovecompassApi";
 
 export function buildCounselorGreeting(
   counselor: Counselor,
-  bound: boolean,
   ctx: {
     archetype?: string;
     attachmentType?: string | null;
@@ -142,28 +141,32 @@ export function buildCounselorGreeting(
   profile: ChatProfileSnapshot | null,
 ): string {
   const who = `${counselor.name} · ${counselor.englishName} ${counselor.emoji}`;
-  const completed = profile?.suites.filter((s) => s.status === "completed").length ?? 0;
-  if (bound && profile && completed > 0) {
-    const pct = profile.completeness.percent;
-    const suiteLines = profile.suites
-      .filter((s) => s.status === "completed")
-      .map((s) => `· ${s.code ?? s.productSet}：${s.headline}`)
-      .join("\n");
-    const latestHint =
-      ctx && ctx.archetype
-        ? `\n\n最近一次测评（${ctx.suiteName ?? ctx.productSet ?? "最新"}）：**${ctx.archetype}**${
-            ctx.attachmentType ? `（${ctx.attachmentType}）` : ""
-          }${ctx.tagline ? `\n「${ctx.tagline}」` : ""}`
-        : "";
-    return `你好，我是 ${who}，MIRROR 的${counselor.title}。\n\n我已读取你的测评画像（完整度 ${pct}%）：\n${suiteLines}${latestHint}\n\n点左侧「同步全部测评到 AI」可刷新最新分数。${counselor.tagline}。你可以直接问我，或点下面的快捷问题。`;
-  }
-  if (ctx && bound) {
-    const tagline = ctx.tagline ? `\n「${ctx.tagline}」` : "";
+  const completedSuites = profile?.suites.filter((s) => s.status === "completed") ?? [];
+  const completed = completedSuites.length;
+
+  if (ctx?.archetype) {
+    const suiteLabel = ctx.suiteName ?? ctx.productSet ?? "测评";
     const attach = ctx.attachmentType ? `（${ctx.attachmentType}）` : "";
-    return `你好，我是 ${who}，MIRROR 的${counselor.title}。\n\n我已读取你在 **${ctx.suiteName ?? "SELF"}** 的画像：**${ctx.archetype}**${attach}。${tagline}\n\n${counselor.tagline}。你可以直接问我，或点下面的快捷问题。`;
+    const tagline = ctx.tagline ? `\n「${ctx.tagline}」` : "";
+    const otherSuites =
+      completed > 1
+        ? `\n\n你已完成 ${completed} 套测评；**此刻对话绑定 ${suiteLabel} 这份结果**。若要换套聊，可从左侧 CONTEXT 进入对应结果页再点「问 AI」。`
+        : "";
+    return `你好，我是 ${who}，MIRROR 的${counselor.title}。\n\n我从你的 **${suiteLabel}** 结果开始：**${ctx.archetype}**${attach}。${tagline}${otherSuites}\n\n${counselor.tagline}。你可以直接问我，或点下面的快捷问题。`;
   }
-  if (bound) {
-    return `你好，我是 ${who}，${counselor.title}。\n\n我已读取你的最新测试画像。${counselor.tagline}。`;
+
+  if (profile && completed > 0) {
+    const pct = profile.completeness.percent;
+    const suiteLines = completedSuites
+      .map((s) => `· ${s.code ?? s.productSet}：${s.headline ?? "已完成"}`)
+      .join("\n");
+    return `你好，我是 ${who}，MIRROR 的${counselor.title}。\n\n你的测评画像已就绪（完整度 ${pct}%）：\n${suiteLines}\n\n${counselor.tagline}。你可以直接问我，或点下面的快捷问题。`;
   }
-  return `你好，我是 ${who}，MIRROR 的${counselor.title}。\n\n你还没有可绑定的测试画像。建议先完成 SELF 测试；完成后点「同步全部测评到 AI」，我会结合你的分数与维度作答。\n\n${counselor.description}`;
+
+  return `你好，我是 ${who}，MIRROR 的${counselor.title}。\n\n你还没有可绑定的测试画像。建议先完成 SELF 测试；完成后回来这里，我会结合你的分数与维度作答。\n\n${counselor.description}`;
+}
+
+export function buildCounselorConnectionFallback(counselor: Counselor, errorMessage: string): string {
+  const who = `${counselor.name} · ${counselor.englishName} ${counselor.emoji}`;
+  return `你好，我是 ${who}，MIRROR 的${counselor.title}。\n\n暂时没连上画像服务（${errorMessage}）。你可以先看左侧错误提示并重试；连接恢复后，我会自动读取你的测评结果再聊。`;
 }

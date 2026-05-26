@@ -62,6 +62,76 @@ def module_display_label(code: str, score: float) -> str:
     return asset_module_label(score)
 
 
+MODULE_MARKET_ROLES: dict[str, str] = {
+    "FS1": "让人想停下来看的第一张牌",
+    "FS2": "相处时能否被滋养的情绪供给",
+    "FS3": "独立底气与现实托底",
+    "FS4": "关系里的成熟度与边界感",
+    "FS5": "会让对方犹豫的风险信号",
+    "MS1": "资源与事业轨道的可见度",
+    "MS2": "稳定可靠与承诺履约",
+    "MS3": "情感供给与相处温度",
+    "MS4": "门面与社交资本",
+    "MS5": "会让对方犹豫的风险信号",
+}
+
+
+def build_module_market_mapping(*, code: str, label: str, display: str, score: float) -> str:
+    """Per-module market copy — direct insight, no redundant 「档案呈现为」 prefix."""
+    lib = load_module_market_library()
+    modules = lib.get("modules") or {}
+    mod = modules.get(code)
+    if not isinstance(mod, dict):
+        return _legacy_module_market_mapping(code=code, label=label, display=display, score=score)
+
+    reverse = bool(mod.get("reverse")) or code in FEMALE_RISK_CODES or code in MALE_RISK_CODES
+    effective = (100 - score) if reverse else score
+    tier = _market_tier(effective)
+    lines = (mod.get("tiers") or {}).get(tier) or []
+    if isinstance(lines, list) and lines:
+        idx = sum(ord(c) for c in f"{code}:{tier}") % len(lines)
+        return str(lines[idx])
+
+    return _legacy_module_market_mapping(code=code, label=label, display=display, score=score)
+
+
+@lru_cache(maxsize=1)
+def load_module_market_library() -> dict[str, Any]:
+    path = DATA_DIR / "mate_module_market_v1.json"
+    if not path.exists():
+        return {}
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _market_tier(effective: float) -> str:
+    if effective >= 81:
+        return "core"
+    if effective >= 66:
+        return "strong"
+    if effective >= 51:
+        return "normal"
+    if effective >= 31:
+        return "developing"
+    return "build"
+
+
+def _legacy_module_market_mapping(*, code: str, label: str, display: str, score: float) -> str:
+    role = MODULE_MARKET_ROLES.get(code, f"{label}在择偶筛选里的权重")
+    reverse = code in FEMALE_RISK_CODES or code in MALE_RISK_CODES
+    effective = (100 - score) if reverse else score
+    if effective >= 81:
+        tail = "在婚恋市场里，这是你的筛人优势。"
+    elif effective >= 66:
+        tail = "在婚恋市场里，这是稳定加分项。"
+    elif effective >= 51:
+        tail = "在婚恋市场里，这不会拖后腿，但别指望它单独替你筛人。"
+    elif effective >= 31:
+        tail = "在婚恋市场里，这里还有明显提升空间。"
+    else:
+        tail = "在婚恋市场里，这是当前最值得优先建设的方向。"
+    return f"{role}。{tail}"
+
+
 def _answer_value(questions: list[dict[str, Any]], answers: dict[str, dict[str, Any]], question_id: str) -> float | None:
     row = next((q for q in questions if q.get("external_question_id") == question_id), None)
     if not row:

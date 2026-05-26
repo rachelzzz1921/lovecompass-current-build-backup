@@ -10,6 +10,7 @@ from typing import Any
 from app.mate_express import (
     asset_module_label,
     build_lens_cross_text,
+    build_module_market_mapping,
     footer_quotes_for_position,
     match_evidence_triggers,
     module_display_label,
@@ -17,16 +18,20 @@ from app.mate_express import (
     risk_melt_down,
     risk_module_label,
 )
+from app.mate_rehearse import build_rehearse_episodes
+from app.mate_reverse import build_reverse_card
+from app.mate_simulator import build_simulator
 from app.scoring import answer_to_numeric
+from app.semantic_translation import user_label
 
 DATA_DIR = Path(__file__).resolve().parents[1] / "data"
 
 QUADRANT_LABELS = {
-    "Q1": "高显示 × 高支撑",
-    "Q2": "低显示 × 高支撑",
-    "Q3": "低显示 × 低支撑",
-    "Q4": "高显示 × 中支撑",
-    "Q0": "临界区 × 需对频道",
+    "Q1": "亮眼 × 能托底",
+    "Q2": "低调 × 能托底",
+    "Q3": "低调 × 待建设",
+    "Q4": "亮眼 × 中等托底",
+    "Q0": "临界区 · 需要对频道",
 }
 
 SUB_TYPE_RULES: list[tuple[str, callable]] = []  # populated below
@@ -224,12 +229,13 @@ def _build_answer_evidence(
 
 def build_module_accordions(
     *,
-    questions: list[dict[str, Any]],
-    answers: dict[str, dict[str, Any]],
+    questions: list[dict[str, Any]] | None = None,
+    answers: dict[str, dict[str, Any]] | None = None,
     module_scores: dict[str, float],
     sub_scores: dict[str, float],
     scoring_formula: dict[str, Any],
     gender: str,
+    precomputed: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     modules_cfg = scoring_formula.get("modules") or {}
     items: list[dict[str, Any]] = []
@@ -244,30 +250,38 @@ def build_module_accordions(
         label = str(cfg.get("label") or code)
         display = module_display_label(code, score)
 
-        sub_badges = resolve_sub_badges(
-            gender=gender,
-            questions=questions,
-            answers=answers,
-            module_scores=module_scores,
-            sub_scores=sub_scores,
-            scoring_formula=scoring_formula,
-        ).get(code, [])
-
         bar_len = 16
         filled = round((score / 100) * bar_len) if not reverse else round(((100 - score) / 100) * bar_len)
         visual = "█" * filled + "░" * (bar_len - filled)
         if reverse:
             visual = "●" * max(1, min(5, round(score / 20))) + "○" * max(0, 5 - round(score / 20))
 
-        evidence = match_evidence_triggers(
-            gender=gender,
-            questions=questions,
-            answers=answers,
-            module_code=code,
-        ) or _build_answer_evidence(questions, answers, code)
-        market_mapping = (
-            f"{label}是你{'让人想停下来了解' if code in ('FS1', 'MS4') else '在关系里托底'}的能力。"
-            f"本模块表现为「{display}」，{'不会成为明显阻碍' if score >= 55 else '还有明显提升空间'}。"
+        if precomputed:
+            sub_badges = (precomputed.get("sub_badges_by_module") or {}).get(code, [])
+            evidence = (precomputed.get("module_evidence") or {}).get(code)
+        elif questions and answers:
+            sub_badges = resolve_sub_badges(
+                gender=gender,
+                questions=questions,
+                answers=answers,
+                module_scores=module_scores,
+                sub_scores=sub_scores,
+                scoring_formula=scoring_formula,
+            ).get(code, [])
+            evidence = match_evidence_triggers(
+                gender=gender,
+                questions=questions,
+                answers=answers,
+                module_code=code,
+            ) or _build_answer_evidence(questions, answers, code)
+        else:
+            sub_badges = []
+            evidence = None
+        market_mapping = build_module_market_mapping(
+            code=str(code),
+            label=label,
+            display=display,
+            score=float(score),
         )
 
         items.append({
@@ -283,121 +297,61 @@ def build_module_accordions(
     return items
 
 
-def build_reverse_card(profile_engine: dict[str, Any], position_name: str) -> dict[str, Any]:
-    traits = profile_engine.get("trait_atoms") or []
-    low_display = "低显示" in traits
-
-    if low_display:
-        misread = "好像很冷淡，完全不需要陪伴。感觉一个人就能过得很好，任何人都很难真正走进。"
-        mechanism = "你不是不需要陪伴，只是不轻易交付，更拒绝廉价的快餐式社交。"
-        cost = "很多人会在看见你的真实价值之前先离开。"
-        back = (
-            "真实情况是：那些真正通过筛选、留下来的人，会发现你给予的支撑极为扎实，"
-            "情绪滋养比表面看起来更浓。你不是不需要陪伴，只是把最好的自己留给对的人。"
-        )
-    else:
-        misread = "看起来很好接近，但好像少了点长期规划的确定感。"
-        mechanism = "你的显示度不低，但深层价值需要相处才能被验证。"
-        cost = "容易被快节奏筛选者贴标签，却未必被认真选择。"
-        back = "你的牌面清晰，筛选效率高。长期关系里，真正决定上限的是相处质量而不是第一印象。"
-
-    return {
-        "front": {
-            "title": "观察室 · 关于你最深的误解",
-            "subtitle": "外 界 误 读",
-            "content": misread,
-            "tip": "点击卡片，翻看红娘剥离表象后的灵魂真相",
-        },
-        "back": {
-            "title": "观察室 · 关于你最深的误解",
-            "subtitle": "底 牌 真 相",
-            "content": back,
-            "mechanism": mechanism,
-            "cost": cost,
-            "shareTip": "长按可保存卡片分享",
-        },
-    }
-
-
 def build_observe_slices(
     profile_engine: dict[str, Any],
     matchmaker_records: list[dict[str, Any]],
+    *,
+    module_scores: dict[str, float] | None = None,
+    gender: str = "female",
 ) -> list[dict[str, Any]]:
     scenes = profile_engine.get("scene_atoms") or []
     first = matchmaker_records[0] if matchmaker_records else {}
     remember = first.get("remember") or []
+    scores = module_scores or {}
+    codes = ["FS1", "FS2", "FS3", "FS4"] if gender == "female" else ["MS1", "MS2", "MS3", "MS4"]
+    non_risk = {c: float(scores.get(c, 0)) for c in codes if c in scores}
+    best_code = max(non_risk, key=non_risk.get, default=codes[0]) if non_risk else codes[0]
+    weak_code = min(non_risk, key=non_risk.get, default=codes[-1]) if non_risk else codes[-1]
+    best_label = user_label(best_code)
+    weak_label = user_label(weak_code)
     return [
         {
             "slice": "01 / 03",
             "title": "第一次见面时，约会对象会……",
-            "correctTraits": "、".join(remember[:2]) if remember else (scenes[0] if scenes else "对你整体气场产生印象"),
-            "missingTraits": "具体细节、你说了哪句话",
+            "correctTraits": "、".join(remember[:2]) if remember else (scenes[0] if scenes else f"注意到你的{best_label}"),
+            "missingTraits": f"具体细节、以及你的{weak_label}尚未展开",
         },
         {
             "slice": "02 / 03",
             "title": "五分钟后，对方开始……",
-            "correctTraits": scenes[1] if len(scenes) > 1 else "被你的说话节奏吸引",
-            "missingTraits": "你的条件清单",
+            "correctTraits": scenes[1] if len(scenes) > 1 else f"被你的{best_label}吸引",
+            "missingTraits": "你的条件清单、以及长期节奏预期",
         },
         {
             "slice": "03 / 03",
             "title": "离开以后，对方会……",
-            "correctTraits": scenes[2] if len(scenes) > 2 else "突然想起你提过的某个细节",
-            "missingTraits": "你对关系的全部定义",
+            "correctTraits": scenes[2] if len(scenes) > 2 else f"记住与你{best_label}相关的某个细节",
+            "missingTraits": f"你的{weak_label}全貌——那需要更多次见面",
         },
     ]
 
 
-def build_rehearse_episodes(love_timeline: list[dict[str, Any]], profile_engine: dict[str, Any]) -> list[dict[str, Any]]:
-    episodes_meta = [
-        {"name": "EP1 初见阶段", "time": "Day 1 - 3", "desc": "心动发生的瞬间", "day": 1},
-        {"name": "EP2 试探阶段", "time": "Day 30", "desc": "情绪稳定性的博弈", "day": 30},
-        {"name": "EP3 真实阶段", "time": "Day 90+", "desc": "核心资产的沉淀", "day": 90},
-    ]
-    by_day = {int(n.get("day", 0)): n for n in love_timeline}
-    low_display = "低显示" in (profile_engine.get("trait_atoms") or [])
-    out: list[dict[str, Any]] = []
-
-    for meta in episodes_meta:
-        node = by_day.get(meta["day"]) or {}
-        warning = node.get("danger") or ("低显示人格容易被误判成冷淡" if low_display and meta["day"] == 30 else "")
-        out.append({
-            **meta,
-            "plot": node.get("mood") or meta["desc"],
-            "partnerPsychology": "她很好，但我不知道她到底有没有喜欢我。" if low_display and meta["day"] == 30 else "开始认真评估长期可能性。",
-            "warning": warning,
-            "suggestion": node.get("advice") or "主动共享一个今天发生的小情绪。",
-            "comfortIndex": "💙" * min(5, max(1, round((100 - meta["day"]) / 25))) + "○" * max(0, 5 - min(5, round((100 - meta["day"]) / 25))),
-        })
-    return out
-
-
-def build_simulator(
+def _resolve_user_zone(
+    module_scores: dict[str, float],
     axis_x: float,
     axis_y: float,
-    module_scores: dict[str, float],
-    position_name: str,
     gender: str,
-) -> dict[str, Any]:
-    boost = 15 if axis_x < 55 else 8
-    target = "让人想留下来的人" if axis_x + boost >= 60 and axis_y >= 60 else position_name
-    fs1 = module_scores.get("FS1", module_scores.get("MS4", 55))
-
-    return {
-        "title": "档案重组 · 换一个版本的你",
-        "slogan": "你与最优资产释放路径，其实只差了一次局部的轻微调整",
-        "diagnosis": "整体底牌不错，但显示度略显短板。" if axis_x < 55 else "显示度已在线，下一步是加深长期感知。",
-        "slider": {
-            "name": "吸引力/门面显示度" if gender == "female" else "门面/情感显示度",
-            "boostPercent": boost,
-            "method": "轻度穿搭升级与社交局部曝光" if axis_x < 55 else "稳定输出 + 适度主动",
-        },
-        "dynamicText": (
-            f"当显示度提升{boost}%时，坐标更接近「{target}」。"
-            f"对方不再需要耗费数月去盲猜你的好，匹配效率会明显缩短。"
-        ),
-        "baselineDisplay": round(axis_x),
-    }
+) -> str:
+    fs5 = float(module_scores.get("FS5", module_scores.get("MS5", 50)))
+    if fs5 >= 58:
+        return "风险区"
+    display = axis_x
+    support = axis_y
+    if display >= 68 and support >= 65 and fs5 <= 42:
+        return "挑战上限区"
+    if display < 52 and support < 52:
+        return "风险区"
+    return "最佳适配区"
 
 
 def build_advice_v4(
@@ -407,16 +361,16 @@ def build_advice_v4(
 ) -> dict[str, str]:
     fs5 = module_scores.get("FS5", module_scores.get("MS5", 50))
     good = (
-        "先透露一个确定性的好消息：你的风险净值较低，"
-        "在性格上不太属于看着光鲜但相处极其消耗的类型，这在当下市场属于硬通货。"
+        "先透露一个确定性的好消息：相处里摩擦不多，"
+        "在性格上不太属于看着光鲜但相处极其消耗的类型，这在当下关系里很加分。"
         if fs5 <= 45
         else "你并非高风险类型，但需要把边界和节奏说清楚，避免被误读。"
     )
     warning = (
-        "但有一件事必须提醒你：市场显示度偏低，极度依赖熟人网络。"
+        "但有一件事必须提醒你：第一印象偏低调，极度依赖熟人网络。"
         "如果一味等待被挖掘，效率会很低，你需要主动做局部曝光。"
         if axis_x < 55
-        else "显示度在线，注意别让「容易得到的第一印象」掩盖长期价值建设。"
+        else "第一印象已经在线，注意别让「容易得到的第一印象」掩盖长期价值建设。"
     )
     if position_name == "还没到时候的人":
         warning = "当前阶段更重要的是建设底牌，不必急于进入高强度筛选。"
@@ -427,15 +381,39 @@ def build_match_zone(
     sweet_spot: dict[str, Any],
     lower_match: dict[str, Any],
     profile: dict[str, Any],
+    *,
+    upper_match: dict[str, Any] | None = None,
+    gender: str = "female",
+    module_scores: dict[str, float] | None = None,
+    axis_x: float = 50,
+    axis_y: float = 50,
 ) -> dict[str, Any]:
+    lib_scenes = []
+    try:
+        from app.mate_match_bounds import load_match_bounds_library
+
+        lib_scenes = (load_match_bounds_library().get("meet_scenes") or {}).get(gender) or []
+    except Exception:
+        pass
+    portraits = sweet_spot.get("portraits") or []
+    portrait_hint = "、".join(str(p.get("name") or "") for p in portraits[:2] if p.get("name"))
+    target = portrait_hint or str(profile.get("sweet_spot") or sweet_spot.get("reason") or "")
+    upper_score = upper_match.get("matchScore") if upper_match else sweet_spot.get("matchScore")
+    scores = module_scores or {}
+    user_zone = _resolve_user_zone(scores, axis_x, axis_y, gender)
     return {
-        "sliderTitle": "你的择偶市场最佳匹配温度带",
+        "sliderTitle": "什么样的对象更适合你（基于你的坐标，不是普适标准）",
         "zones": ["风险区", "最佳适配区", "挑战上限区"],
-        "userZone": "最佳适配区",
-        "targetPortrait": str(profile.get("sweet_spot") or sweet_spot.get("reason") or ""),
+        "userZone": user_zone,
+        "targetPortrait": target,
         "matchingReason": str(sweet_spot.get("reason") or sweet_spot.get("summary") or ""),
-        "meetScene": "高校校友圈、高信任度工作场合、靠谱朋友引介。",
-        "riskPortrait": str(profile.get("lower_match") or lower_match.get("summary") or ""),
+        "meetScene": " · ".join(lib_scenes[:3]) if lib_scenes else "高校校友圈、高信任度工作场合、靠谱朋友引介。",
+        "riskPortrait": str(lower_match.get("summary") or profile.get("lower_match") or ""),
+        "sweetScore": sweet_spot.get("matchScore") or sweet_spot.get("successRate"),
+        "upperScore": upper_score,
+        "lowerScore": lower_match.get("matchScore"),
+        "stableProbability": sweet_spot.get("stableProbability"),
+        "marriageAdaptScore": sweet_spot.get("marriageAdaptScore"),
     }
 
 
@@ -480,12 +458,13 @@ def build_footer_quotes(profile_engine: dict[str, Any], social_quotes: list[str]
 def enrich_mate_payload_v4(
     payload: dict[str, Any],
     *,
-    questions: list[dict[str, Any]],
-    answers: dict[str, dict[str, Any]],
+    questions: list[dict[str, Any]] | None = None,
+    answers: dict[str, dict[str, Any]] | None = None,
     module_scores: dict[str, float],
     sub_scores: dict[str, float],
     scoring_formula: dict[str, Any],
     quadrant: str,
+    precomputed: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     gender = str(payload.get("gender") or "female")
     axis_x = float(payload.get("axisX") or (payload.get("marketCoordinate") or {}).get("axisX") or 50)
@@ -493,15 +472,19 @@ def enrich_mate_payload_v4(
     position_name = str((payload.get("positionType") or {}).get("name") or payload.get("identityCard", {}).get("title") or "")
 
     position_name = apply_v4_position_overrides(position_name, axis_x, axis_y, module_scores, gender)
-    sub_type = resolve_sub_type(position_name, axis_x, axis_y, module_scores, gender)
-    profile_engine = extract_profile_engine(
-        position_name=position_name,
-        sub_type=sub_type,
-        axis_x=axis_x,
-        axis_y=axis_y,
-        module_scores=module_scores,
-        gender=gender,
-    )
+    layers = precomputed if isinstance(precomputed, dict) else payload.get("computedLayers")
+    if isinstance(layers, dict) and isinstance(layers.get("atoms"), dict):
+        profile_engine = layers["atoms"]
+    else:
+        sub_type = resolve_sub_type(position_name, axis_x, axis_y, module_scores, gender)
+        profile_engine = extract_profile_engine(
+            position_name=position_name,
+            sub_type=sub_type,
+            axis_x=axis_x,
+            axis_y=axis_y,
+            module_scores=module_scores,
+            gender=gender,
+        )
 
     accordions = build_module_accordions(
         questions=questions,
@@ -510,17 +493,38 @@ def enrich_mate_payload_v4(
         sub_scores=sub_scores,
         scoring_formula=scoring_formula,
         gender=gender,
+        precomputed=layers if isinstance(layers, dict) else None,
     )
 
     reverse = build_reverse_card(profile_engine, position_name)
-    observe_slices = build_observe_slices(profile_engine, payload.get("matchmakerRecords") or [])
-    rehearse = build_rehearse_episodes(payload.get("loveTimeline") or [], profile_engine)
-    simulator = build_simulator(axis_x, axis_y, module_scores, position_name, gender)
+    observe_slices = build_observe_slices(
+        profile_engine,
+        payload.get("matchmakerRecords") or [],
+        module_scores=module_scores,
+        gender=gender,
+    )
+    rehearse = build_rehearse_episodes(
+        payload.get("loveTimeline") or [],
+        profile_engine,
+        module_scores=module_scores,
+        gender=gender,
+        position_name=position_name,
+        axis_y=axis_y,
+    )
+    market_insight = str((payload.get("marketCoordinate") or {}).get("insight") or "")
+    simulator = build_simulator(
+        axis_x, axis_y, module_scores, position_name, gender, market_insight=market_insight
+    )
     advice = build_advice_v4(position_name, module_scores, axis_x)
     match_zone = build_match_zone(
         payload.get("sweetSpot") or {},
         payload.get("lowerMatch") or {},
         payload.get("matchmaker") or {},
+        upper_match=payload.get("upperMatch") or {},
+        gender=gender,
+        module_scores=module_scores,
+        axis_x=axis_x,
+        axis_y=axis_y,
     )
     lens_grid = build_lens_grid(
         payload.get("aiLens") or [],
@@ -529,11 +533,21 @@ def enrich_mate_payload_v4(
     )
     footer = build_footer_quotes(profile_engine, payload.get("socialQuotes") or [])
 
+    from app.mate_ai_content import build_mate_insights
+
+    insights = build_mate_insights(
+        position_name=position_name,
+        quadrant=quadrant,
+        module_scores=module_scores,
+        profile=dict(payload.get("positionType") or {}),
+        gender=gender,
+    )
+
     coord = payload.get("marketCoordinate") or {}
     if gender == "female":
-        coord = {**coord, "horizontalLabel": "吸引显示度", "verticalLabel": "长期稳定度"}
+        coord = {**coord, "horizontalLabel": "第一印象", "verticalLabel": "长期稳定度"}
     else:
-        coord = {**coord, "horizontalLabel": "市场显示度", "verticalLabel": "现实支撑力"}
+        coord = {**coord, "horizontalLabel": "相处印象", "verticalLabel": "现实托底感"}
 
     identity = payload.get("identityCard") or {}
     identity = {
@@ -566,6 +580,7 @@ def enrich_mate_payload_v4(
         "matchZone": match_zone,
         "lensGrid": lens_grid,
         "footerMarquee": footer,
+        "insights": insights,
     }
     try:
         from app.ai_context_assembler import assemble_mate_context, attach_assembled_context_to_payload
@@ -574,4 +589,6 @@ def enrich_mate_payload_v4(
         enriched = attach_assembled_context_to_payload(enriched, ctx)
     except Exception:
         pass
-    return enriched
+    from app.semantic_translation import sanitize_user_facing_payload
+
+    return sanitize_user_facing_payload(enriched)

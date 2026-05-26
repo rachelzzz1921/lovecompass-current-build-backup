@@ -22,6 +22,7 @@ import {
   SELF_DIMENSIONS,
   type SelfDimensionCode,
 } from "@/data/selfSuiteSpec";
+import { sanitizeUserFacingText } from "@/lib/sanitizeUserFacingText";
 
 export type AttemptResultInput = {
   test_id?: string;
@@ -58,6 +59,15 @@ export type AttemptResultInput = {
       scenes?: Behavior[];
       character_reasons?: Array<{ title: string; body: string; highlight?: boolean }>;
       archetype_line?: string;
+      type?: { code?: string; tagline?: string; archetype_line?: string };
+      match_suggestions?: Array<{
+        code: string;
+        name: string;
+        pct: number;
+        tagline: string;
+        top?: boolean;
+        deepExplore?: { title: string; body: string };
+      }>;
     };
   };
   ai_report?: string | null;
@@ -106,6 +116,10 @@ function normalizeDimensions(
       rawScore,
       color: spec.color,
       displaySummary: summaryRow?.label ?? scoreDisplaySummary(rawScore),
+      detail:
+        summaries && typeof summaries === "object"
+          ? (summaries as Record<string, { detail?: string }>)[spec.code]?.detail
+          : undefined,
     };
   });
 }
@@ -142,7 +156,7 @@ function buildCoreTraits(
       title: highest ? `${highest.label}：${highest.displaySummary}` : "你在关系里有清晰的自我底色",
       body:
         sentences[0] ??
-        `${highest?.coreQuestion ?? "你在关系里的模式"} —— 这是套一 SELF 六维里与你最贴近的一维。`,
+        `${highest?.coreQuestion ?? "你在关系里的模式"} —— 这是 SELF 六维里与你最贴近的一维。`,
     },
     {
       icon: "key",
@@ -155,7 +169,7 @@ function buildCoreTraits(
       icon: "eye",
       title: lowest ? `${lowest.label}：${lowest.displaySummary}` : "还有一些面在展开",
       body: greyZone
-        ? `${lowest?.coreQuestion ?? "你的依恋维度"} 目前处于套一体系定义的「临界状态」—— 不是定论，而是提醒你有更大的弹性空间。`
+        ? `${lowest?.coreQuestion ?? "你的依恋维度"} 目前处于 SELF 体系定义的「临界状态」—— 不是定论，而是提醒你有更大的弹性空间。`
         : `${lowest?.coreQuestion ?? "这一维"} 不是缺陷。${scoreDisplaySummary(lowest?.rawScore ?? 0)}，值得被温柔看见而不是被否定。`,
     },
   ];
@@ -191,14 +205,14 @@ function buildInsights(
       kind: "strength",
       title: "你的高光",
       body: highest
-        ? `在「${highest.label}」上，${highest.displaySummary}。套一里这一维对应：${highest.coreQuestion}`
+        ? `在「${highest.label}」上，${highest.displaySummary}。这一维要回答：${highest.coreQuestion}`
         : "你在关系里已经有可依靠的稳定资源。",
     },
     {
       kind: "watch",
       title: "可以温柔留意",
       body: greyZone
-        ? `你的 SA2/SA3 至少有一维落在 45–60 的灰色地带—— 主类型仍成立，但依恋模式还在过渡区，不必用单一标签限制自己。`
+        ? "你的依恋模式（焦虑与回避维度）至少有一维落在过渡区——主类型仍成立，但不必用单一标签限制自己。"
         : lowest
           ? `「${lowest.label}」${lowest.displaySummary}。${positiveFramingForAttachment(attachment)}`
           : "留意那些反复出现的内耗模式，它们往往指向真正需要被照顾的部分。",
@@ -218,7 +232,21 @@ function buildInsights(
   ];
 }
 
-function buildMatches(attachment: string): MatchType[] {
+function buildMatches(
+  attachment: string,
+  payload?: AttemptResultInput["result_payload"],
+): MatchType[] {
+  const fromStatic = payload?.static_copy?.match_suggestions;
+  if (fromStatic?.length) {
+    return fromStatic.map((item) => ({
+      code: item.code,
+      name: item.name,
+      pct: item.pct,
+      tagline: item.tagline,
+      top: item.top,
+      deepExplore: item.deepExplore,
+    }));
+  }
   const presets = MATCH_BY_ATTACHMENT[attachment] ?? MATCH_BY_ATTACHMENT["安全型"];
   return presets.map((item, index) => ({
     code: `M-${index + 1}`,
@@ -264,7 +292,7 @@ function buildCharacterReasons(
     {
       title: closest ? `在「${closest.label}」上，你和她的轨迹相近` : "你们在关系里都有可被识别的稳定模式",
       body: closest
-        ? `套一雷达基准里，${name} 型在 ${closest.key} 有典型轮廓；你目前是「${closest.displaySummary}」，这与该原型的核心逻辑一致。`
+        ? `人格基准里，${name} 型在「${closest.label}」有典型轮廓；你目前是「${closest.displaySummary}」，这与该原型的核心逻辑一致。`
         : profile?.matching_logic ?? "你们的相似不在表演，而在相处结构。",
     },
     {
@@ -277,17 +305,8 @@ function buildCharacterReasons(
 }
 
 function attachmentCodeLabel(attachment: string, greyZone: boolean): string {
-  const en: Record<string, string> = {
-    安全型: "SECURE",
-    焦虑型: "ANXIOUS",
-    回避型: "AVOIDANT",
-    混合型: "FREE SPIRIT",
-    低自我高投入型: "DEVOTED",
-    高边界安全型: "BOUNDED SECURE",
-  };
-  const slug = en[attachment] ?? "RELATIONAL";
-  const base = `SELF · ${slug}`;
-  return greyZone ? `${base} · GREY ZONE` : base;
+  if (greyZone) return "过渡区 · 依恋模式还在整合";
+  return "自我依恋画像";
 }
 
 function heroAttachmentTitle(attachment: string, greyZone: boolean): string {
@@ -308,10 +327,11 @@ export function sanitizeResultReportMarkdown(
       `## 你的自我关系画像：${attachmentType}`,
     );
   }
-  return out.replace(
+  out = out.replace(
     /^##\s*你的自我关系画像：.+$/m,
     `## 你的自我关系画像：${attachmentType}`,
   );
+  return sanitizeUserFacingText(out);
 }
 
 export function mapAttemptToSelfResult(input: AttemptResultInput): SelfResult {
@@ -335,16 +355,21 @@ export function mapAttemptToSelfResult(input: AttemptResultInput): SelfResult {
     aiContent?.traits?.length
       ? aiContent.traits.map((trait) => ({
           icon: trait.icon,
-          title: trait.title,
-          body: trait.body,
+          title: sanitizeUserFacingText(trait.title),
+          body: sanitizeUserFacingText(trait.body),
           highlight: trait.highlight,
           source_dimension: trait.source_dimension,
-          evidence: trait.evidence,
+          evidence: trait.evidence ? sanitizeUserFacingText(trait.evidence) : trait.evidence,
         }))
       : buildCoreTraits(payload, profile, attachment, dimensions, greyZone);
-  const insights = aiContent?.insights?.length
+  const insights = (aiContent?.insights?.length
     ? aiContent.insights
-    : buildInsights(attachment, dimensions, profile, greyZone);
+    : buildInsights(attachment, dimensions, profile, greyZone)
+  ).map((item) => ({
+    ...item,
+    title: sanitizeUserFacingText(item.title),
+    body: sanitizeUserFacingText(item.body),
+  }));
 
   const baselineRaw = profile?.radar_baseline ?? {};
   const radarBaseline = dimensions.map((d) => ({
@@ -360,14 +385,18 @@ export function mapAttemptToSelfResult(input: AttemptResultInput): SelfResult {
     archetype: {
       badge: "你的依恋类型",
       name: heroAttachmentTitle(attachment, greyZone),
-      code: attachmentCodeLabel(attachment, greyZone),
-      tagline: profile.tagline ?? "这是一面会进化的关系镜子。",
-      description: profile.description ?? "你的画像来自套一 SELF 六维模型与行为模式分析。",
+      code:
+        payload.static_copy?.type?.code ??
+        attachmentCodeLabel(attachment, greyZone),
+      tagline: sanitizeUserFacingText(profile.tagline ?? "这是一面会进化的关系镜子。"),
+      description: sanitizeUserFacingText(
+        profile.description ?? "你的画像来自六维关系模型与行为模式分析。",
+      ),
     },
     overallScore,
     dimensions,
     radarBaseline,
-    matches: buildMatches(attachment),
+    matches: buildMatches(attachment, payload),
     insights,
     behaviors: buildBehaviors(attachment, payload),
     coreTraits,

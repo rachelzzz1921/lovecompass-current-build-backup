@@ -1,0 +1,284 @@
+{
+  "version": "1.0",
+  "engine": "MATE_MATCH_BOUNDS_V1",
+  "pair_model": "P1现实30% + P2情感25% + P3节奏15% + P4规划15% + P5风险10% + P6火花5%",
+  "partner_noun": {
+    "female": "男性",
+    "male": "女性"
+  },
+  "band_titles": {
+    "upper": "对你来说 · 值得争取",
+    "sweet": "对你来说 · 最合拍",
+    "lower": "对你来说 · 尽量避开"
+  },
+  "user_logic": "先算你的婚恋区间(P1-P6) → 再映射什么对象对你算上限/甜区/下限 → 文案以「你」为主语",
+  "portraits": {
+    "male:mature_reader": {
+      "name": "成熟读懂型",
+      "tags": ["32-42岁", "一二线稳定职", "晚婚/离异可接受"],
+      "snapshot": "事业和收入都在同龄中游以上，恋爱经验够，不会被你的慢热吓跑。相亲局里话不多，但第二次见面会记得你上次提到的细节。"
+    },
+    "male:steady_midcareer": {
+      "name": "稳健托底型",
+      "tags": ["28-38岁", "体制内/大厂/专业岗", "家庭边界清晰"],
+      "snapshot": "生活预期和你接近，消费观偏理性，周末可以一起买菜做饭。不追求戏剧化浪漫，但承诺感强，适合把关系往长期推。"
+    },
+    "male:practical_peer": {
+      "name": "务实同频型",
+      "tags": ["同龄±3岁", "同城或邻近城市", "婚恋观偏现实"],
+      "snapshot": "条件不算顶流，但差距不大——收入、学历、家庭参与度都在可磨合区间。第一次见面会聊工作、城市、未来三年计划，而不是只聊感觉。"
+    },
+    "male:clear_goal": {
+      "name": "目标清晰型",
+      "tags": ["30-40岁", "知道自己要什么", "效率导向"],
+      "snapshot": "见面第三次就会谈排期：什么时候见家长、对婚育的态度。不喜欢猜谜，但也不是玩套路——适合你的牌面已经亮出来的人。"
+    },
+    "male:independent_taste": {
+      "name": "独立审美型",
+      "tags": ["有稳定收入", "不从众", "接受非标"],
+      "snapshot": "不一定符合大众眼里的「优质男模板」，但有自己审美和判断力。能在你的个性、表达方式里看见价值，而不是要求你改成标准答案。"
+    },
+    "male:patient_builder": {
+      "name": "耐心共建型",
+      "tags": ["28-36岁", "同样在上升期", "愿意等6-12个月"],
+      "snapshot": "现状可能还不完美，但轨道清晰——考证、换岗、攒首付都在计划里。找的是一起把生活建好的人，不是现成套餐。"
+    },
+    "male:long_horizon": {
+      "name": "长期主义型",
+      "tags": ["33-45岁", "不急于确定关系", "重相处质量"],
+      "snapshot": "可以接受前三个月「慢慢确认」，第四个月开始认真谈未来。情绪稳定，冲突时会先降温再沟通——适合复利型价值释放后置的人。"
+    },
+    "male:fast_dating": {
+      "name": "快餐筛选型",
+      "tags": ["约会频率高", "耐心≤4周", "重第一印象"],
+      "snapshot": "第一次见面没上头，第二面就开始降温。习惯在 dating app 上同时聊几个人，你的慢热和 Low-key 容易被读成「没兴趣」。"
+    },
+    "male:surface_first": {
+      "name": "第一眼派",
+      "tags": ["重外形/氛围", "需要即时化学反应", "耐心有限"],
+      "snapshot": "相亲更像选秀——照片、穿搭、话题活跃度都要在第一小时达标。你的深度价值需要相处才看得见，他往往等不到那时候。"
+    },
+    "male:template_guy": {
+      "name": "标准模板型",
+      "tags": ["要「大众认可的好女友」", "家庭干预多", "比较心强"],
+      "snapshot": "带着清单来相亲：年龄、身高、工作、性格最好都在框里。你的个性、表达方式一旦偏离模板，容易被贴上「难搞」标签。"
+    },
+    "male:validation_need": {
+      "name": "高确认需求型",
+      "tags": ["需要高频回复", "爱问「你到底怎么想」", "情绪起伏大"],
+      "snapshot": "初期很热情，但你一次晚回消息就会被解读成拒绝。相处久了容易进入「你不够爱我」的循环——消耗远大于滋养。"
+    },
+    "male:insecure_boost": {
+      "name": "条件代偿型",
+      "tags": ["自身条件一般", "靠你的吸引力找自信", "后期易失衡"],
+      "snapshot": "初期把你当「带得出去的加分项」，相处深入后开始比较、控制或摆烂。现实条件差距不大时问题尚可控，差距大时更容易出现权力拉扯。"
+    },
+    "female:warm_steady": {
+      "name": "温和托底型",
+      "tags": ["26-34岁", "工作稳定", "重陪伴"],
+      "snapshot": "不需要你天天制造惊喜，但希望周末能一起过。情绪表达直接，不喜欢冷战——和你这种能托底的人很合拍。"
+    },
+    "female:mature_independent": {
+      "name": "成熟独立型",
+      "tags": ["30-38岁", "有主见", "见过世面"],
+      "snapshot": "自己有收入、有朋友、有生活，找的是并肩的人不是「养她的人」。能读懂你的节奏，不会因为你不秒回就作。"
+    },
+    "female:practical_stable": {
+      "name": "务实稳定型",
+      "tags": ["同城", "家庭期待接近", "消费观理性"],
+      "snapshot": "相亲时会问清楚：房子、城市、父母参与度、要不要孩子。不是只谈感觉——这反而降低后期踩雷概率。"
+    },
+    "female:clear_goal_f": {
+      "name": "目标清晰型",
+      "tags": ["28-36岁", "恋爱→结婚路径明确", "不拖暧昧"],
+      "snapshot": "第三次见面就会对齐：是不是认真交往、大概什么节奏见家长。适合牌面清楚、筛选效率高的你。"
+    },
+    "female:taste_independent": {
+      "name": "独立审美型",
+      "tags": ["不从众", "接受非标准男性", "有自己的圈"],
+      "snapshot": "不一定找「最会表现的人」，但找「频道对的人」。能在你的表达方式里看见真实，而不是要求你变成某种人设。"
+    },
+    "female:patient_growth": {
+      "name": "耐心成长型",
+      "tags": ["26-32岁", "同样在建设期", "愿意一起攒未来"],
+      "snapshot": "现状普通但方向清楚——考证、换工作、学技能。找的是队友，不是现成高配。适合「还没到时候」但轨道对的男性。"
+    },
+    "female:long_plan_f": {
+      "name": "长期规划型",
+      "tags": ["30-40岁", "不急于闪婚", "重相处质量"],
+      "snapshot": "可以接受前几个月慢慢确认，之后才会谈婚育时间表。情绪稳定，愿意用共同场景（旅行、见朋友）验证关系。"
+    },
+    "female:fast_stimulus_f": {
+      "name": "强刺激需求型",
+      "tags": ["要高浓度浪漫", "约会要有仪式感", "耐心≤1个月"],
+      "snapshot": "需要频繁确认、惊喜和社交曝光。你的务实和稳定在她眼里可能等于「 boring 」——初期上头快，后期落差更大。"
+    },
+    "female:mystery_seeker": {
+      "name": "神秘惊喜派",
+      "tags": ["爱猜心", "要持续新鲜感", "讨厌太直给"],
+      "snapshot": "你把自己放得很清楚，她反而觉得「少了追逐感」。适合玩暧昧，不适合你已经把牌面摊开的人。"
+    },
+    "female:template_f": {
+      "name": "标准期待型",
+      "tags": ["要大众意义上的优质男", "家庭清单多", "爱比较"],
+      "snapshot": "带着「应该是什么样」来相亲——收入、身高、房车、脾气。你的非标特质或非主流路径容易被一票否决。"
+    },
+    "female:impatient_ready": {
+      "name": "现成条件派",
+      "tags": ["不想等", "要当下达标", "对潜力耐心低"],
+      "snapshot": "你如果在建设期，她会问「那什么时候能稳定」。不是坏人，但时间线和你对不上——容易变成你一直在被考核。"
+    }
+  },
+  "bounds_by_position": {
+    "让人想留下来的人": {
+      "female": {
+        "upper": { "portraitIds": ["male:steady_midcareer", "male:mature_reader"], "scoreAdjust": 6 },
+        "sweet": { "portraitIds": ["male:practical_peer"], "scoreAdjust": 0 },
+        "lower": { "portraitIds": ["male:fast_dating", "male:validation_need"], "scoreAdjust": -4 }
+      },
+      "male": {
+        "upper": { "portraitIds": ["female:mature_independent", "female:warm_steady"], "scoreAdjust": 6 },
+        "sweet": { "portraitIds": ["female:practical_stable"], "scoreAdjust": 0 },
+        "lower": { "portraitIds": ["female:fast_stimulus_f"], "scoreAdjust": -4 }
+      }
+    },
+    "被读懂之前的人": {
+      "female": {
+        "upper": { "portraitIds": ["male:mature_reader", "male:long_horizon"], "scoreAdjust": 5 },
+        "sweet": { "portraitIds": ["male:practical_peer", "male:steady_midcareer"], "scoreAdjust": -1 },
+        "lower": { "portraitIds": ["male:surface_first", "male:fast_dating"], "scoreAdjust": -6 }
+      },
+      "male": {
+        "upper": { "portraitIds": ["female:mature_independent", "female:long_plan_f"], "scoreAdjust": 5 },
+        "sweet": { "portraitIds": ["female:practical_stable"], "scoreAdjust": -1 },
+        "lower": { "portraitIds": ["female:mystery_seeker", "female:fast_stimulus_f"], "scoreAdjust": -6 }
+      }
+    },
+    "一眼就懂的人": {
+      "female": {
+        "upper": { "portraitIds": ["male:clear_goal", "male:steady_midcareer"], "scoreAdjust": 7 },
+        "sweet": { "portraitIds": ["male:practical_peer"], "scoreAdjust": 1 },
+        "lower": { "portraitIds": ["male:insecure_boost"], "scoreAdjust": -5 }
+      },
+      "male": {
+        "upper": { "portraitIds": ["female:clear_goal_f", "female:mature_independent"], "scoreAdjust": 7 },
+        "sweet": { "portraitIds": ["female:practical_stable"], "scoreAdjust": 1 },
+        "lower": { "portraitIds": ["female:mystery_seeker"], "scoreAdjust": -5 }
+      }
+    },
+    "需要被正确打开的人": {
+      "female": {
+        "upper": { "portraitIds": ["male:independent_taste", "male:mature_reader"], "scoreAdjust": 4 },
+        "sweet": { "portraitIds": ["male:independent_taste"], "scoreAdjust": 0 },
+        "lower": { "portraitIds": ["male:template_guy"], "scoreAdjust": -7 }
+      },
+      "male": {
+        "upper": { "portraitIds": ["female:taste_independent", "female:mature_independent"], "scoreAdjust": 4 },
+        "sweet": { "portraitIds": ["female:taste_independent"], "scoreAdjust": 0 },
+        "lower": { "portraitIds": ["female:template_f"], "scoreAdjust": -7 }
+      }
+    },
+    "还没到时候的人": {
+      "female": {
+        "upper": { "portraitIds": ["male:patient_builder", "male:long_horizon"], "scoreAdjust": 2 },
+        "sweet": { "portraitIds": ["male:patient_builder"], "scoreAdjust": -2 },
+        "lower": { "portraitIds": ["male:surface_first", "male:fast_dating"], "scoreAdjust": -8 }
+      },
+      "male": {
+        "upper": { "portraitIds": ["female:patient_growth", "female:long_plan_f"], "scoreAdjust": 2 },
+        "sweet": { "portraitIds": ["female:patient_growth"], "scoreAdjust": -2 },
+        "lower": { "portraitIds": ["female:impatient_ready"], "scoreAdjust": -8 }
+      }
+    },
+    "越了解越值钱的人": {
+      "female": {
+        "upper": { "portraitIds": ["male:long_horizon", "male:mature_reader"], "scoreAdjust": 5 },
+        "sweet": { "portraitIds": ["male:steady_midcareer", "male:practical_peer"], "scoreAdjust": 0 },
+        "lower": { "portraitIds": ["male:fast_dating"], "scoreAdjust": -6 }
+      },
+      "male": {
+        "upper": { "portraitIds": ["female:long_plan_f", "female:mature_independent"], "scoreAdjust": 5 },
+        "sweet": { "portraitIds": ["female:practical_stable", "female:warm_steady"], "scoreAdjust": 0 },
+        "lower": { "portraitIds": ["female:fast_stimulus_f"], "scoreAdjust": -6 }
+      }
+    }
+  },
+  "user_summaries": {
+    "让人想留下来的人": {
+      "female": {
+        "upper": "对你来说，上限不是最会撩的男人，而是能接住你慢热、还愿意把关系往长期推的那一类——",
+        "sweet": "对你来说，最合拍的是重视稳定、愿意花时间了解你、相处成本不高的人——",
+        "lower": "对你来说，要避开只追即时刺激、把你当短期选项、耐心不够的男人——"
+      },
+      "male": {
+        "upper": "对你来说，上限是能把你当并肩队友、而不是当「带出去的面子」的那类女性——",
+        "sweet": "对你来说，最合拍的是要稳定感、不喜欢戏剧性拉扯、愿意认真了解你的人——",
+        "lower": "对你来说，要避开只图新鲜、需要你不断制造惊喜才肯留下的人——"
+      }
+    },
+    "被读懂之前的人": {
+      "female": {
+        "upper": "对你来说，值得争取的是有阅历、不被表面骗走、愿意用时间换深度的男人——",
+        "sweet": "对你来说，最省力的是务实、不逼你第一天就证明自己的人——",
+        "lower": "对你来说，要尽量避开用第一眼做终裁、等不到你价值展开就离开的男人——"
+      },
+      "male": {
+        "upper": "对你来说，上限是看得懂你低调、还愿意慢慢靠近的女性——",
+        "sweet": "对你来说，甜区是重视可靠感、不拿你的慢热当拒绝的人——",
+        "lower": "对你来说，要避开只认门面、需要你主动表演才被看见的人——"
+      }
+    },
+    "一眼就懂的人": {
+      "female": {
+        "upper": "对你来说，上限是条件与目标都清楚、能和你效率匹配、还不只停在第一印象的男人——",
+        "sweet": "对你来说，最合拍的是知道自己要什么、不喜欢猜谜的务实型——",
+        "lower": "对你来说，要避开条件一般却靠你的吸引力找自信、后期容易失衡的人——"
+      },
+      "male": {
+        "upper": "对你来说，上限是目标清晰、审美在线、能认真选择而不是只被牌面带着走的人——",
+        "sweet": "对你来说，甜区是直接、高效、愿意第三次见面就谈未来方向的人——",
+        "lower": "对你来说，要避开只追神秘感、把你直给当「没挑战」的人——"
+      }
+    },
+    "需要被正确打开的人": {
+      "female": {
+        "upper": "对你来说，上限是有独立审美、能欣赏非标、频道对了就愿意认真的人——",
+        "sweet": "对你来说，最合拍的是同样有个性、不需要你符合模板的人——",
+        "lower": "对你来说，要避开带着标准答案相亲、把你当「应该改成什么样」的项目的人——"
+      },
+      "male": {
+        "upper": "对你来说，上限是不从众、能看懂你独特表达方式的女性——",
+        "sweet": "对你来说，甜区是频道对了就惊喜、不对也能礼貌退出的人——",
+        "lower": "对你来说，要避开只认大众模板、你的个性一出现就判「难搞」的人——"
+      }
+    },
+    "还没到时候的人": {
+      "female": {
+        "upper": "对你来说，上限是看重潜力而非现状、愿意和你把生活一块块建起来的人——",
+        "sweet": "对你来说，甜区是同样在上升期、不拿「现成完美」卡你的人——",
+        "lower": "对你来说，要避开只认当下条件、不愿意等你的建设周期的人——"
+      },
+      "male": {
+        "upper": "对你来说，上限是愿意一起攒未来、不把「还在路上」当缺陷的女性——",
+        "sweet": "对你来说，最合拍的是把关系当长期项目、不急于用条件压你的人——",
+        "lower": "对你来说，要避开要现成套餐、对你「还没到时候」没有耐心的女性——"
+      }
+    },
+    "越了解越值钱的人": {
+      "female": {
+        "upper": "对你来说，上限是不追即时满足、愿意把前三个月当投资的人——",
+        "sweet": "对你来说，甜区是成熟稳重、有长期规划、不拿慢热当冷淡的人——",
+        "lower": "对你来说，要避开快节奏、要即时回报、等不到你复利展开就退场的人——"
+      },
+      "male": {
+        "upper": "对你来说，上限是愿意慢热确认、越相处越能看见你底牌的女性——",
+        "sweet": "对你来说，最合拍的是不急于求成、用共同场景验证关系的人——",
+        "lower": "对你来说，要避开只爱开头、第三个月就开始嫌「平淡」的人——"
+      }
+    }
+  },
+  "meet_scenes": {
+    "female": ["靠谱朋友引介的饭局", "校友/行业小型局", "共同爱好固定圈子"],
+    "male": ["同事朋友介绍", "行业活动后的深聊", "共同朋友组的稳定局"]
+  }
+}

@@ -73,6 +73,33 @@ def match_combo_copy(character: str, partner: str) -> dict[str, Any] | None:
     return dict(item) if isinstance(item, dict) else None
 
 
+def build_match_suggestions(character: str, attachment: str) -> list[dict[str, Any]]:
+    from app.self_ai_content import MATCH_BY_ATTACHMENT
+
+    presets = MATCH_BY_ATTACHMENT.get(attachment) or MATCH_BY_ATTACHMENT["安全型"]
+    out: list[dict[str, Any]] = []
+    for index, item in enumerate(presets):
+        partner = str(item.get("name") or "").split("（")[0].strip()
+        combo = match_combo_copy(character, partner) if partner else None
+        out.append(
+            {
+                "code": f"M-{index + 1}",
+                "name": str(item.get("name") or partner),
+                "pct": int(item.get("pct") or 0),
+                "tagline": str(item.get("tagline") or ""),
+                "top": index == 0,
+                "deepExplore": {
+                    "title": str((combo or {}).get("title") or "相处深探"),
+                    "body": str(
+                        (combo or {}).get("body")
+                        or f"如果你遇见{partner}，{item.get('tagline', '')}。这不是标准答案，而是同体系里与你节奏较同频的方向。"
+                    ),
+                },
+            }
+        )
+    return out
+
+
 def attach_static_copy_to_payload(result_payload: dict[str, Any]) -> dict[str, Any]:
     payload = dict(result_payload)
     character = str(payload.get("archetype_code") or "")
@@ -89,6 +116,7 @@ def attach_static_copy_to_payload(result_payload: dict[str, Any]) -> dict[str, A
         "type": type_copy,
         "scenes": scenes,
         "character_reasons": reasons,
+        "match_suggestions": build_match_suggestions(character, attachment) if character else [],
     }
     if type_copy.get("tagline") and not profile.get("tagline"):
         profile = {**profile, "tagline": type_copy["tagline"]}

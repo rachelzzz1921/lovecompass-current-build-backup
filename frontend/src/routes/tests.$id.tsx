@@ -3,20 +3,23 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { z } from "zod";
 import { useAuth } from "@/hooks/useAuth";
-import { hasProductAccess, clearProductUnlock, hasRedeemableSuiteAccess } from "@/lib/accessGate";
+import { clearProductUnlock, hasRedeemableSuiteAccess } from "@/lib/accessGate";
 import { findProductByRouteId, inferGenderFromSuiteSlug, testEntryRouteId } from "@/lib/resultRoutes";
-import { productBadgeText } from "@/data/products";
-import { HintButton } from "@/components/HintButton";
+import {
+  liteFreeForTier,
+  resolveFlowSuiteSlug,
+  resolveTestEntryStartRoute,
+  testEntryBlockedReason,
+} from "@/lib/productFlow";
 import { accessRedirectFromTestEntry } from "@/lib/productAccessFlow";
+import { productBadgeText } from "@/data/products";
 import {
   getStoredGender,
-  isLiteTierFree,
   productFlowSpec,
-  setStoredGender,
   type ProductId,
   type SuiteGender,
 } from "@/lib/productRegistry";
-import { resolveSuiteSlugByTier, tierMeta, type SuiteTier } from "@/lib/suiteTier";
+import { tierMeta, type SuiteTier } from "@/lib/suiteTier";
 import {
   getPresentationSettings,
   resetPresentationSeed,
@@ -24,6 +27,7 @@ import {
   type PresentationSettings,
 } from "@/lib/shufflePresentation";
 import { QuestionOrderToggle } from "@/components/questions/QuestionOrderToggle";
+import { HintButton } from "@/components/HintButton";
 import { productTheme } from "@/lib/productTheme";
 import {
   GenderSelect,
@@ -63,69 +67,48 @@ function TestEntry() {
     () => search.gender ?? slugGender ?? getStoredGender(productId),
   );
   const [suiteTier, setSuiteTier] = useState<SuiteTier>(() => search.tier ?? "lite");
+
+  useEffect(() => {
+    sessionStorage.setItem(`${productId}:tier`, suiteTier);
+  }, [productId, suiteTier]);
   const [presentationSettings, setPresentationSettingsState] = useState<PresentationSettings>({
     questionOrder: "shuffled",
     optionOrder: "shuffled",
   });
 
   const pickedGender = spec.pickGenderOnAccess ? gender : null;
-  const runSuiteSlug = pickedGender
-    ? resolveSuiteSlugByTier(productId, pickedGender, suiteTier)
-    : routeSuiteSlug;
+  const runSuiteSlug = resolveFlowSuiteSlug({
+    productId,
+    routeId: routeSuiteSlug,
+    gender,
+    suiteTier,
+  });
 
   useEffect(() => {
     setPresentationSettingsState(getPresentationSettings(runSuiteSlug));
   }, [runSuiteSlug]);
   const tierInfo = tierMeta(productId, suiteTier);
-  const liteFree = isLiteTierFree(productId, suiteTier);
+  const liteFree = liteFreeForTier(productId, suiteTier);
   const hasAccess = liteFree || hasRedeemableSuiteAccess(productId, runSuiteSlug);
 
-  const returnPath = `/tests/${productId}`;
-
-  const startBlockedReason = (): string | null => {
-    if (authLoading) return "正在确认登录状态，请稍候";
-    if (!user) return "请先登录后再开始测试";
-    if (spec.pickGenderOnAccess && !gender) return "请先选择「女性版」或「男性版」题库";
-    if (!liteFree && !hasAccess) return "请先输入兑换码解锁本题库";
-    return null;
+  const entryCtx = {
+    productId,
+    routeSuiteSlug,
+    user,
+    authLoading,
+    gender,
+    suiteTier,
   };
+
+  const blockedReason = testEntryBlockedReason(entryCtx, runSuiteSlug);
 
   const start = () => {
-    const blocked = startBlockedReason();
-    if (blocked) {
-      if (!user) {
-        nav({ to: "/auth", search: { redirect: returnPath } });
-        return;
-      }
-      if (!hasAccess) {
-        nav({
-          to: "/access",
-          search: {
-            product: productId,
-            redirect: accessRedirectFromTestEntry(productId, runSuiteSlug),
-            tier: suiteTier,
-          },
-        });
-      }
-      return;
-    }
-
-    if (spec.redeemLanding === "ros-start") {
-      nav({ to: spec.entryPath });
-      return;
-    }
-
-    if (pickedGender) {
-      setStoredGender(productId, pickedGender);
-      sessionStorage.setItem(`suite:${productId}`, runSuiteSlug);
-    }
-    sessionStorage.setItem(`${productId}:tier`, suiteTier);
+    const route = resolveTestEntryStartRoute(entryCtx);
+    if (!route) return;
     setPresentationSettings(runSuiteSlug, presentationSettings);
     resetPresentationSeed(runSuiteSlug);
-    nav({ to: "/tests/$id/run", params: { id: runSuiteSlug } });
+    void nav(route);
   };
-
-  const blockedReason = startBlockedReason();
 
   return (
     <main className="relative min-h-screen">

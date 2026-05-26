@@ -11,6 +11,9 @@ import {
   type AttemptResultInput,
 } from "@/lib/mapAttemptToSelfResult";
 import { dedicatedResultRouteFromAttempt } from "@/lib/resultRoutes";
+import { takeResultPrefetch } from "@/lib/resultPrefetchCache";
+import { ResultDataLoading } from "@/components/ResultDataLoading";
+import { waitForSelfAttemptReady } from "@/lib/waitForResultReady";
 
 const PRODUCT_RESULT_SLUGS = {
   mate: "/tests/mate",
@@ -37,71 +40,117 @@ export const Route = createFileRoute("/result/$attemptId")({
 
 const REPORT_PLACEHOLDER_MARKERS = ["正式 AI 深度报告可由后台任务继续生成", "【AI 占位回复】", "【智谱未配置】"];
 
+function applySelfAttempt(
+  attemptId: string,
+  attempt: AttemptResultInput & Record<string, unknown>,
+  setters: {
+    setData: (v: AttemptResultInput | null) => void;
+    setReport: (v: AttemptReport | null) => void;
+    setReportLoading: (v: boolean) => void;
+    setReportError: (v: string | null) => void;
+    ignoreRef: () => boolean;
+  },
+) {
+  setters.setData(attempt);
+  if (!isPlaceholderReport(attempt.ai_report)) {
+    setters.setReport({
+      attemptId,
+      status: "succeeded",
+      content: attempt.ai_report ?? "",
+      cached: true,
+    });
+    return;
+  }
+  setters.setReportLoading(true);
+  lovecompassApi
+    .getAttemptReport(attemptId)
+    .then((res) => {
+      if (setters.ignoreRef()) return;
+      setters.setReport(res.report);
+      setters.setData((current) => (current ? { ...current, ai_report: res.report.content } : current));
+    })
+    .catch((e) => {
+      if (setters.ignoreRef()) return;
+      setters.setReportError((e as Error).message);
+    })
+    .finally(() => {
+      if (!setters.ignoreRef()) setters.setReportLoading(false);
+    });
+}
+
 function ResultPage() {
   const { attemptId } = useParams({ from: "/result/$attemptId" });
   const nav = useNavigate();
-  const { pending: authPending } = useRequireAuth();
+  const { pending: authPending, authed } = useRequireAuth();
   const [data, setData] = useState<AttemptResultInput | null>(null);
   const [report, setReport] = useState<AttemptReport | null>(null);
   const [reportLoading, setReportLoading] = useState(false);
   const [reportError, setReportError] = useState<string | null>(null);
+  const [deepReportRequesting, setDeepReportRequesting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (authPending || !authed) return;
+
     let ignore = false;
+    setLoading(true);
     setError(null);
+    setData(null);
     setReport(null);
     setReportError(null);
     setReportLoading(false);
 
-    lovecompassApi
-      .getAttemptResult(attemptId)
-      .then((r) => {
+    const cached = takeResultPrefetch(attemptId);
+    if (cached?.kind === "self-attempt" && cached.attemptId === attemptId) {
+      const attempt = cached.data as AttemptResultInput & Record<string, unknown>;
+      const dedicated = dedicatedResultRouteFromAttempt(attemptId, attempt);
+      if (dedicated) {
+        void nav({ ...dedicated, replace: true });
+        return;
+      }
+      applySelfAttempt(attemptId, attempt, {
+        setData,
+        setReport,
+        setReportLoading,
+        setReportError,
+        ignoreRef: () => ignore,
+      });
+      setLoading(false);
+      return () => {
+        ignore = true;
+      };
+    }
+
+    void waitForSelfAttemptReady(attemptId)
+      .then((attempt) => {
         if (ignore) return;
-        const attempt = r.attempt as AttemptResultInput & Record<string, unknown>;
-        const dedicated = dedicatedResultRouteFromAttempt(attemptId, attempt);
+        const typed = attempt as AttemptResultInput & Record<string, unknown>;
+        const dedicated = dedicatedResultRouteFromAttempt(attemptId, typed);
         if (dedicated) {
           void nav({ ...dedicated, replace: true });
           return;
         }
-        setData(attempt);
-
-        if (!isPlaceholderReport(attempt.ai_report)) {
-          setReport({
-            attemptId,
-            status: "succeeded",
-            content: attempt.ai_report ?? "",
-            cached: true,
-          });
-          return;
-        }
-
-        setReportLoading(true);
-        lovecompassApi
-          .getAttemptReport(attemptId)
-          .then((res) => {
-            if (ignore) return;
-            setReport(res.report);
-            setData((current) => (current ? { ...current, ai_report: res.report.content } : current));
-          })
-          .catch((e) => {
-            if (ignore) return;
-            setReportError((e as Error).message);
-          })
-          .finally(() => {
-            if (!ignore) setReportLoading(false);
-          });
+        applySelfAttempt(attemptId, typed, {
+          setData,
+          setReport,
+          setReportLoading,
+          setReportError,
+          ignoreRef: () => ignore,
+        });
       })
       .catch((e) => {
         if (!ignore) setError(formatApiErrorMessage(e));
+      })
+      .finally(() => {
+        if (!ignore) setLoading(false);
       });
 
     return () => {
       ignore = true;
     };
-  }, [attemptId, nav]);
+  }, [attemptId, nav, authPending, authed]);
 
-  // Layer C：后台 AI 升级 insights 后静默刷新一次
   useEffect(() => {
     if (!data) return;
     const mode = (data.result_payload as { ai_content?: { mode?: string } } | undefined)?.ai_content?.mode;
@@ -139,6 +188,7 @@ function ResultPage() {
   }, [rawReportMarkdown, mapped]);
 
   if (authPending) return <AuthChecking />;
+  if (loading) return <ResultDataLoading />;
 
   if (error) {
     return (
@@ -151,8 +201,28 @@ function ResultPage() {
   }
 
   if (!data || !mapped) {
-    return <div className="min-h-screen flex items-center justify-center text-muted-foreground">读取你的画像…</div>;
+    return (
+      <ApiErrorPanel
+        title="画像数据为空"
+        message="请从历史记录重试。"
+        backTo={{ to: "/", label: "返回首页" }}
+      />
+    );
   }
+
+  const requestDeepReport = () => {
+    if (deepReportRequesting || reportLoading) return;
+    setDeepReportRequesting(true);
+    setReportError(null);
+    lovecompassApi
+      .getAttemptReport(attemptId)
+      .then((res) => {
+        setReport(res.report);
+        setData((current) => (current ? { ...current, ai_report: res.report.content } : current));
+      })
+      .catch((e) => setReportError((e as Error).message))
+      .finally(() => setDeepReportRequesting(false));
+  };
 
   return (
     <SelfResultView
@@ -167,6 +237,8 @@ function ResultPage() {
       reportMarkdown={reportMarkdown || undefined}
       reportLoading={reportLoading}
       reportError={reportError}
+      onRequestDeepReport={requestDeepReport}
+      deepReportRequesting={deepReportRequesting}
     />
   );
 }

@@ -104,6 +104,7 @@ def resolve_attempt(conn: Any, user_id: str, attempt_id: str | None) -> dict[str
 
 def resolve_attempt_or_latest(conn: Any, user_id: str, attempt_id: str | None) -> dict[str, Any] | None:
     """Best-effort attempt lookup for chat — never raises when unbound."""
+    """Chat 链路专用：无效或缺失 attemptId 时回退到最近一次完成测评，避免对话中断。"""
     if attempt_id:
         try:
             uuid.UUID(attempt_id)
@@ -239,7 +240,7 @@ def build_chat_profile_bundle(
     attempt: dict[str, Any] | None = None
     if attempt_id:
         try:
-            attempt = resolve_attempt(conn, user_id, attempt_id)
+            attempt = resolve_attempt_or_latest(conn, user_id, attempt_id)
         except HTTPException:
             attempt = fetch_latest_attempt_row(conn, user_id)
     else:
@@ -265,6 +266,52 @@ def build_chat_profile_bundle(
 
 def build_profile_context_block(attempt: dict[str, Any]) -> str:
     return build_suite_profile_context_block(attempt)
+
+
+def _portrait_has_completed_tests(portrait: dict[str, Any]) -> bool:
+    for product in portrait.get("products") or []:
+        if isinstance(product.get("latest"), dict):
+            return True
+    return False
+
+
+def build_portrait_aggregate_profile_block(portrait: dict[str, Any]) -> str:
+    """无单套 attempt 绑定时，用跨套 portrait 作为 profile_block（与 portrait-reader 层一致）。"""
+    completeness = portrait.get("completeness") or {}
+    lines = [
+        "【用户已完成的真实测试画像 — 跨套汇总 · 必须作为回答依据】",
+        f"画像完整度：{completeness.get('percent', 0)}% · {completeness.get('label', '等待测试')}",
+        "以下各套均为真实测评结果；回答时综合引用，勿说「尚未接入数据」。",
+        "",
+    ]
+    for product in portrait.get("products") or []:
+        latest = product.get("latest") if isinstance(product.get("latest"), dict) else None
+        code = product.get("code") or product.get("productSet") or "测评"
+        if not latest:
+            lines.append(f"· {code}：尚未完成")
+            continue
+        product_set = str(product.get("productSet") or "")
+        headline = _suite_headline(latest, product_set)
+        meta = _suite_meta_line(latest, product_set)
+        dim_count = len(latest.get("dimensions") or [])
+        detail = headline
+        if meta:
+            detail = f"{detail} · {meta}"
+        if dim_count:
+            detail = f"{detail} · {dim_count} 维"
+        if latest.get("hasAiReport"):
+            detail = f"{detail} · 含 AI 报告"
+        lines.append(f"· {code}：{detail}")
+    return "\n".join(lines)
+
+
+def build_effective_profile_block(conn: Any, user_id: str, attempt: dict[str, Any] | None) -> str:
+    if attempt:
+        return build_profile_context_block(attempt)
+    portrait = build_portrait(conn, user_id)
+    if _portrait_has_completed_tests(portrait):
+        return build_portrait_aggregate_profile_block(portrait)
+    return build_unbound_context_message()
 
 
 def resolve_analyst_row(conn: Any, analyst_slug: str | None) -> dict[str, Any]:
@@ -304,6 +351,53 @@ def resolve_analyst_row(conn: Any, analyst_slug: str | None) -> dict[str, Any]:
             "persona_prompt": "",
         }
     )
+
+
+def find_session(
+    conn: Any,
+    user_id: str,
+    attempt_id: str | None,
+    analyst_id: str,
+) -> str | None:
+    existing = conn.execute(
+        """
+        SELECT id
+        FROM public.chat_sessions
+        WHERE user_id = %s
+          AND analyst_id = %s
+          AND attempt_id IS NOT DISTINCT FROM %s
+          AND is_archived = false
+        ORDER BY updated_at DESC
+        LIMIT 1
+        """,
+        (user_id, analyst_id, attempt_id),
+    ).fetchone()
+    return str(existing["id"]) if existing else None
+
+
+def load_chat_session_messages(
+    conn: Any,
+    user_id: str,
+    analyst_slug: str | None,
+    attempt_id: str | None,
+    *,
+    limit: int = 40,
+) -> tuple[str | None, list[dict[str, str]]]:
+    """读取已有会话消息（不创建新会话）。"""
+    analyst = resolve_analyst_row(conn, analyst_slug)
+    if not analyst.get("id"):
+        return None, []
+    attempt = resolve_attempt_or_latest(conn, user_id, attempt_id)
+    bound_attempt_id = str(attempt["id"]) if attempt else None
+    session_id = find_session(conn, user_id, bound_attempt_id, str(analyst["id"]))
+    if not session_id:
+        return None, []
+    rows = load_recent_messages(conn, session_id, limit=limit)
+    mapped: list[dict[str, str]] = []
+    for row in rows:
+        role = "ai" if row["role"] == "assistant" else "user"
+        mapped.append({"role": role, "content": row["content"]})
+    return session_id, mapped
 
 
 def get_or_create_session(
@@ -394,7 +488,9 @@ def build_chat_prompt(
             portrait_layer = build_portrait_reader_layer(conn, user_id)
         except Exception:
             portrait_layer = ""
-    profile_block = build_profile_context_block(attempt) if attempt else build_unbound_context_message()
+    profile_block = build_effective_profile_block(conn, user_id, attempt) if conn is not None and user_id else (
+        build_profile_context_block(attempt) if attempt else build_unbound_context_message()
+    )
     ros_inquiry_layer = build_ros_inquiry_layer(user_message, attempt)
 
     history_lines = []

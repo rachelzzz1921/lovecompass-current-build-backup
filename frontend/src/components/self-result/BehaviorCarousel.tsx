@@ -1,10 +1,21 @@
 import useEmblaCarousel from "embla-carousel-react";
 import { motion } from "framer-motion";
-import { Check, Eye, Flame, Swords, X } from "lucide-react";
+import { Check, Eye, Flame, MessageCircle, Swords, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import type { Behavior } from "@/data/mockResult";
 import { lovecompassApi } from "@/lib/lovecompassApi";
+import { chatRouteSearch } from "@/lib/chatRouteSearch";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 const SCENE_ICONS = [Eye, Swords, Flame];
 const SCENE_TINTS = ["oklch(0.82 0.14 200)", "oklch(0.82 0.14 75)", "oklch(0.72 0.18 360)"];
@@ -12,12 +23,15 @@ const SCENE_TINTS = ["oklch(0.82 0.14 200)", "oklch(0.82 0.14 75)", "oklch(0.72 
 export function BehaviorCarousel({
   behaviors,
   attemptId,
+  exampleMode = false,
 }: {
   behaviors: Behavior[];
   attemptId?: string;
+  exampleMode?: boolean;
 }) {
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false, align: "start" });
   const [index, setIndex] = useState(0);
+  const [feedbackScene, setFeedbackScene] = useState<Behavior | null>(null);
 
   const onSelect = useCallback(() => {
     if (!emblaApi) return;
@@ -44,9 +58,7 @@ export function BehaviorCarousel({
     if (yes) {
       toast.success("收到，这确实是你的模式", { description: scene });
     } else {
-      toast.message("谢谢反馈", {
-        description: "每个人都是独特的——之后可以在 AI 顾问里补充你的真实做法。",
-      });
+      setFeedbackScene(behaviors.find((b) => b.scene === scene) ?? null);
     }
   };
 
@@ -77,25 +89,33 @@ export function BehaviorCarousel({
                   </span>
                   <div className="text-[15px] font-medium text-foreground mt-2">{b.title}</div>
                   <div className="text-[13px] text-foreground/70 mt-2 leading-[1.75] flex-1">{b.body}</div>
-                  <div className="mt-4 pt-4 border-t border-border/30 text-center font-mono text-[10px] tracking-[0.2em] text-muted-foreground/80">
-                    「太像我了」← 这正是 MIRROR 想做到的事
-                  </div>
-                  <div className="mt-4 flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => onResonate(b.scene, true)}
-                      className="flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2.5 text-[12px] border border-[oklch(0.78_0.15_165/0.35)] bg-[oklch(0.50_0.18_165/0.12)] text-foreground/85 hover:bg-[oklch(0.50_0.18_165/0.18)] transition"
-                    >
-                      <Check className="h-3.5 w-3.5" /> 完全是我
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onResonate(b.scene, false)}
-                      className="flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2.5 text-[12px] border border-border/50 bg-secondary/30 text-muted-foreground hover:text-foreground transition"
-                    >
-                      <X className="h-3.5 w-3.5" /> 不太准
-                    </button>
-                  </div>
+                  {!exampleMode ? (
+                    <>
+                      <div className="mt-4 pt-4 border-t border-border/30 text-center font-mono text-[10px] tracking-[0.2em] text-muted-foreground/80">
+                        「太像我了」← 这正是 MIRROR 想做到的事
+                      </div>
+                      <div className="mt-4 flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => onResonate(b.scene, true)}
+                          className="flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2.5 text-[12px] border border-[oklch(0.78_0.15_165/0.35)] bg-[oklch(0.50_0.18_165/0.12)] text-foreground/85 hover:bg-[oklch(0.50_0.18_165/0.18)] transition"
+                        >
+                          <Check className="h-3.5 w-3.5" /> 完全是我
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onResonate(b.scene, false)}
+                          className="flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2.5 text-[12px] border border-border/50 bg-secondary/30 text-muted-foreground hover:text-foreground transition"
+                        >
+                          <X className="h-3.5 w-3.5" /> 不太准
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="mt-4 pt-4 border-t border-border/30 text-center text-[11px] text-muted-foreground leading-relaxed">
+                      示范场景 · 推演文案
+                    </div>
+                  )}
                 </motion.div>
               </div>
             );
@@ -116,6 +136,42 @@ export function BehaviorCarousel({
           />
         ))}
       </div>
+
+      <Dialog open={Boolean(feedbackScene)} onOpenChange={(open) => !open && setFeedbackScene(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>这个场景不太像你？</DialogTitle>
+            <DialogDescription>
+              没关系——体系给的是模式，不是判决书。你可以用一句话告诉 AI 顾问，你真实会怎么做。
+            </DialogDescription>
+          </DialogHeader>
+          {feedbackScene ? (
+            <p className="text-sm text-muted-foreground leading-relaxed border-l-2 border-border pl-3">
+              「{feedbackScene.title}」：{feedbackScene.body}
+            </p>
+          ) : null}
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button type="button" variant="outline" onClick={() => setFeedbackScene(null)}>
+              先不用
+            </Button>
+            {attemptId && feedbackScene ? (
+              <Button type="button" asChild>
+                <Link
+                  to="/chat"
+                  search={chatRouteSearch(
+                    attemptId,
+                    undefined,
+                    `关于「${feedbackScene.scene}」这个场景，测试描述不太准。我真实的情况是：`,
+                  )}
+                >
+                  <MessageCircle className="h-4 w-4 mr-1.5" />
+                  跟 AI 补充我的做法
+                </Link>
+              </Button>
+            ) : null}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

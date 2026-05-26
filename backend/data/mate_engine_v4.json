@@ -228,6 +228,16 @@
                 "目标画像与场景生成"
             ],
             "ai_participation": "无"
+        },
+        "mate-rehearse": {
+            "backend_flow": [
+                "loveTimeline 数值节点（danger/advice/mood）",
+                "人格原子 + FS/MS 模块分数",
+                "mate_rehearse_library_v1 定位/子类型/行为词库",
+                "atom_dictionary RAG-lite 点缀",
+                "三集 EP 合成（plot / partnerPsychology / warning / suggestion / comfortIndex）"
+            ],
+            "ai_participation": "可选（mate-rehearse 导演模块覆盖 narrative）"
         }
     },
     "final_page_unified_json_structure": {

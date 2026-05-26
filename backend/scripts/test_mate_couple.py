@@ -45,6 +45,8 @@ def test_mate_couple_payload_shape() -> None:
     assert payload["relationship_analysis"]["P1"]["level"]
     assert payload["risk_lab"]["risk_name"]
     assert payload["matchmaker_advice"]["oneChange"]
+    assert payload.get("engine") == "MATE_PAIR_SUPPLEMENT_V1.1"
+    assert isinstance(payload.get("condition_compare_table"), list)
 
 
 if __name__ == "__main__":

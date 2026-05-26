@@ -328,42 +328,113 @@
       "type": "slider",
       "weight": 2.0,
       "direction": "positive",
-      "text": "先来校准一下你的外形基础：",
+      "text": "先来校准一下你的外形基础。根据下面的参考，你觉得自己大概在哪个区间？",
+      "subtitle": "参考的是现实社交中的综合感受，不只是五官",
       "note": "这个观察只帮助系统理解你的起点，不会以数字形式出现在结果里。",
       "slider": {
         "min": 1,
         "max": 10,
         "step": 1,
         "displayMode": "appearance",
+        "tierLabels": [
+          {
+            "range": [
+              1,
+              2
+            ],
+            "label": "自然型"
+          },
+          {
+            "range": [
+              3,
+              4
+            ],
+            "label": "普通辨识度"
+          },
+          {
+            "range": [
+              5,
+              6
+            ],
+            "label": "有记忆点"
+          },
+          {
+            "range": [
+              7,
+              8
+            ],
+            "label": "高辨识度"
+          },
+          {
+            "range": [
+              9,
+              10
+            ],
+            "label": "极高辨识度"
+          }
+        ],
+        "footnote": "注意：不是素颜自拍视角，也不是美颜后的自己。\n参考：现实社交 + 日常状态 + 外形管理后的综合感受",
         "reference": [
           {
+            "score": 1,
+            "perception": "极少因为外形被注意",
+            "behavior": "外形基本不构成优势"
+          },
+          {
+            "score": 2,
+            "perception": "不太关注外在呈现",
+            "behavior": "穿搭、妆容、管理较少"
+          },
+          {
+            "score": 3,
+            "perception": "偶尔被夸",
+            "behavior": "熟人礼貌性评价更多"
+          },
+          {
+            "score": 4,
+            "perception": "普通水平",
+            "behavior": "放在人群里不突出"
+          },
+          {
             "score": 5,
-            "desc": "普通大众，走在街上不会被特别注意"
+            "perception": "中位值",
+            "behavior": "朋友会说「挺顺眼」"
           },
           {
             "score": 6,
-            "desc": "有辨识度，朋友会说「你挺好看的」"
+            "perception": "有辨识度",
+            "behavior": "社交场合容易留下印象"
           },
           {
             "score": 7,
-            "desc": "明显好看，陌生场合经常有人注意你"
+            "perception": "明显好看",
+            "behavior": "陌生场景会有人主动注意"
           },
           {
             "score": 8,
-            "desc": "同龄人里前10%，有人为你外形回头"
+            "perception": "同龄前10%左右",
+            "behavior": "经常被夸气质/颜值"
           },
           {
             "score": 9,
-            "desc": "同龄人里前3%，经常被建议拍照拍视频"
+            "perception": "同龄前3%左右",
+            "behavior": "经常有人主动表达好感"
           },
           {
             "score": 10,
-            "desc": "极少数"
+            "perception": "极少数",
+            "behavior": "外形成为明显优势资产"
           }
         ]
       },
       "scoring": {
-        "method": "direct_times_10"
+        "method": "direct_times_10",
+        "sensitive": "appearance",
+        "calibrationSignals": [
+          "FS1-F-03",
+          "FS1-F-02",
+          "FS1-F-04"
+        ]
       }
     },
     {
@@ -472,7 +543,44 @@
         "min": 0,
         "max": 100,
         "min_label": "很不满意",
-        "max_label": "非常满意，状态很好"
+        "max_label": "非常满意，状态很好",
+        "feedback": [
+          {
+            "range": [
+              0,
+              30
+            ],
+            "text": "你对自己的外形有明确的不满意点，这说明你有感知，也有提升空间"
+          },
+          {
+            "range": [
+              31,
+              50
+            ],
+            "text": "你觉得自己还不在最好的状态，还在努力中"
+          },
+          {
+            "range": [
+              51,
+              70
+            ],
+            "text": "基本满意，偶尔觉得可以更好"
+          },
+          {
+            "range": [
+              71,
+              85
+            ],
+            "text": "整体满意，状态稳定"
+          },
+          {
+            "range": [
+              86,
+              100
+            ],
+            "text": "你对自己的外形状态很自信"
+          }
+        ]
       },
       "scoring": {
         "method": "slider_to_5",
@@ -612,7 +720,37 @@
         "min": 0,
         "max": 100,
         "min_label": "我可能比较无聊",
-        "max_label": "跟我在一起很有意思"
+        "max_label": "跟我在一起很有意思",
+        "feedback": [
+          {
+            "range": [
+              0,
+              30
+            ],
+            "text": "你可能需要发展一些让对方感到有趣的话题或者兴趣点"
+          },
+          {
+            "range": [
+              31,
+              55
+            ],
+            "text": "中等，有的时候有趣，有的时候比较平"
+          },
+          {
+            "range": [
+              56,
+              75
+            ],
+            "text": "整体有趣，对方跟你在一起体验不错"
+          },
+          {
+            "range": [
+              76,
+              100
+            ],
+            "text": "你是那种让人觉得跟你在一起不会无聊的人"
+          }
+        ]
       },
       "scoring": {
         "method": "slider_to_5",

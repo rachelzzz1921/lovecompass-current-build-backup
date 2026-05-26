@@ -6,8 +6,10 @@ from pathlib import Path
 from typing import Any
 
 from app.chat_prompt_layers import score_band_label
-from app.mate_engine import apply_v4_position_overrides, enrich_mate_payload_v4
+from app.mate_analysis import build_mate_precomputed_layers
+from app.mate_engine import QUADRANT_LABELS, apply_v4_position_overrides, enrich_mate_payload_v4
 from app.mate_express import asset_module_label, module_display_label, risk_module_label
+from app.mate_match_bounds import build_match_bounds
 from app.ros_scoring import generate_relation_code
 from app.scoring import _clamp, answer_to_numeric
 
@@ -449,56 +451,6 @@ def _build_love_timeline(module_scores: dict[str, float]) -> list[dict[str, Any]
     ]
 
 
-def _build_upper_match(profile: dict[str, Any], module_scores: dict[str, float]) -> dict[str, Any]:
-    fs2 = module_scores.get("FS2", module_scores.get("MS3", 55))
-    fs4 = module_scores.get("FS4", module_scores.get("MS2", 55))
-    return {
-        "title": "能激活你上限的人",
-        "traits": {
-            "成熟度": _stars_from_score(fs4 + 10),
-            "情绪稳定": _stars_from_score(fs4),
-            "表达能力": _stars_from_score(min(100, fs2 + 5)),
-            "存在感": _stars_from_score(module_scores.get("FS1", module_scores.get("MS4", 55))),
-            "现实能力": _stars_from_score(module_scores.get("FS3", module_scores.get("MS1", 55))),
-        },
-        "summary": str(profile.get("upper_match") or "能读懂你没说出口的话，不会因为你的慢热提前离场。"),
-        "venues": ["熟人局", "长期工作关系", "兴趣圈子"],
-    }
-
-
-def _build_sweet_spot(profile: dict[str, Any], module_scores: dict[str, float]) -> dict[str, Any]:
-    fs4 = module_scores.get("FS4", module_scores.get("MS2", 55))
-    fs5 = module_scores.get("FS5", module_scores.get("MS5", 50))
-    success = max(55, min(88, round((fs4 * 0.5 + (100 - fs5) * 0.5))))
-    return {
-        "title": "最高成功概率区",
-        "profile": {
-            "性格": "务实型" if fs4 >= 60 else "温和型",
-            "恋爱节奏": "稳定推进",
-            "消费观": "偏理性",
-            "婚恋观": "长期主义",
-        },
-        "successRate": success,
-        "reason": str(profile.get("sweet_spot") or "双方预期成本低，矛盾结构简单，关系容易进入稳定状态。"),
-        "summary": str(profile.get("sweet_spot") or ""),
-    }
-
-
-def _build_lower_match(profile: dict[str, Any], module_scores: dict[str, float]) -> dict[str, Any]:
-    fs5 = module_scores.get("FS5", module_scores.get("MS5", 50))
-    risk_boost = max(0, fs5 - 40)
-    return {
-        "title": "最容易消耗你的人",
-        "traits": {
-            "情绪波动": _stars_from_score(min(100, 55 + risk_boost)),
-            "刺激需求": _stars_from_score(min(100, 50 + risk_boost)),
-            "边界感": max(1, 3 - _stars_from_score(fs5) // 2),
-            "现实规划": max(1, 2 - _stars_from_score(module_scores.get("FS3", module_scores.get("MS1", 50))) // 3),
-        },
-        "summary": str(profile.get("lower_match") or "初期很容易上头，后期容易疲惫。"),
-    }
-
-
 def _build_secular_advice(position_name: str, module_scores: dict[str, float]) -> list[dict[str, str]]:
     axis_slow = position_name in {"被读懂之前的人", "越了解越值钱的人", "还没到时候的人"}
     return [
@@ -665,6 +617,15 @@ def _build_mate_result_payload(
     modules = _build_modules_display(module_scores, scoring_formula)
     display_summaries = {str(item["code"]): str(item["displaySummary"]) for item in modules if item.get("displaySummary")}
 
+    bounds = build_match_bounds(
+        profile=profile,
+        module_scores=module_scores,
+        axis_x=axis_x,
+        axis_y=axis_y,
+        gender=gender,
+        position_name=position_name,
+    )
+
     payload = {
         "model": "MATE_V4",
         "productSet": "MATE",
@@ -689,9 +650,10 @@ def _build_mate_result_payload(
         "marketCoordinate": _build_market_coordinate(axis_x, axis_y, module_scores),
         "matchmakerRecords": _build_matchmaker_records(position_name, module_scores, gender),
         "loveTimeline": _build_love_timeline(module_scores),
-        "upperMatch": _build_upper_match(profile, module_scores),
-        "sweetSpot": _build_sweet_spot(profile, module_scores),
-        "lowerMatch": _build_lower_match(profile, module_scores),
+        "upperMatch": bounds["upperMatch"],
+        "sweetSpot": bounds["sweetSpot"],
+        "lowerMatch": bounds["lowerMatch"],
+        "matchBoundsMeta": bounds.get("matchZoneExtras"),
         "secularAdvice": _build_secular_advice(position_name, module_scores),
         "aiLens": _build_ai_lens(module_scores, gender),
         "deepArchive": {
@@ -745,6 +707,7 @@ def summarize_mate_scores(
     profile_payload: dict[str, Any] | None = None,
     result_profiles: dict[str, Any] | None = None,
     relation_code: str | None = None,
+    skip_enrich: bool = False,
 ) -> dict[str, Any]:
     type_rules = (scoring_model or {}).get("type_rules") or {}
     scoring_formula = (scoring_model or {}).get("scoring_formula") or {}
@@ -782,21 +745,36 @@ def summarize_mate_scores(
     code = relation_code or generate_relation_code()
     result_payload["relationCode"] = code
 
-    result_payload = enrich_mate_payload_v4(
-        result_payload,
-        questions=rows,
-        answers=answers,
+    computed_layers = build_mate_precomputed_layers(
+        position_name=position_name,
+        axis_x=axis_x,
+        axis_y=axis_y,
         module_scores=module_scores,
         sub_scores=sub_scores,
+        questions=rows,
+        answers=answers,
         scoring_formula=scoring_formula,
-        quadrant=quadrant,
+        gender=gender,
     )
+    result_payload["computedLayers"] = computed_layers
+
+    if not skip_enrich:
+        result_payload = enrich_mate_payload_v4(
+            result_payload,
+            questions=rows,
+            answers=answers,
+            module_scores=module_scores,
+            sub_scores=sub_scores,
+            scoring_formula=scoring_formula,
+            quadrant=quadrant,
+            precomputed=computed_layers,
+        )
 
     mate_index = round((axis_x + axis_y) / 2, 2)
     ai_report = (
         f"## 择偶坐标：{position_name}\n\n"
         f"{profile.get('tagline') or tagline_fallback(position_name)} "
-        f"市场显示度与现实支撑力已映射到四象限 {quadrant}。"
+        f"你的坐标已落在「{QUADRANT_LABELS.get(quadrant, quadrant)}」这一区域。"
     )
 
     return {

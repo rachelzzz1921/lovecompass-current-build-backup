@@ -87,12 +87,23 @@
 
 @layer base {
   * { border-color: var(--color-border); }
-  html, body {
+  html, body, #root {
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-body);
     font-feature-settings: "ss01", "ss02", "cv11";
     -webkit-font-smoothing: antialiased;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: clip;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  #root {
+    min-height: 100%;
+    isolation: isolate;
   }
   h1, h2, h3, h4, .font-display {
     font-family: var(--font-display);

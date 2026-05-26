@@ -20,6 +20,7 @@ import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as TestsIdRouteImport } from './routes/tests.$id'
 import { Route as RosStartRouteImport } from './routes/ros.start'
 import { Route as ResultAttemptIdRouteImport } from './routes/result.$attemptId'
+import { Route as ExamplesIdRouteImport } from './routes/examples.$id'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
 import { Route as AdminCodesRouteImport } from './routes/admin/codes'
@@ -28,6 +29,7 @@ import { Route as TestsIdRunRouteImport } from './routes/tests.$id.run'
 import { Route as RosInviteCodeRouteImport } from './routes/ros.invite.$code'
 import { Route as ResultRosIdRouteImport } from './routes/result.ros.$id'
 import { Route as ResultMateIdRouteImport } from './routes/result.mate.$id'
+import { Route as MatePairSupplementAttemptIdRouteImport } from './routes/mate.pair-supplement.$attemptId'
 import { Route as MateInviteCodeRouteImport } from './routes/mate.invite.$code'
 import { Route as ResultRosCoupleCodeRouteImport } from './routes/result.ros.couple.$code'
 import { Route as ResultMateCoupleCodeRouteImport } from './routes/result.mate.couple.$code'
@@ -87,6 +89,11 @@ const ResultAttemptIdRoute = ResultAttemptIdRouteImport.update({
   path: '/result/$attemptId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ExamplesIdRoute = ExamplesIdRouteImport.update({
+  id: '/examples/$id',
+  path: '/examples/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
   id: '/callback',
   path: '/callback',
@@ -127,6 +134,12 @@ const ResultMateIdRoute = ResultMateIdRouteImport.update({
   path: '/result/mate/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MatePairSupplementAttemptIdRoute =
+  MatePairSupplementAttemptIdRouteImport.update({
+    id: '/mate/pair-supplement/$attemptId',
+    path: '/mate/pair-supplement/$attemptId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const MateInviteCodeRoute = MateInviteCodeRouteImport.update({
   id: '/mate/invite/$code',
   path: '/mate/invite/$code',
@@ -155,11 +168,13 @@ export interface FileRoutesByFullPath {
   '/admin/codes': typeof AdminCodesRoute
   '/admin/users': typeof AdminUsersRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/examples/$id': typeof ExamplesIdRoute
   '/result/$attemptId': typeof ResultAttemptIdRoute
   '/ros/start': typeof RosStartRoute
   '/tests/$id': typeof TestsIdRouteWithChildren
   '/admin/': typeof AdminIndexRoute
   '/mate/invite/$code': typeof MateInviteCodeRoute
+  '/mate/pair-supplement/$attemptId': typeof MatePairSupplementAttemptIdRoute
   '/result/mate/$id': typeof ResultMateIdRoute
   '/result/ros/$id': typeof ResultRosIdRoute
   '/ros/invite/$code': typeof RosInviteCodeRoute
@@ -178,11 +193,13 @@ export interface FileRoutesByTo {
   '/admin/codes': typeof AdminCodesRoute
   '/admin/users': typeof AdminUsersRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/examples/$id': typeof ExamplesIdRoute
   '/result/$attemptId': typeof ResultAttemptIdRoute
   '/ros/start': typeof RosStartRoute
   '/tests/$id': typeof TestsIdRouteWithChildren
   '/admin': typeof AdminIndexRoute
   '/mate/invite/$code': typeof MateInviteCodeRoute
+  '/mate/pair-supplement/$attemptId': typeof MatePairSupplementAttemptIdRoute
   '/result/mate/$id': typeof ResultMateIdRoute
   '/result/ros/$id': typeof ResultRosIdRoute
   '/ros/invite/$code': typeof RosInviteCodeRoute
@@ -203,11 +220,13 @@ export interface FileRoutesById {
   '/admin/codes': typeof AdminCodesRoute
   '/admin/users': typeof AdminUsersRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/examples/$id': typeof ExamplesIdRoute
   '/result/$attemptId': typeof ResultAttemptIdRoute
   '/ros/start': typeof RosStartRoute
   '/tests/$id': typeof TestsIdRouteWithChildren
   '/admin/': typeof AdminIndexRoute
   '/mate/invite/$code': typeof MateInviteCodeRoute
+  '/mate/pair-supplement/$attemptId': typeof MatePairSupplementAttemptIdRoute
   '/result/mate/$id': typeof ResultMateIdRoute
   '/result/ros/$id': typeof ResultRosIdRoute
   '/ros/invite/$code': typeof RosInviteCodeRoute
@@ -229,11 +248,13 @@ export interface FileRouteTypes {
     | '/admin/codes'
     | '/admin/users'
     | '/auth/callback'
+    | '/examples/$id'
     | '/result/$attemptId'
     | '/ros/start'
     | '/tests/$id'
     | '/admin/'
     | '/mate/invite/$code'
+    | '/mate/pair-supplement/$attemptId'
     | '/result/mate/$id'
     | '/result/ros/$id'
     | '/ros/invite/$code'
@@ -252,11 +273,13 @@ export interface FileRouteTypes {
     | '/admin/codes'
     | '/admin/users'
     | '/auth/callback'
+    | '/examples/$id'
     | '/result/$attemptId'
     | '/ros/start'
     | '/tests/$id'
     | '/admin'
     | '/mate/invite/$code'
+    | '/mate/pair-supplement/$attemptId'
     | '/result/mate/$id'
     | '/result/ros/$id'
     | '/ros/invite/$code'
@@ -276,11 +299,13 @@ export interface FileRouteTypes {
     | '/admin/codes'
     | '/admin/users'
     | '/auth/callback'
+    | '/examples/$id'
     | '/result/$attemptId'
     | '/ros/start'
     | '/tests/$id'
     | '/admin/'
     | '/mate/invite/$code'
+    | '/mate/pair-supplement/$attemptId'
     | '/result/mate/$id'
     | '/result/ros/$id'
     | '/ros/invite/$code'
@@ -297,10 +322,12 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRouteWithChildren
   ChatRoute: typeof ChatRoute
   HistoryRoute: typeof HistoryRoute
+  ExamplesIdRoute: typeof ExamplesIdRoute
   ResultAttemptIdRoute: typeof ResultAttemptIdRoute
   RosStartRoute: typeof RosStartRoute
   TestsIdRoute: typeof TestsIdRouteWithChildren
   MateInviteCodeRoute: typeof MateInviteCodeRoute
+  MatePairSupplementAttemptIdRoute: typeof MatePairSupplementAttemptIdRoute
   ResultMateIdRoute: typeof ResultMateIdRoute
   ResultRosIdRoute: typeof ResultRosIdRoute
   RosInviteCodeRoute: typeof RosInviteCodeRoute
@@ -387,6 +414,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResultAttemptIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/examples/$id': {
+      id: '/examples/$id'
+      path: '/examples/$id'
+      fullPath: '/examples/$id'
+      preLoaderRoute: typeof ExamplesIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth/callback': {
       id: '/auth/callback'
       path: '/callback'
@@ -441,6 +475,13 @@ declare module '@tanstack/react-router' {
       path: '/result/mate/$id'
       fullPath: '/result/mate/$id'
       preLoaderRoute: typeof ResultMateIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mate/pair-supplement/$attemptId': {
+      id: '/mate/pair-supplement/$attemptId'
+      path: '/mate/pair-supplement/$attemptId'
+      fullPath: '/mate/pair-supplement/$attemptId'
+      preLoaderRoute: typeof MatePairSupplementAttemptIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/mate/invite/$code': {
@@ -512,10 +553,12 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRouteWithChildren,
   ChatRoute: ChatRoute,
   HistoryRoute: HistoryRoute,
+  ExamplesIdRoute: ExamplesIdRoute,
   ResultAttemptIdRoute: ResultAttemptIdRoute,
   RosStartRoute: RosStartRoute,
   TestsIdRoute: TestsIdRouteWithChildren,
   MateInviteCodeRoute: MateInviteCodeRoute,
+  MatePairSupplementAttemptIdRoute: MatePairSupplementAttemptIdRoute,
   ResultMateIdRoute: ResultMateIdRoute,
   ResultRosIdRoute: ResultRosIdRoute,
   RosInviteCodeRoute: RosInviteCodeRoute,

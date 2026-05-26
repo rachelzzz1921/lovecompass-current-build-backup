@@ -20,6 +20,7 @@ import {
   type SuiteGender,
   type SuiteTier,
 } from "@/lib/productRegistry";
+import { routeToRun } from "@/lib/productFlow";
 import {
   persistRunSessionKeys,
   resolveRelationCodeTier,
@@ -134,7 +135,7 @@ function RosStartPage() {
       persistRunSessionKeys(flow.sessionKeys, { stage, tier: suiteTier });
       setPresentationSettings(suiteSlug, presentationSettings);
       resetPresentationSeed(suiteSlug);
-      void nav({ to: "/tests/$id/run", params: { id: suiteSlug } });
+      void nav(routeToRun(suiteSlug));
     } catch (e) {
       toast.error(formatApiErrorMessage(e));
       if (/兑换|验证/.test(formatApiErrorMessage(e))) {

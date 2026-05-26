@@ -143,6 +143,10 @@ def test_ros_couple_merge() -> None:
     assert couple["resonance"]["score"] >= 55
     assert couple["collision"]["name"]
     assert len(couple["dims"]) == 5
+    assert couple.get("layerCompare")
+    assert couple.get("perspectives")
+    assert couple.get("perceptionGap")
+    assert len(couple.get("insights") or []) == 4
     print("ros couple ok", {"score": couple["resonance"]["score"], "tier": couple["resonance"]["tier"]})
 
 

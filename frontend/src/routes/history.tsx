@@ -23,7 +23,7 @@ import {
 } from "@/data/selfSuiteSpec";
 import { formatApiErrorMessage, getApiErrorHint } from "@/lib/apiErrors";
 import { portraitHeadline, portraitIndexLabel, portraitMetaLine } from "@/lib/portraitDisplay";
-import { productStartLink, productNeedsUnlock, productStartLabel } from "@/lib/productRoutes";
+import { productStartLink, productNeedsUnlock, productStartLabel, type ProductStartLink } from "@/lib/productRoutes";
 import type { ProductId } from "@/lib/suiteTier";
 import { productFlowSpec } from "@/lib/productRegistry";
 import { productMarketing, progressClass } from "@/lib/productTheme";
@@ -34,7 +34,7 @@ export const Route = createFileRoute("/history")({
   head: () => ({
     meta: [
       { title: "个人信息中心 · MIRROR" },
-      { name: "description", content: "SELF / ROS / MATE 三套测评聚合为你的持续进化画像。" },
+      { name: "description", content: "SELF / ROS / MATE 测评聚合为你的持续进化画像。" },
     ],
   }),
   component: HistoryPage,
@@ -138,7 +138,7 @@ function HistoryPage() {
             <span className="text-gradient-violet">我的画像档案</span>
           </h1>
           <p className="mt-3 text-foreground/70 max-w-2xl">
-            每完成一套测评，结果会自动汇入这里。SELF 打底、ROS 叠加恋情、MATE 补全择偶坐标——三套合并后，AI
+            每完成一项测评，结果会自动汇入这里。SELF 打底、ROS 叠加恋情、MATE 补全择偶坐标——三项合并后，AI
             分析师才能读懂完整的你。
           </p>
         </motion.div>
@@ -263,7 +263,8 @@ function HistoryPage() {
               完成第一套 SELF 测试后，结果会自动推送到个人信息中心。
             </p>
             <Link
-              to="/tests/self"
+              to="/tests/$id"
+              params={{ id: "self" }}
               className="inline-flex mt-5 items-center gap-1.5 px-5 h-10 rounded-full bg-gradient-to-r from-[oklch(0.68_0.18_285)] to-[oklch(0.82_0.14_200)] text-primary-foreground text-sm"
             >
               开始 SELF 测试 <ArrowRight className="h-4 w-4" />
@@ -335,7 +336,7 @@ function OverviewHero({
                 {selfProfile.attachmentType ?? primary.attachmentType ?? "关系画像"}
               </div>
               <p className="text-sm text-muted-foreground mt-1">
-                {selfProfile.tagline ? `「${selfProfile.tagline}」` : "基于套一 SELF 六维模型"}
+                {selfProfile.tagline ? `「${selfProfile.tagline}」` : "基于 SELF 六维模型"}
                 {(selfProfile.archetypeCode ?? primary.archetypeCode) && (
                   <span className="block mt-1 text-xs font-mono tracking-wider text-muted-foreground/80">
                     红楼人格 · {selfProfile.archetypeCode ?? primary.archetypeCode}
@@ -470,8 +471,7 @@ function ProductSuiteCard({ product, index }: { product: PortraitProduct; index:
             const label = productStartLabel(product.id as ProductId, product.id === "self" ? "free" : "locked");
             return (
               <Link
-                to={link.to}
-                search={link.search}
+                {...link}
                 className="text-xs font-mono tracking-wider flex items-center gap-1.5 text-foreground/80 hover:text-foreground"
               >
                 {needsUnlock ? <Lock className="h-3 w-3" /> : null}
@@ -485,13 +485,15 @@ function ProductSuiteCard({ product, index }: { product: PortraitProduct; index:
   );
 }
 
-function portraitNextStep(portrait: UserPortrait): { to: string; search?: { product: ProductId }; label: string } {
+function portraitNextStep(
+  portrait: UserPortrait,
+): (ProductStartLink | { to: "/chat" }) & { label: string } {
   const byId = Object.fromEntries(portrait.products.map((p) => [p.id, p]));
   const selfDone = Boolean(byId.self?.latest?.attemptId);
   const rosDone = Boolean(byId.ros?.latest?.attemptId);
   const mateDone = Boolean(byId.mate?.latest?.attemptId);
 
-  if (!selfDone) return { to: "/tests/self", label: "开始 SELF" };
+  if (!selfDone) return { to: "/tests/$id", params: { id: "self" }, label: "开始 SELF" } as const;
   if (!rosDone) {
     const link = productStartLink("ros");
     return { ...link, label: productNeedsUnlock("ros") ? "解锁 ROS" : "继续 ROS" };
@@ -526,8 +528,8 @@ function ActivityStrip({
         </div>
         <div className="flex flex-wrap gap-2 shrink-0">
           <Link
-            to={next.to}
-            search={next.to === "/chat" ? chatRouteSearch(primaryAttemptId) : next.search}
+            {...next}
+            search={next.to === "/chat" ? chatRouteSearch(primaryAttemptId) : "search" in next ? next.search : undefined}
             className="inline-flex items-center gap-1.5 px-5 h-10 rounded-full bg-gradient-to-r from-[oklch(0.68_0.18_285)] to-[oklch(0.82_0.14_200)] text-primary-foreground text-sm"
           >
             {next.label}

@@ -11,6 +11,7 @@ _LAYER_INQUIRY_RE = re.compile(
     r"我在看 ROS 报告里的「(?P<label>[^」]+)」层（(?P<code>[A-Z]{2})\s*·\s*(?P<score>\d+)）"
 )
 _BLIND_SPOT_RE = re.compile(r"我想展开了解报告里的「盲区提示」")
+_COUPLE_GAP_RE = re.compile(r"我在看 ROS 双人报告里的层间差距")
 
 
 def build_ros_inquiry_layer(user_message: str, attempt: dict[str, Any] | None) -> str:
@@ -32,6 +33,18 @@ def build_ros_inquiry_layer(user_message: str, attempt: dict[str, Any] | None) -
 - 结合报告里自报分 vs 行为暗示分的差距，给一个更深的洞察（80–120 字）
 - 结尾留一个开放问题，引导继续对话
 - 禁止指责「你错了」；用「你可能还没注意到…」
+""".strip()
+
+    if _COUPLE_GAP_RE.search(msg):
+        return """
+【ROS 双人层间差距模式 — Prompt 5】
+用户从双人报告某维度的「差距解读」进入对话。
+
+写作规范：
+- 80–120 字；先承接「你们感受不同」这件事本身，不说谁对谁错
+- 结合该层差值与双方视角差异，给一个更深的洞察
+- 结尾留一个开放问题：「这个差距让你想到了什么？」
+- 语气温暖、好奇；禁止分析报告腔与劝分
 """.strip()
 
     match = _LAYER_INQUIRY_RE.search(msg)

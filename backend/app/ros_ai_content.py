@@ -7,6 +7,8 @@ import os
 from datetime import datetime, timezone
 from typing import Any
 
+from psycopg.types.json import Jsonb
+
 from app.ai_context_assembler import assemble_ros_context
 from app.ai_director import build_director_prompt
 from app.ai_adapter import get_ai_adapter

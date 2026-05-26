@@ -70,13 +70,56 @@ export function normalizeDimensionScore(code: string, score: number): number {
 }
 
 /** 套一 `scoreDisplayRules.scoreMapping` —— 用户可见描述，禁止暴露难堪原话。 */
-export function scoreDisplaySummary(score: number): string {
+export function scoreDisplaySummary(score: number, possessive = "你的"): string {
   const s = normalizeDimensionScore("", score);
   if (s <= 30) return "这个维度还有很大的成长空间";
   if (s <= 50) return "这个维度还在发展阶段";
   if (s <= 65) return "这个维度表现稳定";
-  if (s <= 80) return "这个维度是你的重要资产";
-  return "这个维度是你的核心竞争力";
+  if (s <= 80) return `这一维是${possessive}重要资产`;
+  return `这一维是${possessive}核心竞争力`;
+}
+
+/** 示范档案 / 第三人称：按维度语义生成描述，避免 SA2/SA3 反向轴误读。 */
+export function dimensionDisplaySummary(
+  code: SelfDimensionCode,
+  score: number,
+  pronoun: "你" | "她" | "他",
+): string {
+  const s = normalizeDimensionScore(code, score);
+  const p = pronoun === "你" ? "你" : pronoun;
+
+  if (code === "SA2") {
+    if (s < 45) return `${p}在关系里容易感到不安，需要更多可验证的回应`;
+    if (s < 60) return `${p}在关系里对不确定性的反应偏敏感，处于中间带`;
+    if (s < 80) return `${p}在关系里相对稳定，不太会被沉默牵动`;
+    return `${p}在关系里安全感较强，很少被猜测拖走`;
+  }
+  if (code === "SA3") {
+    if (s < 45) return `${p}在亲密靠近时容易后撤，习惯保留距离`;
+    if (s < 60) return `${p}对亲密的节奏偏谨慎，需要慢慢打开`;
+    if (s < 80) return `${p}能承接亲密，也会保留必要的自我空间`;
+    return `${p}在关系里愿意靠近，也不太害怕被看见`;
+  }
+
+  if (p === "你") return scoreDisplaySummary(s);
+  const possessive = p === "她" ? "她的" : "他的";
+  if (s <= 30) return `这一维对${p}来说还有较大展开空间`;
+  if (s <= 50) return `这一维在${p}的画像里仍在形成中`;
+  if (s <= 65) return `这一维在${p}的画像里表现稳定`;
+  if (s <= 80) return `这一维是${possessive}重要资产`;
+  return `这一维是${possessive}核心竞争力`;
+}
+
+export function coreQuestionThirdPerson(code: SelfDimensionCode, pronoun: "她" | "他"): string {
+  const map: Record<SelfDimensionCode, string> = {
+    SA1: `${pronoun}是否相信自己值得被爱？`,
+    SA2: `${pronoun}在关系里是否容易感到不安？`,
+    SA3: `${pronoun}在关系里是否容易回避亲密？`,
+    SA4: `${pronoun}能否守住自己的边界？`,
+    SA5: `${pronoun}能否好好处理关系里的情绪？`,
+    SA6: `${pronoun}是怎么爱人的？`,
+  };
+  return map[code];
 }
 
 /** SA2/SA3 落在 45–60 为灰色地带（套一 `grey_zone`） */

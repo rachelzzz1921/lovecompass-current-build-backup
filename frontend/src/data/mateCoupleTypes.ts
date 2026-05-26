@@ -1,3 +1,11 @@
+export type MateCoupleCompareRow = {
+  label: string;
+  you: string;
+  ta: string;
+  verdict: string;
+  badge: "ok" | "warn" | "alert" | string;
+};
+
 export type MateCoupleModule = { level: string; desc: string };
 
 export type MateCoupleResult = {
@@ -30,5 +38,25 @@ export type MateCoupleResult = {
     goodNews: string;
     caution: string;
     oneChange: string;
+  };
+  pairSupplement?: {
+    supplementComplete: boolean;
+    youSupplementComplete: boolean;
+    taSupplementComplete: boolean;
+    conditionCompareTable: MateCoupleCompareRow[];
+    dealItemsTable: MateCoupleCompareRow[];
+    rhythmSection: {
+      label: string;
+      youScore: number | null;
+      taScore: number | null;
+      note: string;
+    };
+    attentionItems: Array<{ label: string; message: string; desc: string; badge: string }>;
+  };
+  participants?: {
+    initiatorSuiteTier?: "lite" | "full";
+    partnerSuiteTier?: "lite" | "full";
+    initiatorSuiteSlug?: string;
+    partnerSuiteSlug?: string;
   };
 };

@@ -1,14 +1,31 @@
 #!/usr/bin/env python3
-"""Generate lite (20-question) question bank JSON files from design spec."""
+"""Generate lite (20-question) question bank JSON files from design spec.
+
+After editing this file or full-bank JSON, regenerate committed lite banks:
+
+  cd backend && python3 scripts/build_lite_question_banks.py
+
+CI runs `scripts/check_lite_question_banks.py` to ensure lite JSON stays in sync.
+"""
 
 from __future__ import annotations
 
 import json
+import sys
 from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
-DATA_DIR = Path(__file__).resolve().parents[1] / "data"
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from app.question_bank_guidance import (
+    enrich_questions_slider_guidance,
+    validate_bank_slider_guidance,
+)
+
+DATA_DIR = ROOT / "data"
 
 
 def self_score(raw: float) -> float:
@@ -556,27 +573,35 @@ def ros_male_questions() -> list[dict[str, Any]]:
     ]
 
 
-def mate_female_questions() -> list[dict[str, Any]]:
-    appearance_slider = {
-        "id": "FS1-F-01", "order": 1, "module": "FS1", "sub": "FS1_A",
-        "type": "slider", "weight": 2.0, "direction": "positive",
-        "text": "先来校准一下你的外形基础：",
-        "note": "这个观察只帮助系统理解你的起点，不会以数字形式出现在结果里。",
-        "slider": {
-            "min": 1, "max": 10, "step": 1, "displayMode": "appearance",
-            "reference": [
-                {"score": 5, "desc": "普通大众，走在街上不会被特别注意"},
-                {"score": 6, "desc": "有辨识度，朋友会说「你挺好看的」"},
-                {"score": 7, "desc": "明显好看，陌生场合经常有人注意你"},
-                {"score": 8, "desc": "同龄人里前10%，有人为你外形回头"},
-                {"score": 9, "desc": "同龄人里前3%，经常被建议拍照拍视频"},
-                {"score": 10, "desc": "极少数"},
-            ],
-        },
-        "scoring": {"method": "direct_times_10"},
+def _appearance_slider_from_full(
+    gender: str,
+    *,
+    lite_id: str,
+    order: int,
+    calibration_signals: list[str],
+) -> dict[str, Any]:
+    full_path = DATA_DIR / f"suite3_mate_{gender}.json"
+    full = json.loads(full_path.read_text(encoding="utf-8"))
+    full_id = "FS1-A-F-01" if gender == "female" else "MS4-A-M-49"
+    src = next(q for q in full["questions"] if q["id"] == full_id)
+    q = deepcopy(src)
+    q["id"] = lite_id
+    q["order"] = order
+    q["scoring"] = {
+        **(q.get("scoring") or {}),
+        "calibrationSignals": calibration_signals,
     }
+    return q
+
+
+def mate_female_questions() -> list[dict[str, Any]]:
     return [
-        appearance_slider,
+        _appearance_slider_from_full(
+            "female",
+            lite_id="FS1-F-01",
+            order=1,
+            calibration_signals=["FS1-F-03", "FS1-F-02", "FS1-F-04"],
+        ),
         module_q("FS1-F-02", 2, "FS1", "FS1_B", "scenario", text="你走进一个聚会，里面大多数是陌生人。通常会发生什么？", weight=1.5, direction="positive", options=[
             ("A", "我进去的时候，通常会有人抬头看", 90),
             ("B", "偶尔会感觉有人看了我一眼，但不确定", 65),
@@ -737,8 +762,12 @@ def mate_male_questions() -> list[dict[str, Any]]:
         ]),
         module_q("MS3-M-14", 14, "MS3", "MS3_A", "slider", text="你觉得跟你在一起，她会不会觉得有意思？", weight=1.2, direction="positive",
                  min_label="我可能比较无聊", max_label="跟我在一起不无聊"),
-        module_q("MS4-M-15", 15, "MS4", "MS4_A", "slider", text="你觉得自己的整体外形，在同龄男性里处于什么水平？", weight=1.5, direction="positive",
-                 min_label="比较普通，外形不是我的优势", max_label="外形明显好于同龄人"),
+        _appearance_slider_from_full(
+            "male",
+            lite_id="MS4-M-15",
+            order=15,
+            calibration_signals=["MS4-M-16", "MS4-M-17", "MS4-M-14"],
+        ),
         module_q("MS4-M-16", 16, "MS4", "MS4_A", "binary", text="你对自己的外形，有没有主动维护的习惯？", weight=1.3, direction="positive",
                  left=("有，我会注意穿搭、健身或者护肤", 80), right=("没有特别，保持基本整洁就行", 40)),
         module_q("MS4-M-17", 17, "MS4", "MS4_B", "scenario", text="你和她一起参加她朋友的聚会，你不认识里面大多数人。你通常是什么状态？", weight=1.3, direction="positive", options=[
@@ -767,7 +796,10 @@ def mate_male_questions() -> list[dict[str, Any]]:
 def build_self_bank(gender: str) -> dict[str, Any]:
     full_path = DATA_DIR / f"suite1_{gender}.json"
     full = json.loads(full_path.read_text(encoding="utf-8"))
+    other_gender = "female" if gender == "male" else "male"
+    other_full = json.loads((DATA_DIR / f"suite1_{other_gender}.json").read_text(encoding="utf-8"))
     questions = self_female_questions() if gender == "female" else self_male_questions()
+    questions = enrich_questions_slider_guidance(questions, full["questions"], other_full["questions"])
     suffix = "FEMALE" if gender == "female" else "MALE"
     return {
         "suite": {
@@ -815,7 +847,7 @@ def build_ros_bank(gender: str) -> dict[str, Any]:
         "relationship_type_rules": full.get("relationship_type_rules"),
         "prescription_rules": full.get("prescription_rules"),
         "attachment_collision_map": full.get("attachment_collision_map"),
-        "questions": questions,
+        "questions": enrich_questions_slider_guidance(questions, full["questions"]),
     }
 
 
@@ -841,12 +873,12 @@ def build_mate_bank(gender: str) -> dict[str, Any]:
         "type_rules": full["type_rules"],
         "result_profiles": full["result_profiles"],
         "score_display_rules": full.get("score_display_rules"),
-        "questions": questions,
+        "questions": enrich_questions_slider_guidance(questions, full["questions"]),
     }
 
 
-def main() -> None:
-    specs = [
+def all_lite_banks() -> list[tuple[str, dict[str, Any]]]:
+    return [
         ("suite1_self_female_lite.json", build_self_bank("female")),
         ("suite1_self_male_lite.json", build_self_bank("male")),
         ("suite2_ros_female_lite.json", build_ros_bank("female")),
@@ -854,7 +886,22 @@ def main() -> None:
         ("suite3_mate_female_lite.json", build_mate_bank("female")),
         ("suite3_mate_male_lite.json", build_mate_bank("male")),
     ]
-    for filename, bank in specs:
+
+
+def validate_lite_bank_guidance(banks: list[tuple[str, dict[str, Any]]]) -> list[str]:
+    errors: list[str] = []
+    for filename, bank in banks:
+        errors.extend(validate_bank_slider_guidance(bank, suite_label=filename))
+    return errors
+
+
+def main() -> None:
+    banks = all_lite_banks()
+    errors = validate_lite_bank_guidance(banks)
+    if errors:
+        raise SystemExit("slider guidance validation failed:\n" + "\n".join(errors))
+
+    for filename, bank in banks:
         path = DATA_DIR / filename
         path.write_text(json.dumps(bank, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         print(f"wrote {path.name} ({len(bank.get('questions', []))} questions)")

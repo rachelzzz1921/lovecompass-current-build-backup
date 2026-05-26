@@ -145,6 +145,8 @@ export type CoupleLayerCompare = {
   probe_question?: string;
   you_highlight?: string;
   ta_highlight?: string;
+  you_evidence?: string;
+  ta_evidence?: string;
 };
 
 export type RosCoupleResult = {
@@ -194,7 +196,22 @@ export type RosCoupleResult = {
   doDont: { do: string[]; dont: string[] };
   prescription: { warmup: string; chiefComplaint: string; rx: string; followUp: string };
   shareLine: string;
-  participants?: { initiatorAttemptId?: string; partnerAttemptId?: string };
+  participants?: {
+    initiatorAttemptId?: string;
+    partnerAttemptId?: string;
+    initiatorSuiteTier?: "lite" | "full";
+    partnerSuiteTier?: "lite" | "full";
+    initiatorSuiteSlug?: string;
+    partnerSuiteSlug?: string;
+  };
+  ai_content?: {
+    insights_list?: { kind: "strength" | "watch" | "advice" | "action"; title: string; body: string }[];
+    layer_compare?: Partial<Record<RosDim["key"], CoupleLayerCompare>>;
+    gap_evidences?: Record<string, { you_evidence?: string; ta_evidence?: string }>;
+    mode?: string;
+    cached?: boolean;
+    generated_at?: string;
+  };
 };
 
 export const STAGE_OPTIONS = [

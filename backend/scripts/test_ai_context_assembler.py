@@ -97,8 +97,34 @@ def test_ros_context_patterns() -> None:
     assert ctx.profile_atoms.get("behavior_atoms")
 
 
+def test_director_payload_is_compact_and_flat() -> None:
+    bank = _load_bank("female")
+    questions = _sample_questions(bank)
+    scored = summarize_mate_scores(
+        questions,
+        _mid_answers(questions),
+        {"scoring_formula": bank.get("scoring_formula") or {}, "type_rules": {}},
+        gender="female",
+    )
+    ctx = assemble_mate_context(scored["result_payload"], module_scores=scored["dimension_scores"], gender="female")
+    sliced = ctx.slice_for_task("mate-reverse")
+    payload = sliced.to_director_payload("mate-reverse")
+    assert "profile" in payload
+    assert "profile_atoms" not in payload
+    assert "evidence" not in payload
+    assert "FS1" not in json.dumps(payload, ensure_ascii=False)
+
+    from app.ai_director import build_director_prompt, estimate_director_prompt_size
+
+    prompt = build_director_prompt(task="mate-reverse", context=ctx)
+    assert estimate_director_prompt_size(task="mate-reverse", context=ctx) < 6000
+    assert "profile" in prompt
+    assert "hidden_dictionary" not in prompt
+
+
 if __name__ == "__main__":
     test_mate_context_has_atoms_not_raw_scores()
     test_dictionary_retrieval_by_atom()
     test_ros_context_patterns()
+    test_director_payload_is_compact_and_flat()
     print("ai_context_assembler=ok")

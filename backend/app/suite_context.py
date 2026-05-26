@@ -6,6 +6,7 @@ from decimal import Decimal
 from typing import Any
 
 from app.chat_prompt_layers import load_phrase_library, score_band_label
+from app.semantic_translation import FORBIDDEN_RULES_MARKDOWN
 from app.ai_context_assembler import assemble_from_attempt, format_assembled_context_block
 from app.profile_center import resolve_product_set
 from app.result_page_specs import get_product_set_spec
@@ -267,7 +268,7 @@ def _report_excerpt(attempt: dict[str, Any]) -> str:
 def _dimension_lines(dimensions: list[dict[str, Any]], *, use_display_summary: bool) -> str:
     lines: list[str] = []
     for item in dimensions:
-        name = item.get("name") or item.get("code")
+        name = item.get("name") or item.get("label") or "该维度"
         if use_display_summary and item.get("displaySummary"):
             lines.append(f"- {name}：{item['displaySummary']}")
         else:
@@ -435,6 +436,8 @@ def build_suite_report_prompt(attempt: dict[str, Any]) -> tuple[str, dict[str, A
 {dimension_text}
 
 请生成正式报告。
+
+{FORBIDDEN_RULES_MARKDOWN}
 """.strip()
         return prompt, prompt_payload, version
 
@@ -477,6 +480,8 @@ def build_suite_report_prompt(attempt: dict[str, Any]) -> tuple[str, dict[str, A
 红娘下限区：{matchmaker.get("lower_match") or "（无）"}
 
 请生成正式报告。
+
+{FORBIDDEN_RULES_MARKDOWN}
 """.strip()
         return prompt, prompt_payload, version
 
@@ -512,6 +517,8 @@ def build_suite_report_prompt(attempt: dict[str, Any]) -> tuple[str, dict[str, A
 {dimension_text}
 
 请生成正式报告。
+
+{FORBIDDEN_RULES_MARKDOWN}
 """.strip()
     return prompt, prompt_payload, version
 

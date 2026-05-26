@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import type { RosSingleResult } from "@/data/rosTypes";
 import { useLongPress } from "@/hooks/useLongPress";
 import { chatRouteSearch } from "@/lib/chatRouteSearch";
+import type { ExampleSubject } from "@/lib/exampleSubjectCopy";
 import {
   copyCanvasToClipboard,
   drawPrescriptionShareCard,
@@ -29,7 +30,17 @@ function RxRow({ label, value, multiline }: { label: string; value: string; mult
   );
 }
 
-function RosPrescriptionCard({ result }: { result: RosSingleResult }) {
+function RosPrescriptionCard({
+  result,
+  exampleMode = false,
+  exampleSubject,
+  examplePartner,
+}: {
+  result: RosSingleResult;
+  exampleMode?: boolean;
+  exampleSubject?: ExampleSubject;
+  examplePartner?: string;
+}) {
   const exporting = useRef(false);
 
   const exportRx = async () => {
@@ -53,23 +64,31 @@ function RosPrescriptionCard({ result }: { result: RosSingleResult }) {
   };
 
   const longPress = useLongPress({ onLongPress: exportRx });
+  const rxTitle =
+    exampleMode && exampleSubject && examplePartner
+      ? `${exampleSubject.name}与${examplePartner}的关系处方`
+      : exampleMode
+        ? "这段关系处方"
+        : "你们的关系处方";
 
   return (
     <div
       role="button"
       tabIndex={0}
-      aria-label="关系处方签，长按导出图片"
+      aria-label={exampleMode ? "关系处方签" : "关系处方签，长按导出图片"}
       className="rounded-2xl p-5 relative select-none touch-manipulation cursor-default"
       style={{ border: "1.5px dashed rgba(99,102,241,0.35)", background: "rgba(99,102,241,0.04)" }}
-      {...longPress}
+      {...(exampleMode ? {} : longPress)}
     >
-      <div className="absolute top-3 right-3 text-[9px] font-mono text-white/30 tracking-wide pointer-events-none">
-        长按导出
-      </div>
+      {!exampleMode ? (
+        <div className="absolute top-3 right-3 text-[9px] font-mono text-white/30 tracking-wide pointer-events-none">
+          长按导出
+        </div>
+      ) : null}
       <div className="flex items-center justify-between pb-3 mb-3 border-b border-dashed border-white/10">
         <div className="flex items-center gap-2">
           <div className="font-display text-2xl font-bold" style={{ color: "#a5a8ff" }}>Rx</div>
-          <div className="text-xs text-white/70">你们的关系处方</div>
+          <div className="text-xs text-white/70">{rxTitle}</div>
         </div>
         <div className="font-mono text-[10px] tracking-widest text-white/35">MIRROR · ROS</div>
       </div>
@@ -88,11 +107,17 @@ export function RosResultNext({
   attemptId,
   coupleUnlocked,
   onShare,
+  exampleMode = false,
+  exampleSubject,
+  examplePartner,
 }: {
   result: RosSingleResult;
   attemptId: string;
   coupleUnlocked: boolean;
   onShare: () => void;
+  exampleMode?: boolean;
+  exampleSubject?: ExampleSubject;
+  examplePartner?: string;
 }) {
   const inviteUrl = typeof window !== "undefined"
     ? `${window.location.origin}/ros/invite/${result.code}`
@@ -144,9 +169,16 @@ export function RosResultNext({
         <p className="text-sm text-white/55 leading-relaxed mb-3 whitespace-pre-line">
           {result.prescription?.warmup}
         </p>
-        <RosPrescriptionCard result={result} />
+        <RosPrescriptionCard
+          result={result}
+          exampleMode={exampleMode}
+          exampleSubject={exampleSubject}
+          examplePartner={examplePartner}
+        />
       </div>
 
+      {!exampleMode ? (
+        <>
       <div className="rounded-2xl p-5"
         style={{ border: "1.5px dashed rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.02)" }}>
         <div className="text-[10px] tracking-[0.3em] font-mono text-white/40">邀请对方来做</div>
@@ -200,6 +232,8 @@ export function RosResultNext({
           <div className="text-[11px] text-white/50 mt-0.5">保存关系画像图</div>
         </button>
       </div>
+        </>
+      ) : null}
     </section>
   );
 }

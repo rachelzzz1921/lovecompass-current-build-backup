@@ -359,6 +359,14 @@ def build_couple_payload(
         "participants": {
             "initiatorAttemptId": str(initiator.get("id") or ""),
             "partnerAttemptId": str(partner.get("id") or ""),
+            "initiatorSuiteTier": (
+                "lite" if "_lite" in str(initiator.get("suite_slug") or "") else "full"
+            ),
+            "partnerSuiteTier": (
+                "lite" if "_lite" in str(partner.get("suite_slug") or "") else "full"
+            ),
+            "initiatorSuiteSlug": str(initiator.get("suite_slug") or "") or None,
+            "partnerSuiteSlug": str(partner.get("suite_slug") or "") or None,
         },
     }
 

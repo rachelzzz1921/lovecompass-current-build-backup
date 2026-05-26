@@ -103,7 +103,12 @@ def test_mate_scoring_produces_v4_payload() -> None:
     assert len(payload["matchmakerRecords"]) >= 3
     assert len(payload["loveTimeline"]) >= 4
     assert payload["upperMatch"]["traits"]
+    assert payload["upperMatch"].get("matchScore", 0) >= 68
+    assert len(payload["upperMatch"].get("portraits") or []) >= 1
     assert payload["sweetSpot"]["successRate"] >= 55
+    assert len(payload["sweetSpot"].get("portraits") or []) >= 1
+    assert payload["lowerMatch"].get("matchScore", 100) <= 65
+    assert len(payload["lowerMatch"].get("portraits") or []) >= 1
     assert len(payload["secularAdvice"]) >= 4
     assert len(payload["aiLens"]) == 3
     assert "axisX" in payload and "axisY" in payload
@@ -112,12 +117,27 @@ def test_mate_scoring_produces_v4_payload() -> None:
     assert payload["display_summaries"]
     assert payload.get("profileEngine", {}).get("main_type")
     assert len(payload.get("moduleAccordions") or []) >= 3
+    mappings = [a.get("marketMapping") for a in payload.get("moduleAccordions") or []]
+    assert len(set(mappings)) == len(mappings), "module marketMapping must be unique per module"
     assert payload.get("reverse", {}).get("front", {}).get("title")
     assert len(payload.get("observeSlices") or []) >= 3
     assert len(payload.get("rehearseEpisodes") or []) >= 3
+    rehearse = payload.get("rehearseEpisodes") or []
+    assert all(len(str(ep.get("plot") or "")) >= 15 for ep in rehearse)
+    assert all(ep.get("partnerPsychology") for ep in rehearse)
+    assert all(ep.get("suggestion") for ep in rehearse)
+    assert len({ep.get("plot") for ep in rehearse}) == 3
     assert payload.get("simulator", {}).get("title")
+    assert payload.get("simulator", {}).get("peerAxis")
+    assert payload.get("simulator", {}).get("leverEvidence")
+    assert payload.get("simulator", {}).get("projectedDisplay") is not None
     assert payload.get("adviceV4", {}).get("goodNews")
-    assert payload.get("matchZone", {}).get("userZone")
+    assert payload.get("matchZone", {}).get("userZone") in {
+        "风险区",
+        "最佳适配区",
+        "挑战上限区",
+    }
+    assert len(payload.get("insights") or []) >= 4
     assert len(payload.get("lensGrid") or []) == 3
     assert len(payload.get("footerMarquee", {}).get("marquee") or []) >= 1
 
@@ -151,9 +171,48 @@ def test_mate_scoring_includes_appearance_asset_label() -> None:
     assert "外形资产" in asset_labels
 
 
+def test_mate_skip_enrich_layers() -> None:
+    bank = _load_bank("female")
+    questions = _sample_questions(bank)
+    answers = _mid_answers(questions)
+    scoring_model = {
+        "scoring_formula": bank.get("scoring_formula") or {},
+        "type_rules": bank.get("type_rules") or {},
+    }
+    result = summarize_mate_scores(
+        questions, answers, scoring_model, gender="female", skip_enrich=True
+    )
+    payload = result["result_payload"]
+    layers = payload.get("computedLayers") or {}
+    assert layers.get("feature_vector")
+    assert layers.get("atoms", {}).get("main_type")
+    assert isinstance(layers.get("evidence_index"), list)
+    assert payload.get("moduleAccordions") is None
+
+
+def test_mate_lite_bank_scoring() -> None:
+    path = Path(__file__).resolve().parents[1] / "data" / "suite3_mate_female_lite.json"
+    if not path.exists():
+        return
+    bank = json.loads(path.read_text(encoding="utf-8"))
+    questions = _sample_questions(bank)
+    answers = _mid_answers(questions)
+    scoring_model = {
+        "scoring_formula": bank.get("scoring_formula") or {},
+        "type_rules": bank.get("type_rules") or {},
+    }
+    result = summarize_mate_scores(questions, answers, scoring_model, gender="female")
+    payload = result["result_payload"]
+    assert payload.get("positionType", {}).get("name")
+    assert len(payload.get("rehearseEpisodes") or []) >= 3
+    assert payload.get("simulator", {}).get("baselineDisplay") is not None
+
+
 if __name__ == "__main__":
     test_mate_suite_detection()
     test_mate_scoring_produces_v4_payload()
     test_appearance_calibration_pulls_down_high_self_rating()
     test_mate_scoring_includes_appearance_asset_label()
+    test_mate_skip_enrich_layers()
+    test_mate_lite_bank_scoring()
     print("mate scoring tests passed")

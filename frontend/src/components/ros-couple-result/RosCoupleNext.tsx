@@ -83,11 +83,51 @@ export function RosCoupleNext({
   onShare: () => void;
 }) {
   const insights = result.insights ?? [];
+  const aiPending = result.ai_content?.mode === "deterministic";
 
   return (
     <section className="space-y-7">
       <div>
-        <div className="text-[10px] tracking-[0.3em] font-mono text-white/40 mb-3">NEXT · AI 分析师摘要</div>
+        <div className="flex items-center gap-2 mb-3">
+          <div className="text-[10px] tracking-[0.3em] font-mono text-white/40">NEXT · AI 分析师摘要</div>
+          {aiPending ? (
+            <span className="text-[9px] text-white/35 ml-auto animate-pulse">分析师正在整理…</span>
+          ) : null}
+        </div>
+
+        {result.shareLine ? (
+          <div
+            className="rounded-2xl p-4 mb-5 text-center"
+            style={{ background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.22)" }}
+          >
+            <div className="text-[10px] font-mono tracking-widest text-[#a5a8ff] mb-2">一句话 · 你们的关系</div>
+            <p className="text-sm text-white/90 leading-relaxed italic">「{result.shareLine}」</p>
+          </div>
+        ) : null}
+
+        {result.highlights?.glow || result.highlights?.shadow ? (
+          <div className="grid sm:grid-cols-2 gap-3 mb-5">
+            {result.highlights.glow ? (
+              <div className="rounded-xl p-3" style={{ background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.2)" }}>
+                <div className="text-[10px] font-mono text-[#a5a8ff] mb-1">高光</div>
+                <p className="text-xs text-white/75 leading-relaxed">{result.highlights.glow}</p>
+              </div>
+            ) : null}
+            {result.highlights.shadow ? (
+              <div className="rounded-xl p-3" style={{ background: "rgba(251,191,36,0.06)", border: "1px solid rgba(251,191,36,0.18)" }}>
+                <div className="text-[10px] font-mono text-amber-200/80 mb-1">阴影</div>
+                <p className="text-xs text-white/75 leading-relaxed">{result.highlights.shadow}</p>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
+        {result.bridge ? (
+          <p className="text-sm text-white/60 leading-relaxed mb-5 px-1 border-l-2 border-[#6366f1]/50 pl-3">
+            {result.bridge}
+          </p>
+        ) : null}
+
         <div className="space-y-4">
           {insights.map((it, i) => {
             const meta = INSIGHT_ICON[it.kind] ?? INSIGHT_ICON.strength;

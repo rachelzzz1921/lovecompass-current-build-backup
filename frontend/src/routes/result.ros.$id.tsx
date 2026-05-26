@@ -7,6 +7,8 @@ import { formatApiErrorMessage } from "@/lib/apiErrors";
 import { mapApiSingleToRosResult } from "@/lib/mapRosResult";
 import { lovecompassApi } from "@/lib/lovecompassApi";
 import { AuthChecking, useRequireAuth } from "@/lib/requireAuth";
+import { takeResultPrefetch } from "@/lib/resultPrefetchCache";
+import { ResultDataLoading } from "@/components/ResultDataLoading";
 
 export const Route = createFileRoute("/result/ros/$id")({
   ssr: false,
@@ -21,7 +23,7 @@ export const Route = createFileRoute("/result/ros/$id")({
 
 function RosResultPage() {
   const { id } = Route.useParams();
-  const { pending: authPending } = useRequireAuth();
+  const { pending: authPending, authed } = useRequireAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [r, setR] = useState<RosSingleResult | null>(null);
@@ -30,8 +32,20 @@ function RosResultPage() {
   const [accuracyNote, setAccuracyNote] = useState<string | null>(null);
 
   useEffect(() => {
-    if (authPending) return;
+    if (authPending || !authed) return;
     let cancelled = false;
+
+    const cached = takeResultPrefetch(id);
+    if (cached?.kind === "ros-single" && cached.attemptId === id) {
+      setR(mapApiSingleToRosResult(cached.data.single, cached.data.relationCode || ""));
+      setCoupleUnlocked(Boolean(cached.data.coupleUnlocked));
+      setSuiteSlug(cached.data.suiteSlug ?? null);
+      const single = cached.data.single;
+      setAccuracyNote(typeof single.accuracyNote === "string" ? single.accuracyNote : null);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     lovecompassApi
       .getRosSingleResult(id)
@@ -57,7 +71,7 @@ function RosResultPage() {
     return () => {
       cancelled = true;
     };
-  }, [authPending, id]);
+  }, [authPending, authed, id]);
 
   // Layer C：后台 AI 升级后静默刷新
   useEffect(() => {
@@ -83,7 +97,8 @@ function RosResultPage() {
     };
   }, [id, r]);
 
-  if (authPending || loading) return <AuthChecking />;
+  if (authPending) return <AuthChecking />;
+  if (loading) return <ResultDataLoading label="读取关系画像…" />;
   if (error || !r) {
     return (
       <ApiErrorPanel title="关系画像加载失败" message={error ?? "未找到结果"} backTo={{ to: "/", label: "返回首页" }} />

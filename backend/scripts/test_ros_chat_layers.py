@@ -30,8 +30,17 @@ def test_non_ros():
     assert build_ros_inquiry_layer("hello", {"test_id": "s01_self_female"}) == ""
 
 
+def test_couple_gap():
+    layer = build_ros_inquiry_layer(
+        "我在看 ROS 双人报告里的层间差距。\n维度：关系走向",
+        {"test_id": "s02_ros_female"},
+    )
+    assert "双人层间差距" in layer
+
+
 if __name__ == "__main__":
     test_layer_inquiry()
     test_blind_spot()
+    test_couple_gap()
     test_non_ros()
     print("ok")

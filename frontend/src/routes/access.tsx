@@ -5,13 +5,12 @@ import { z } from "zod";
 import { HintButton } from "@/components/HintButton";
 import { toast } from "sonner";
 import { ArrowLeft, KeyRound, Sparkles, ShieldCheck, Mail } from "lucide-react";
-import { markProductAccess } from "@/lib/accessGate";
 import { lovecompassApi } from "@/lib/lovecompassApi";
 import { resetPresentationSeed } from "@/lib/shufflePresentation";
+import { applyRedemptionAndRoute } from "@/lib/productFlow";
 import {
   genderForAccess,
   persistAccessGender,
-  resolvePostRedeemTarget,
   suiteSlugForRedemption,
 } from "@/lib/productAccessFlow";
 import {
@@ -98,34 +97,22 @@ function AccessPage() {
         gender: pickedGender ?? undefined,
       });
       const verifiedSuiteSlug = res.suiteSlug ?? suiteSlug;
-      markProductAccess(productId, verifiedSuiteSlug, res.redemptionEventId);
-      if (typeof window !== "undefined") {
-        sessionStorage.setItem(`${productId}:tier`, suiteTier);
-      }
       toast.success("解锁成功");
 
-      const target = resolvePostRedeemTarget({
+      const route = applyRedemptionAndRoute({
+        productId,
         verifiedSuiteSlug,
         suiteTier,
+        redemptionEventId: res.redemptionEventId,
         pickedGender,
         redirect: search.redirect,
         backendRedirect: res.redirect,
       });
 
-      if (target.kind === "run") {
-        resetPresentationSeed(target.suiteSlug);
-        nav({ to: "/tests/$id/run", params: { id: target.suiteSlug } });
-        return;
+      if (route.to === "/tests/$id/run") {
+        resetPresentationSeed(route.params.id);
       }
-      if (target.kind === "ros-start") {
-        nav({ to: "/ros/start" });
-        return;
-      }
-      nav({
-        to: "/tests/$id",
-        params: { id: target.productId },
-        search: { tier: target.tier, gender: target.gender },
-      });
+      void nav(route);
     } catch (e) {
       const msg = (e as Error).message || "兑换码无效或已被使用";
       toast.error(msg, { description: getApiErrorHint(msg) ?? undefined });

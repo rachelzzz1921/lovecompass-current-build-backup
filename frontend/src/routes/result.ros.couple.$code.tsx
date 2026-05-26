@@ -9,6 +9,8 @@ import { formatApiErrorMessage } from "@/lib/apiErrors";
 import { mapApiCouplePayload } from "@/lib/mapRosCoupleResult";
 import { lovecompassApi } from "@/lib/lovecompassApi";
 import { AuthChecking, useRequireAuth } from "@/lib/requireAuth";
+import { takeResultPrefetch } from "@/lib/resultPrefetchCache";
+import { ResultDataLoading } from "@/components/ResultDataLoading";
 
 export const Route = createFileRoute("/result/ros/couple/$code")({
   ssr: false,
@@ -33,6 +35,17 @@ function CouplePage() {
   useEffect(() => {
     if (authPending) return;
     let cancelled = false;
+    const normalized = code.trim().toUpperCase();
+
+    const cached = takeResultPrefetch(`couple:${normalized}`);
+    if (cached?.kind === "ros-couple" && cached.code === normalized) {
+      setR(mapApiCouplePayload(cached.data));
+      const participants = cached.data.participants as { initiatorAttemptId?: string } | undefined;
+      setInitiatorAttemptId(participants?.initiatorAttemptId || undefined);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     lovecompassApi
       .getRosCoupleReport(code)
@@ -60,7 +73,33 @@ function CouplePage() {
     };
   }, [authPending, code]);
 
-  if (authPending || loading) return <AuthChecking />;
+  useEffect(() => {
+    if (!r) return;
+    const mode = r.ai_content?.mode;
+    if (mode && mode !== "deterministic") return;
+    let ignore = false;
+    const timer = window.setTimeout(() => {
+      lovecompassApi
+        .getRosCoupleReport(code)
+        .then((res) => {
+          if (ignore) return;
+          const next = mapApiCouplePayload(res.couple);
+          if (next.ai_content?.mode && next.ai_content.mode !== mode) {
+            setR(next);
+            const participants = res.couple.participants as { initiatorAttemptId?: string } | undefined;
+            setInitiatorAttemptId(participants?.initiatorAttemptId || undefined);
+          }
+        })
+        .catch(() => undefined);
+    }, 8000);
+    return () => {
+      ignore = true;
+      window.clearTimeout(timer);
+    };
+  }, [code, r]);
+
+  if (authPending) return <AuthChecking />;
+  if (loading) return <ResultDataLoading label="读取双人报告…" />;
 
   if (waitingPartner) {
     return (

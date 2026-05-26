@@ -42,8 +42,6 @@ export function RosCoupleCompare({
   result: RosCoupleResult;
   initiatorAttemptId?: string;
 }) {
-  const [open, setOpen] = useState<string | null>(null);
-
   const maxGapKey = useMemo(() => {
     let best = "ev";
     let bestGap = 0;
@@ -56,6 +54,19 @@ export function RosCoupleCompare({
     }
     return best;
   }, [result.layerCompare]);
+
+  const [open, setOpen] = useState<string | null>(() => {
+    let best = "ev";
+    let bestGap = 0;
+    for (const l of LAYERS) {
+      const g = result.layerCompare?.[l.key]?.gap ?? 0;
+      if (g > bestGap) {
+        bestGap = g;
+        best = l.key;
+      }
+    }
+    return bestGap >= 10 ? best : null;
+  });
 
   return (
     <section>
@@ -92,7 +103,7 @@ export function RosCoupleCompare({
               >
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-[10px] font-mono text-white/35">{l.code}</span>
+                    <span className="text-[11px] text-white/50 w-6 shrink-0">{i + 1}</span>
                     <span className="text-sm text-white/90">{dim?.label ?? cmp?.label}</span>
                     {isMaxGap ? (
                       <span className="text-[9px] px-1.5 py-0.5 rounded text-amber-200/80 bg-amber-500/10">
@@ -163,6 +174,13 @@ export function RosCoupleCompare({
                               告诉 AI 分析师 →
                             </Link>
                           ) : null}
+                        </div>
+                      ) : null}
+
+                      {(cmp.you_evidence || cmp.ta_evidence) ? (
+                        <div className="space-y-2 text-xs text-white/65 leading-relaxed">
+                          {cmp.you_evidence ? <p>{cmp.you_evidence}</p> : null}
+                          {cmp.ta_evidence ? <p>{cmp.ta_evidence}</p> : null}
                         </div>
                       ) : null}
 

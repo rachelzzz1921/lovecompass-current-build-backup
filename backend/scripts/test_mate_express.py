@@ -7,6 +7,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.mate_express import (
     asset_module_label,
+    build_module_market_mapping,
     footer_quotes_for_position,
     match_evidence_triggers,
     module_display_label,
@@ -44,6 +45,16 @@ def test_evidence_trigger_female() -> None:
     assert out and "场域感" in out
 
 
+def test_module_market_mapping_unique() -> None:
+    fs1 = build_module_market_mapping(code="FS1", label="吸引力资产", display="是核心竞争力", score=82.0)
+    fs2 = build_module_market_mapping(code="FS2", label="情感价值输出", display="是重要资产", score=72.0)
+    fs3 = build_module_market_mapping(code="FS3", label="现实自主性", display="表现稳定", score=58.0)
+    assert fs1 != fs2 != fs3
+    assert "档案呈现" not in fs1
+    assert "在「" not in fs3
+    assert "婚恋市场" in fs3 or "独立" in fs3
+
+
 def test_footer_quotes() -> None:
     quotes = footer_quotes_for_position("让人想留下来的人", count=3)
     assert len(quotes) == 3
@@ -54,5 +65,6 @@ if __name__ == "__main__":
     test_risk_mapping()
     test_module_display_risk()
     test_evidence_trigger_female()
+    test_module_market_mapping_unique()
     test_footer_quotes()
     print("mate express tests passed")

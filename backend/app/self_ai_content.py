@@ -8,6 +8,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from psycopg.types.json import Jsonb
+
 from app.ai_adapter import get_ai_adapter
 from app.ai_context_assembler import assemble_self_context
 from app.ai_director import build_director_prompt
@@ -70,11 +72,32 @@ GROWTH_PATHS: dict[str, dict[str, Any]] = {
     "薛宝钗": {"target": "贾探春", "key_dimension": "SA3", "delta": 10, "changes": [
         "偶尔暴露脆弱不等于失控", "亲密不必永远完美得体", "对方会更靠近真实的你",
     ]},
+    "贾探春": {"target": "北静王", "key_dimension": "SA6", "delta": 12, "changes": [
+        "原则之外留一点柔软", "不必事事都自己扛", "关系可以既清醒又温暖",
+    ]},
     "妙玉": {"target": "柳湘莲", "key_dimension": "SA3", "delta": 12, "changes": [
         "撤回之后记得留一句「我还在」", "标准高不等于永远独处", "值得的人会在你的节奏里靠近",
     ]},
+    "柳湘莲": {"target": "北静王", "key_dimension": "SA3", "delta": 10, "changes": [
+        "独立与靠近可以并存", "不必用距离证明清醒", "稳定的人会让你更愿意停留",
+    ]},
+    "史湘云": {"target": "薛宝钗", "key_dimension": "SA5", "delta": 12, "changes": [
+        "热烈里多一层可持续的节奏", "冲突后恢复得更快", "真实不必总是即兴",
+    ]},
+    "王熙凤": {"target": "贾探春", "key_dimension": "SA4", "delta": 10, "changes": [
+        "边界之外也能表达需要", "不必永远做关系里的强者", "被照顾不等于失去掌控",
+    ]},
     "袭人": {"target": "薛宝钗", "key_dimension": "SA4", "delta": 15, "changes": [
         "付出之前先问自己是否也被照顾", "说「我需要」不等于自私", "你值得被同样具体地珍视",
+    ]},
+    "蒋玉菡": {"target": "贾宝玉", "key_dimension": "SA1", "delta": 12, "changes": [
+        "你的付出不必总是无声", "被看见的需求也是爱的一部分", "关系可以既细腻又对等",
+    ]},
+    "北静王": {"target": "薛宝钗", "key_dimension": "SA6", "delta": 10, "changes": [
+        "分寸感里多一分 spontaneity", "稳定也可以有惊喜", "对方会感到你不仅可靠，也可亲近",
+    ]},
+    "贾雨村": {"target": "贾探春", "key_dimension": "SA5", "delta": 12, "changes": [
+        "复杂不必总是切换面具", "识别自己此刻要的是空间还是连接", "真实比一致更能留住对的人",
     ]},
 }
 

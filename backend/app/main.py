@@ -1,4 +1,14 @@
 from __future__ import annotations
+
+from pathlib import Path
+
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv(Path(__file__).resolve().parents[1] / ".env")
+except ImportError:
+    pass
+
 import os
 import uuid
 from decimal import Decimal

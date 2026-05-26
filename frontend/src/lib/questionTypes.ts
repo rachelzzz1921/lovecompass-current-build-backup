@@ -45,6 +45,8 @@ export type ApiQuestion = {
   pinOrder?: number | null;
   scoringSensitive?: string | null;
   foundationPinned?: boolean;
+  /** e.g. "PR2-01 == want" — evaluated against prior answer output values */
+  showIf?: string | null;
 };
 
 export type AnswerPayload =

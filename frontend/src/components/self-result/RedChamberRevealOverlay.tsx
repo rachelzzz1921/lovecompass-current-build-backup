@@ -50,7 +50,14 @@ export function RedChamberRevealOverlay({ open, character, onClose }: Props) {
           <button
             type="button"
             onClick={onClose}
-            className="absolute top-5 right-5 w-9 h-9 rounded-full grid place-items-center text-muted-foreground hover:text-foreground transition z-10"
+            className="absolute top-5 right-5 z-10 text-[11px] font-mono tracking-wide text-muted-foreground hover:text-foreground transition px-2.5 py-1 rounded-md border border-border/40 bg-background/50"
+          >
+            跳过动画
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="absolute top-5 left-5 w-9 h-9 rounded-full grid place-items-center text-muted-foreground hover:text-foreground transition z-10 border border-border/40 bg-background/40"
             aria-label="关闭"
           >
             <X className="h-5 w-5" />

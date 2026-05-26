@@ -3,19 +3,31 @@ import type { ProductSet, SubmitAttemptResponse } from "@/lib/resultRoutes";
 export type PendingAttemptContext = {
   promise: Promise<SubmitAttemptResponse>;
   productSet: ProductSet;
+  suiteSlug?: string | null;
+  routeId?: string | null;
+  /** Partner (ROS/MATE couple) submit — navigate to couple result after analyzing. */
+  partnerRelationCode?: string | null;
 };
 
 const SUBMIT_STASH_KEY = "analyzing:submitResult";
+const SUBMIT_CTX_KEY = "analyzing:submitCtx";
 
 let pending: PendingAttemptContext | null = null;
-let handlerAttached = false;
 
 /** Register in-flight submit; analyzing page consumes it once. */
 export function beginPendingAttemptSubmit(ctx: PendingAttemptContext): void {
   pending = ctx;
-  handlerAttached = false;
   if (typeof window !== "undefined") {
     window.sessionStorage.removeItem(SUBMIT_STASH_KEY);
+    window.sessionStorage.setItem(
+      SUBMIT_CTX_KEY,
+      JSON.stringify({
+        productSet: ctx.productSet,
+        suiteSlug: ctx.suiteSlug ?? null,
+        routeId: ctx.routeId ?? null,
+        partnerRelationCode: ctx.partnerRelationCode ?? null,
+      }),
+    );
   }
   void ctx.promise.then((res) => {
     if (typeof window === "undefined") return;
@@ -28,15 +40,28 @@ export function peekPendingAttemptSubmit(): PendingAttemptContext | null {
   return pending;
 }
 
-export function clearPendingAttemptSubmit(): void {
-  pending = null;
-  handlerAttached = false;
+export function peekStashedSubmitContext(): Pick<
+  PendingAttemptContext,
+  "productSet" | "partnerRelationCode" | "suiteSlug" | "routeId"
+> | null {
+  if (typeof window === "undefined") return null;
+  const raw = window.sessionStorage.getItem(SUBMIT_CTX_KEY);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as Pick<
+      PendingAttemptContext,
+      "productSet" | "partnerRelationCode" | "suiteSlug" | "routeId"
+    >;
+  } catch {
+    return null;
+  }
 }
 
-export function markPendingHandlerAttached(): boolean {
-  if (handlerAttached) return false;
-  handlerAttached = true;
-  return true;
+export function clearPendingAttemptSubmit(): void {
+  pending = null;
+  if (typeof window !== "undefined") {
+    window.sessionStorage.removeItem(SUBMIT_CTX_KEY);
+  }
 }
 
 export function hasPendingAttemptSubmit(): boolean {

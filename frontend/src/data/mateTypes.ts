@@ -52,12 +52,28 @@ export type MateSimulator = {
   title: string;
   slogan: string;
   diagnosis: string;
-  slider: { name: string; boostPercent: number; method: string };
+  slider: { name: string; boostPercent: number; method: string; max?: number };
+  /** 支持 {{boost}} {{baseline}} {{projected}} 占位符 */
   dynamicText: string;
   baselineDisplay: number;
+  baselineLabel?: string;
+  projectedDisplay?: number;
+  leverEvidence?: string;
+  peerAxis?: { label: string; value: number };
+  targetArchetype?: string;
 };
 
-export type MateAdviceV4 = { goodNews: string; warning: string };
+export type MateInsight = {
+  kind: "strength" | "watch" | "match" | "growth";
+  title: string;
+  body: string;
+};
+
+export type MateAdviceV4 = {
+  goodNews: string;
+  warning: string;
+  oneChange?: string;
+};
 
 export type MateMatchZone = {
   sliderTitle: string;
@@ -67,6 +83,11 @@ export type MateMatchZone = {
   matchingReason: string;
   meetScene: string;
   riskPortrait: string;
+  sweetScore?: number;
+  upperScore?: number;
+  lowerScore?: number;
+  stableProbability?: number;
+  marriageAdaptScore?: number;
 };
 
 export type MateLensGridItem = { title: string; desc: string };
@@ -121,11 +142,26 @@ export type MateTimelineNode = {
   advice?: string;
 };
 
+export type MatePartnerPortrait = {
+  id: string;
+  name: string;
+  tags: string[];
+  snapshot: string;
+  matchScore?: number;
+  stableProbability?: number;
+};
+
 export type MateTraitProfile = {
   title: string;
   traits: Record<string, number>;
   summary: string;
   venues?: string[];
+  matchScore?: number;
+  stableProbability?: number;
+  marriageAdaptScore?: number;
+  bandLabel?: string;
+  portraits?: MatePartnerPortrait[];
+  warning?: string;
 };
 
 export type MateSweetSpot = {
@@ -134,6 +170,11 @@ export type MateSweetSpot = {
   successRate: number;
   reason: string;
   summary: string;
+  matchScore?: number;
+  stableProbability?: number;
+  marriageAdaptScore?: number;
+  bandLabel?: string;
+  portraits?: MatePartnerPortrait[];
 };
 
 export type MateAdviceCard = {
@@ -199,19 +240,19 @@ export type MateResult = {
   lensGrid?: MateLensGridItem[];
   footerMarquee?: { marquee: string[]; intervalMs: number };
   aiContent?: MateAiContent;
+  insights?: MateInsight[];
 };
 
 export const MATE_NAV_SECTIONS = [
-  { id: "identity", label: "档案", icon: "📍" },
-  { id: "modules", label: "雷达", icon: "🔬" },
-  { id: "simulator", label: "模拟", icon: "⚙️" },
+  { id: "modules", label: "得分", icon: "📊" },
+  { id: "identity", label: "档案", icon: "📄" },
   { id: "coordinate", label: "坐标", icon: "📍" },
-  { id: "reverse", label: "镜像", icon: "🪞" },
-  { id: "observe", label: "观察", icon: "👁" },
+  { id: "simulator", label: "模拟", icon: "🎛️" },
+  { id: "observe", label: "观察", icon: "🪞" },
   { id: "rehearse", label: "预演", icon: "🎬" },
   { id: "advice", label: "建议", icon: "📋" },
   { id: "match", label: "匹配", icon: "💡" },
   { id: "lens", label: "透视", icon: "🔭" },
 ] as const;
 
-export type MateNavId = (typeof MATE_NAV_SECTIONS)[number]["id"] | "simulator" | "reverse";
+export type MateNavId = (typeof MATE_NAV_SECTIONS)[number]["id"];

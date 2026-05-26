@@ -4,6 +4,12 @@ import {
   appearanceTierLabel,
   APPEARANCE_SLIDER_FOOTNOTE,
 } from "@/lib/appearanceSlider";
+import {
+  feedbackForValue,
+  referencePrimaryText,
+  referenceRowAt,
+  tierLabelAt,
+} from "@/lib/sliderGuidance";
 
 type Props = {
   question: ApiQuestion;
@@ -11,8 +17,12 @@ type Props = {
   onChange: (payload: AnswerPayload) => void;
 };
 
-const optionKey = (opt: QuestionOption, index: number) =>
-  opt.key || String.fromCharCode(65 + index);
+const optionDisplayLabel = (displayIndex: number) =>
+  String.fromCharCode(65 + displayIndex);
+
+/** Original bank key for scoring — independent of shuffled display order. */
+const canonicalOptionKey = (opt: QuestionOption, displayIndex: number) =>
+  opt.key || String.fromCharCode(65 + (opt.storageIndex ?? displayIndex));
 
 const optionStorageIndex = (opt: QuestionOption, displayIndex: number) =>
   opt.storageIndex ?? displayIndex;
@@ -136,31 +146,33 @@ function AppearanceSlider({
   );
 }
 
-export function QuestionRenderer({ question, value, onChange }: Props) {
-  if (question.kind === "slider") {
-    const min = question.ui.min ?? 0;
-    const max = question.ui.max ?? 100;
-    const hasExplicitValue = "value" in (value ?? {});
-    const current = hasExplicitValue
-      ? Number((value as { value: number }).value)
-      : Math.round((min + max) / 2);
-    const feedback = question.ui.feedback?.find(
-      (f) => current >= f.range[0] && current <= f.range[1],
-    );
+function GenericSlider({
+  question,
+  current,
+  hasExplicitValue,
+  onChange,
+}: {
+  question: ApiQuestion;
+  current: number;
+  hasExplicitValue: boolean;
+  onChange: (payload: AnswerPayload) => void;
+}) {
+  const min = question.ui.min ?? 0;
+  const max = question.ui.max ?? 100;
+  const feedback = feedbackForValue(current, question.ui.feedback);
+  const activeRef = referenceRowAt(current, question.ui.reference);
+  const tierLabel = tierLabelAt(current, question.ui.tierLabels);
+  const refText = activeRef ? referencePrimaryText(activeRef) : "";
+  const refBehavior = activeRef?.behavior?.trim();
 
-    if (question.ui.displayMode === "appearance") {
-      return (
-        <AppearanceSlider
-          question={question}
-          current={current}
-          hasExplicitValue={hasExplicitValue}
-          onChange={onChange}
-        />
-      );
-    }
-
-    return (
-      <div className="mt-6 rounded-2xl border border-border/60 bg-secondary/20 p-4">
+  return (
+    <div className="mt-6 space-y-3">
+      <div className="rounded-2xl border border-border/60 bg-secondary/20 p-4">
+        {tierLabel && (
+          <div className="text-center mb-4">
+            <div className="font-display text-xl text-gradient-violet">{tierLabel}</div>
+          </div>
+        )}
         <input
           type="range"
           min={min}
@@ -179,6 +191,7 @@ export function QuestionRenderer({ question, value, onChange }: Props) {
             className="mt-3 w-full rounded-xl border border-border/70 px-3 py-2 text-xs font-mono tracking-[0.15em] text-muted-foreground transition hover:border-[oklch(0.68_0.18_285_/_0.55)] hover:text-foreground"
           >
             使用当前值 {current}
+            {tierLabel ? ` · ${tierLabel}` : ""}
           </button>
         )}
         <div className="mt-3 flex justify-between text-[11px] text-muted-foreground">
@@ -186,10 +199,94 @@ export function QuestionRenderer({ question, value, onChange }: Props) {
           <span className="font-mono text-foreground/90">{current}</span>
           <span>{question.ui.maxLabel ?? max}</span>
         </div>
-        {feedback && (
+        {feedback?.text && (
           <p className="mt-3 text-sm text-foreground/75 leading-relaxed">{feedback.text}</p>
         )}
+        {!feedback?.text && refText && (
+          <div className="mt-3 rounded-xl border border-[oklch(0.68_0.18_285_/_0.25)] bg-[oklch(0.50_0.20_285_/_0.08)] p-3.5">
+            <p className="text-sm text-foreground/90 leading-relaxed">{refText}</p>
+            {refBehavior && (
+              <p className="mt-1.5 text-xs text-muted-foreground leading-relaxed">{refBehavior}</p>
+            )}
+          </div>
+        )}
       </div>
+
+      {question.ui.reference && question.ui.reference.length > 0 && !feedback?.text && (
+        <details className="rounded-xl border border-border/50 bg-secondary/10 px-3 py-2">
+          <summary className="cursor-pointer text-xs font-mono tracking-[0.12em] text-muted-foreground py-1.5">
+            展开参考说明（帮助校准，不是打分标准）
+          </summary>
+          <div className="mt-2 overflow-x-auto">
+            <table className="w-full min-w-[420px] text-left text-[11px]">
+              <thead>
+                <tr className="text-muted-foreground border-b border-border/40">
+                  <th className="py-2 pr-2 font-mono w-10">分值</th>
+                  <th className="py-2 pr-2">说明</th>
+                  {question.ui.reference.some((row) => row.behavior) && (
+                    <th className="py-2">行为参考</th>
+                  )}
+                </tr>
+              </thead>
+              <tbody>
+                {question.ui.reference.map((row) => {
+                  const perception = row.perception ?? row.desc ?? "";
+                  const active = row.score === current;
+                  return (
+                    <tr
+                      key={row.score}
+                      className={`border-b border-border/30 ${active ? "bg-[oklch(0.50_0.20_285_/_0.10)]" : ""}`}
+                    >
+                      <td className="py-2 pr-2 font-mono tabular-nums text-foreground/80">{row.score}</td>
+                      <td className="py-2 pr-2 text-foreground/85">{perception}</td>
+                      {question.ui.reference?.some((r) => r.behavior) && (
+                        <td className="py-2 text-muted-foreground">{row.behavior ?? "—"}</td>
+                      )}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </details>
+      )}
+
+      {question.ui.footnote && (
+        <p className="text-[11px] text-muted-foreground leading-relaxed whitespace-pre-line">
+          {question.ui.footnote}
+        </p>
+      )}
+    </div>
+  );
+}
+
+export function QuestionRenderer({ question, value, onChange }: Props) {
+  if (question.kind === "slider") {
+    const min = question.ui.min ?? 0;
+    const max = question.ui.max ?? 100;
+    const hasExplicitValue = "value" in (value ?? {});
+    const current = hasExplicitValue
+      ? Number((value as { value: number }).value)
+      : Math.round((min + max) / 2);
+
+    if (question.ui.displayMode === "appearance") {
+      return (
+        <AppearanceSlider
+          question={question}
+          current={current}
+          hasExplicitValue={hasExplicitValue}
+          onChange={onChange}
+        />
+      );
+    }
+
+    return (
+      <GenericSlider
+        question={question}
+        current={current}
+        hasExplicitValue={hasExplicitValue}
+        onChange={onChange}
+      />
     );
   }
 
@@ -260,8 +357,10 @@ export function QuestionRenderer({ question, value, onChange }: Props) {
     );
   }
 
-  const selected =
-    "optionKey" in (value ?? {}) ? (value as { optionKey: string }).optionKey : undefined;
+  const selectedIndex =
+    "optionIndex" in (value ?? {})
+      ? (value as { optionIndex: number }).optionIndex
+      : undefined;
   const grid = question.kind === "mood" ? "grid grid-cols-2 md:grid-cols-4 gap-2.5" : "space-y-2.5";
   return (
     <div className="mt-6">
@@ -272,17 +371,17 @@ export function QuestionRenderer({ question, value, onChange }: Props) {
       )}
       <div className={grid}>
         {question.options.map((opt, i) => {
-          const key = optionKey(opt, i);
-          const active = selected === key;
+          const storageIdx = optionStorageIndex(opt, i);
+          const active = selectedIndex === storageIdx;
           const binary = question.kind === "binary";
           return (
             <button
-              key={key}
+              key={`${question.id}-${storageIdx}`}
               data-testid="option-answer"
               onClick={() =>
                 onChange({
-                  optionKey: key,
-                  optionIndex: optionStorageIndex(opt, i),
+                  optionKey: canonicalOptionKey(opt, i),
+                  optionIndex: storageIdx,
                 })
               }
               className={`group w-full text-left flex items-start gap-3.5 p-3.5 rounded-xl border transition-all duration-200 ${active ? "border-[oklch(0.68_0.18_285_/_0.75)] bg-[oklch(0.50_0.20_285_/_0.14)] glow-violet" : "border-border/70 hover:border-[oklch(0.68_0.18_285_/_0.55)] hover:bg-[oklch(0.50_0.20_285_/_0.07)]"} ${binary ? "min-h-28" : ""}`}
@@ -290,7 +389,7 @@ export function QuestionRenderer({ question, value, onChange }: Props) {
               <span
                 className={`shrink-0 w-6 h-6 rounded-md grid place-items-center text-[11px] font-mono transition-all ${active ? "bg-gradient-to-br from-[oklch(0.68_0.18_285)] to-[oklch(0.50_0.20_285)] text-[oklch(0.10_0.018_270)] border-transparent" : "border border-border/70 text-muted-foreground group-hover:text-foreground/90"}`}
               >
-                {opt.icon ? "·" : key}
+                {opt.icon ? "·" : optionDisplayLabel(i)}
               </span>
               <span className="text-[14px] leading-relaxed pt-0.5 text-foreground/90">
                 {opt.text}

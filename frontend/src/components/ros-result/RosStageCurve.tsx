@@ -2,7 +2,19 @@ import { REL_STAGES } from "@/data/rosTypes";
 
 const STAGE_Y = [72, 22, 48, 36, 78, 92, 58, 30, 8];
 
-export function RosStageCurve({ currentId }: { currentId: number }) {
+import type { ExampleSubject } from "@/lib/exampleSubjectCopy";
+
+export function RosStageCurve({
+  currentId,
+  exampleMode = false,
+  exampleSubject,
+  examplePartner,
+}: {
+  currentId: number;
+  exampleMode?: boolean;
+  exampleSubject?: ExampleSubject;
+  examplePartner?: string;
+}) {
   const W = 440, H = 220, PAD_X = 28, PAD_TOP = 28, PAD_BOTTOM = 30;
   const n = REL_STAGES.length;
   const usableH = H - PAD_TOP - PAD_BOTTOM;
@@ -22,6 +34,12 @@ export function RosStageCurve({ currentId }: { currentId: number }) {
   }
 
   const stage = REL_STAGES[currentId - 1];
+  const markerLabel =
+    exampleMode && exampleSubject && examplePartner
+      ? `${exampleSubject.name}×${examplePartner}`
+      : exampleMode && exampleSubject
+        ? "关系在此"
+        : "你在这里";
 
   return (
     <section>
@@ -73,9 +91,9 @@ export function RosStageCurve({ currentId }: { currentId: number }) {
               </g>
             );
           })}
-          <g transform={`translate(${xs[curIdx] - 28} ${ys[curIdx] + (STAGE_Y[curIdx] > 50 ? -44 : 30)})`}>
-            <rect width={56} height={18} rx={9} fill="#6366f1" />
-            <text x={28} y={12} textAnchor="middle" fontSize="9.5" fill="#fff" fontFamily="system-ui">你在这里</text>
+          <g transform={`translate(${xs[curIdx] - (markerLabel.length > 6 ? 38 : 28)} ${ys[curIdx] + (STAGE_Y[curIdx] > 50 ? -44 : 30)})`}>
+            <rect width={markerLabel.length > 6 ? 76 : 56} height={18} rx={9} fill="#6366f1" />
+            <text x={(markerLabel.length > 6 ? 76 : 56) / 2} y={12} textAnchor="middle" fontSize="9.5" fill="#fff" fontFamily="system-ui">{markerLabel}</text>
           </g>
         </svg>
         <div className="mt-3 pt-3 border-t border-white/8 text-sm text-white">

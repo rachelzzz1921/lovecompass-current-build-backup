@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from app.json_utils import coerce_dict
+from app.mate_pair_supplement import build_pair_supplement_analysis
 
 DATA_DIR = Path(__file__).resolve().parents[1] / "data"
 
@@ -151,6 +152,7 @@ def build_couple_payload(
     code: str,
     initiator: dict[str, Any],
     partner: dict[str, Any],
+    conn: Any | None = None,
 ) -> dict[str, Any]:
     you_g = _gender(initiator)
     ta_g = _gender(partner)
@@ -237,6 +239,12 @@ def build_couple_payload(
         else f"你们的问题不是条件，而是相处节奏。{advice_base}，比反复确认更有效。"
     )
 
+    pair_supplement = build_pair_supplement_analysis(
+        initiator=initiator,
+        partner=partner,
+        conn=conn,
+    )
+
     return {
         "model": "MATE_PAIR_V1",
         "engine": "MATE_PAIR_ENGINE_V1.0",
@@ -245,6 +253,14 @@ def build_couple_payload(
         "participants": {
             "initiatorAttemptId": str(initiator.get("id") or ""),
             "partnerAttemptId": str(partner.get("id") or ""),
+            "initiatorSuiteTier": (
+                "lite" if "_lite" in str(initiator.get("suite_slug") or "") else "full"
+            ),
+            "partnerSuiteTier": (
+                "lite" if "_lite" in str(partner.get("suite_slug") or "") else "full"
+            ),
+            "initiatorSuiteSlug": str(initiator.get("suite_slug") or "") or None,
+            "partnerSuiteSlug": str(partner.get("suite_slug") or "") or None,
             "youGender": you_g,
             "taGender": ta_g,
             "youPosition": you_pos,
@@ -307,4 +323,5 @@ def build_couple_payload(
             "problem": advice_problem,
             "base_suggestion": advice_base,
         },
+        **pair_supplement,
     }

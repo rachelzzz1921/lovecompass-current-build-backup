@@ -89,7 +89,7 @@
         "anxious_low_visibility": {
           "self": "林黛玉型（焦虑依恋）",
           "mate": "被读懂之前的人",
-          "linkageInsight": "你在关系里高度敏感，需要频繁的情感确认，但你的市场显示度偏低——能发现你的人本来就少，能坚持到真正读懂你的人更少。你最需要的，是先把气质与存在感做上来，让对的人能更快发现你。"
+          "linkageInsight": "你在关系里高度敏感，需要频繁的情感确认，但第一印象偏低调——能发现你的人本来就少，能坚持到真正读懂你的人更少。你最需要的，是先把气质与存在感做上来，让对的人能更快发现你。"
         },
         "avoidant_high_retention": {
           "self": "妙玉型（回避依恋）",
@@ -137,6 +137,12 @@
   },
   "aiPromptHints": {
     "injectOrder": ["SELF attachment + dimensions", "ROS layers if present", "MATE axes + position if present", "phraseLibrary tonePrinciples"],
-    "forbiddenOutputs": ["原始 SA/RK/FS 数字", "劝分", "你只配", "学历低/收入低等裸标签"]
+    "forbiddenOutputs": [
+      "任何内部模块代号（SA/FS/MS/AT/IN/CO/EV/RK/P1–P6 等字母编号）",
+      "原始分数与 percent",
+      "劝分",
+      "你只配",
+      "学历低/收入低等裸标签"
+    ]
   }
 }

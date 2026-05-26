@@ -186,6 +186,8 @@ def load_shared_skill(slug: str) -> str:
 
 
 def build_mirror_tone_layer() -> str:
+    from app.semantic_translation import FORBIDDEN_RULES_MARKDOWN
+
     lib = load_phrase_library()
     principles = lib.get("tonePrinciples") or []
     forbidden = (lib.get("aiPromptHints") or {}).get("forbiddenOutputs") or []
@@ -205,6 +207,8 @@ def build_mirror_tone_layer() -> str:
 {chr(10).join(band_lines) or "- 低分用「成长空间」「还在路上」等正向包装"}
 
 禁止输出：{'、'.join(forbidden) or "原始分数、你只配、裸标签"}
+
+{FORBIDDEN_RULES_MARKDOWN}
 {skill_block}
 """.strip()
 

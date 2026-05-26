@@ -50,13 +50,19 @@ class ZhipuAIAdapter:
 
     def generate(self, prompt: str, *, json_mode: bool = False) -> str:
         url = self.base_url.rstrip("/") + "/chat/completions"
+        system = (
+            "你是 LoveCompass 婚恋分析引擎的表达层。后端已完成全部计算；"
+            "你只负责基于给定原子与词库素材，严格按 JSON 结构输出。"
+            "优先级：指令遵循 > 结构化 > 不创造新标签 > 文风。"
+            "禁止重新算分、禁止恋爱剧情、禁止编造输入中不存在的信息。"
+        )
         payload: dict[str, Any] = {
             "model": self.model,
             "messages": [
-                {"role": "system", "content": "你是 LoveCompass 婚恋档案导演。后端已完成计算；你只负责基于给定原子与素材表达，禁止重新算分或创造新标签。"},
+                {"role": "system", "content": system},
                 {"role": "user", "content": prompt},
             ],
-            "temperature": 0.7,
+            "temperature": 0.25 if json_mode else 0.45,
         }
         if json_mode:
             payload["response_format"] = {"type": "json_object"}

@@ -7,8 +7,19 @@ export type Dimension = {
   /** 套一 scoreDisplayRules 描述性文案，禁止向用户暴露难堪原话 */
   displaySummary?: string;
   coreQuestion?: string;
+  /** 示范档案：人物侧写里对这一维的推演说明 */
+  profileNote?: string;
+  /** Layer B 维度长描述 */
+  detail?: string;
 };
-export type MatchType = { code: string; name: string; pct: number; tagline: string; top?: boolean };
+export type MatchType = {
+  code: string;
+  name: string;
+  pct: number;
+  tagline: string;
+  top?: boolean;
+  deepExplore?: { title: string; body: string };
+};
 
 export type Behavior = { scene: string; title: string; body: string };
 

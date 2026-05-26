@@ -15,14 +15,14 @@ export function RosCoupleBond({ result }: { result: RosCoupleResult }) {
           style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.08)" }}
         >
           <p className="text-sm text-white/65 leading-relaxed">
-            做完套一「自我关系模式」，可以解锁你们依恋类型的碰撞解读——看见感知差距的深层原因。
+            做完 SELF「自我关系模式」，可以解锁你们依恋类型的碰撞解读——看见感知差距的深层原因。
           </p>
           <Link
             to="/"
             className="inline-flex items-center gap-2 text-sm px-4 py-2 rounded-full text-white"
             style={{ background: "linear-gradient(135deg,#6366f1,#8b5cf6)" }}
           >
-            去做套一 SELF →
+            去做 SELF →
           </Link>
         </div>
       </section>
@@ -82,7 +82,7 @@ export function RosCoupleBond({ result }: { result: RosCoupleResult }) {
 
         {partial && !bothUnlocked ? (
           <p className="text-xs text-white/45 pt-2">
-            对方完成套一后，碰撞解读会更完整。
+            对方完成 SELF 后，碰撞解读会更完整。
           </p>
         ) : null}
       </div>

@@ -102,10 +102,40 @@ def test_mate_context_model_safe() -> None:
     assert ctx.user_traits
 
 
+def test_polish_narrative_copy_strips_internal_dash_leadin() -> None:
+    from app.semantic_translation import polish_narrative_copy, sanitize_text
+
+    raw = "市场显示度不低——你的气质和才识会被记住；真正拖后腿的是「第一印象像难靠近」。"
+    polished = polish_narrative_copy(raw)
+    assert "市场显示度" not in polished
+    assert polished.startswith("你的气质")
+
+    cleaned = sanitize_text("风险净值偏低——相处里容易把小摩擦放大。")
+    assert "风险净值" not in cleaned
+    assert "相处" in cleaned
+
+
+def test_sanitize_user_facing_payload_preserves_structural_codes() -> None:
+    from app.semantic_translation import sanitize_user_facing_payload
+
+    payload = {
+        "dimensions": [{"code": "SA2", "label": "依恋焦虑", "displaySummary": "你的 SA2 偏高"}],
+        "ai_content": {
+            "insights": [{"kind": "watch", "title": "留意", "body": "AT 层需要更多耐心"}],
+        },
+    }
+    safe = sanitize_user_facing_payload(payload)
+    assert safe["dimensions"][0]["code"] == "SA2"
+    assert "SA2" not in safe["dimensions"][0]["displaySummary"]
+    assert "AT" not in safe["ai_content"]["insights"][0]["body"]
+
+
 if __name__ == "__main__":
     test_user_label_maps_internal_codes()
     test_scores_to_user_traits_no_codes()
     test_sanitize_replaces_internal_codes()
     test_guard_ai_output()
     test_mate_context_model_safe()
+    test_polish_narrative_copy_strips_internal_dash_leadin()
+    test_sanitize_user_facing_payload_preserves_structural_codes()
     print("semantic_translation=ok")

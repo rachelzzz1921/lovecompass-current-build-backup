@@ -1,0 +1,21 @@
+---
+description: MIRROR 三套题跳转与兑换动线 — 改路由或 access 相关代码时先读 mirror-product-flow skill
+globs: frontend/src/routes/{tests.*,access,ros.*,analyzing}.tsx,frontend/src/lib/{productRegistry,accessGate,productAccessFlow,productRoutes,resultRoutes}.ts,frontend/src/lib/productFlow/**
+alwaysApply: false
+---
+
+# 产品动线规则
+
+修改匹配文件时，**先阅读** `.cursor/skills/mirror-product-flow/SKILL.md`。
+
+## 必须遵守
+
+1. 页面跳转通过 `@/lib/productFlow`（`productFlowEngine`）决策，不在 route 组件里拼 `/access` 或 `/tests/.../run` URL。
+2. 付费套解锁判断用 `hasRedeemableSuiteAccess(productId, suiteSlug)`，不用单独的 `hasProductAccess(productId)`。
+3. Session 读写优先走 `productSessionStore`，不散落 `sessionStorage.setItem`。
+4. 流程元数据以 `productRegistry.ts` + `flowGraph.ts` 为准；ROS 多步入口是 flow graph 的 `rosStage` 步骤，不是特例硬编码。
+
+## 合并前
+
+- 跑 `backend/scripts/validate_all_suite_flows.py`（或 CI 同款）
+- 跑 `frontend` 下 `npm run test:flow`

@@ -52,6 +52,7 @@ export function markProductAccess(productId: string, suiteSlug: string, redempti
   if (redemptionEventId) {
     sessionStorage.setItem(`redemption:${productId}`, redemptionEventId);
   }
+  sessionStorage.setItem(`access:${productId}`, "1");
 }
 
 const PARTNER_CODE_KEY = "ros:partnerCode";

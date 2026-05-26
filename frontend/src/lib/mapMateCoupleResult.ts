@@ -1,4 +1,4 @@
-import type { MateCoupleResult } from "@/data/mateCoupleTypes";
+import type { MateCoupleCompareRow, MateCoupleResult } from "@/data/mateCoupleTypes";
 
 function asString(v: unknown, fallback = ""): string {
   return typeof v === "string" ? v : fallback;
@@ -7,6 +7,20 @@ function asString(v: unknown, fallback = ""): string {
 function asNumber(v: unknown, fallback = 0): number {
   const n = Number(v);
   return Number.isFinite(n) ? n : fallback;
+}
+
+function mapCompareRows(raw: unknown): MateCoupleCompareRow[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((item) => {
+    const row = item as Record<string, unknown>;
+    return {
+      label: asString(row.label),
+      you: asString(row.you),
+      ta: asString(row.ta),
+      verdict: asString(row.verdict),
+      badge: asString(row.badge, "ok"),
+    };
+  });
 }
 
 export function mapApiMateCouplePayload(raw: Record<string, unknown>): MateCoupleResult {
@@ -26,6 +40,11 @@ export function mapApiMateCouplePayload(raw: Record<string, unknown>): MateCoupl
       desc: asString(val?.desc),
     };
   }
+
+  const rhythmRaw = raw.rhythm_section as Record<string, unknown> | undefined;
+  const youScoreRaw = rhythmRaw?.youScore;
+  const taScoreRaw = rhythmRaw?.taScore;
+  const hasSupplement = Boolean(raw.condition_compare_table || raw.deal_items_table || raw.engine);
 
   return {
     code: asString(raw.code),
@@ -62,6 +81,46 @@ export function mapApiMateCouplePayload(raw: Record<string, unknown>): MateCoupl
       goodNews: asString(advice.goodNews),
       caution: asString(advice.caution),
       oneChange: asString(advice.oneChange),
+    },
+    pairSupplement: hasSupplement
+      ? {
+          supplementComplete: Boolean(raw.supplementComplete),
+          youSupplementComplete: Boolean(raw.youSupplementComplete),
+          taSupplementComplete: Boolean(raw.taSupplementComplete),
+          conditionCompareTable: mapCompareRows(raw.condition_compare_table),
+          dealItemsTable: mapCompareRows(raw.deal_items_table),
+          rhythmSection: {
+            label: asString(rhythmRaw?.label, "育儿分工灵活度"),
+            youScore:
+              youScoreRaw != null && Number.isFinite(Number(youScoreRaw)) ? Number(youScoreRaw) : null,
+            taScore:
+              taScoreRaw != null && Number.isFinite(Number(taScoreRaw)) ? Number(taScoreRaw) : null,
+            note: asString(rhythmRaw?.note),
+          },
+          attentionItems: Array.isArray(raw.attention_items)
+            ? raw.attention_items.map((item) => {
+                const row = item as Record<string, unknown>;
+                return {
+                  label: asString(row.label),
+                  message: asString(row.message),
+                  desc: asString(row.desc),
+                  badge: asString(row.badge, "warn"),
+                };
+              })
+            : [],
+        }
+      : undefined,
+    participants: {
+      initiatorSuiteTier:
+        participants.initiatorSuiteTier === "lite" || participants.initiatorSuiteTier === "full"
+          ? participants.initiatorSuiteTier
+          : undefined,
+      partnerSuiteTier:
+        participants.partnerSuiteTier === "lite" || participants.partnerSuiteTier === "full"
+          ? participants.partnerSuiteTier
+          : undefined,
+      initiatorSuiteSlug: asString(participants.initiatorSuiteSlug) || undefined,
+      partnerSuiteSlug: asString(participants.partnerSuiteSlug) || undefined,
     },
   };
 }

@@ -3,16 +3,17 @@ import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { lovecompassApi, type ChatContext, type ChatProfileSnapshot } from "@/lib/lovecompassApi";
 import { resultRouteFromSuiteSlug } from "@/lib/resultRoutes";
-import { formatApiErrorMessage } from "@/lib/apiErrors";
+import { formatApiErrorMessage, getApiErrorHint } from "@/lib/apiErrors";
 import { AuthChecking, useRequireAuth } from "@/lib/requireAuth";
 import {
-  buildCounselorGreeting,
+  buildCounselorConnectionFallback,
   counselorActiveRing,
   counselorAvatarGradient,
   COUNSELORS,
   getCounselor,
   type Counselor,
 } from "@/lib/counselors";
+import { deriveChatFlags, isAiPlaceholderReply, loadChatState, type ChatUiMessage } from "@/lib/chatState";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -36,7 +37,22 @@ export const Route = createFileRoute("/chat")({
   component: ChatPage,
 });
 
-type Msg = { role: "user" | "ai"; text: string; ts: number };
+type Msg = ChatUiMessage;
+
+function applyChatLoad(
+  data: Awaited<ReturnType<typeof loadChatState>>,
+  setters: {
+    setBoundAttemptId: (v: string | undefined) => void;
+    setChatContext: (v: ChatContext | null) => void;
+    setProfileSnapshot: (v: ChatProfileSnapshot | null) => void;
+    setMessages: (v: Msg[]) => void;
+  },
+) {
+  setters.setBoundAttemptId(data.boundAttemptId);
+  setters.setChatContext(data.chatContext);
+  setters.setProfileSnapshot(data.profileSnapshot);
+  setters.setMessages(data.messages);
+}
 
 function ChatPage() {
   const nav = useNavigate();
@@ -49,11 +65,13 @@ function ChatPage() {
   const [contextLoading, setContextLoading] = useState(true);
   const [syncingProfile, setSyncingProfile] = useState(false);
   const [profileSyncedAt, setProfileSyncedAt] = useState<number | null>(null);
+  const [contextError, setContextError] = useState<string | null>(null);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [thinking, setThinking] = useState(false);
   const [triageHint, setTriageHint] = useState<string | null>(null);
   const [triageLoading, setTriageLoading] = useState(false);
+  const [contextReloadKey, setContextReloadKey] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -68,31 +86,37 @@ function ChatPage() {
 
   useEffect(() => {
     let ignore = false;
-    const counselor = getCounselor(analystIdFromUrl);
     setContextLoading(true);
-    lovecompassApi
-      .getChatContext(attemptIdFromUrl)
-      .then((res) => {
+    setContextError(null);
+    setMessages([]);
+
+    void loadChatState({ attemptId: attemptIdFromUrl, analystId: analystIdFromUrl })
+      .then((data) => {
         if (ignore) return;
-        if (res.context?.attemptId) setBoundAttemptId(res.context.attemptId);
-        setChatContext(res.bound ? res.context : null);
-        setProfileSnapshot(res.profile ?? null);
-        setMessages([
-          {
-            role: "ai",
-            text: buildCounselorGreeting(counselor, res.bound, res.context, res.profile ?? null),
-            ts: Date.now(),
-          },
-        ]);
+        applyChatLoad(data, {
+          setBoundAttemptId,
+          setChatContext,
+          setProfileSnapshot,
+          setMessages,
+        });
+        if (data.boundAttemptId && data.boundAttemptId !== attemptIdFromUrl) {
+          nav({
+            to: "/chat",
+            search: { analystId: getCounselor(analystIdFromUrl).id, attemptId: data.boundAttemptId },
+            replace: true,
+          });
+        }
       })
-      .catch(() => {
+      .catch((error) => {
         if (ignore) return;
+        const message = formatApiErrorMessage(error);
+        setContextError(message);
         setChatContext(null);
         setProfileSnapshot(null);
         setMessages([
           {
             role: "ai",
-            text: buildCounselorGreeting(counselor, false, null, null),
+            text: buildCounselorConnectionFallback(getCounselor(analystIdFromUrl), message),
             ts: Date.now(),
           },
         ]);
@@ -103,15 +127,15 @@ function ChatPage() {
     return () => {
       ignore = true;
     };
-  }, [attemptIdFromUrl, analystIdFromUrl]);
+  }, [attemptIdFromUrl, analystIdFromUrl, nav, contextReloadKey]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, thinking]);
 
-  const profileBound = Boolean(profileSnapshot?.completeness.percent || chatContext);
-  const completedSuiteCount =
-    profileSnapshot?.suites.filter((s) => s.status === "completed").length ?? (chatContext ? 1 : 0);
+  const { profileBound, completedSuiteCount } = deriveChatFlags(profileSnapshot, chatContext);
+  const showAiConfigHint = messages.some((m) => m.role === "ai" && isAiPlaceholderReply(m.text));
+  const showQuickStarts = !messages.some((m) => m.role === "user") && active.prompts.length > 0;
 
   const send = async (text: string) => {
     const trimmed = text.trim();
@@ -147,13 +171,6 @@ function ChatPage() {
   const switchCounselor = (c: Counselor) => {
     setActive(c);
     setTriageHint(null);
-    setMessages([
-      {
-        role: "ai",
-        text: buildCounselorGreeting(c, profileBound, chatContext, profileSnapshot),
-        ts: Date.now(),
-      },
-    ]);
     nav({
       to: "/chat",
       search: { analystId: c.id, attemptId: boundAttemptId },
@@ -274,6 +291,23 @@ function ChatPage() {
                 ) : null}
               </div>
 
+              {contextError ? (
+                <div className="space-y-2">
+                  <p className="text-[11px] text-amber-200/90 leading-relaxed">{contextError}</p>
+                  {getApiErrorHint(contextError) ? (
+                    <p className="text-[10px] text-foreground/55 leading-relaxed">{getApiErrorHint(contextError)}</p>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() => setContextReloadKey((k) => k + 1)}
+                    className="inline-flex items-center gap-1.5 text-[11px] font-mono text-foreground/75 hover:text-foreground transition"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" />
+                    重试连接
+                  </button>
+                </div>
+              ) : null}
+
               {contextLoading ? (
                 <p className="text-[12px] text-muted-foreground">正在读取你的测试画像…</p>
               ) : profileBound && profileSnapshot ? (
@@ -323,7 +357,7 @@ function ChatPage() {
                   <p>尚未绑定测试画像。完成 SELF / ROS / MATE 任一套后，可一键同步给 AI 顾问。</p>
                   <button
                     type="button"
-                    onClick={() => nav({ to: "/tests/self" })}
+                    onClick={() => nav({ to: "/tests/$id", params: { id: "self" } })}
                     className="text-[11px] text-[oklch(0.82_0.14_200)] hover:underline"
                   >
                     去做 SELF 测试 →
@@ -334,11 +368,11 @@ function ChatPage() {
               <button
                 type="button"
                 onClick={() => void syncProfileToAi()}
-                disabled={syncingProfile || thinking || contextLoading || !profileBound}
+                disabled={syncingProfile || thinking || contextLoading}
                 className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-[oklch(0.68_0.18_285_/_0.45)] bg-[oklch(0.50_0.20_285_/_0.12)] px-3 py-2.5 text-[12px] font-medium text-foreground/90 hover:bg-[oklch(0.50_0.20_285_/_0.18)] transition disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <RefreshCw className={`h-3.5 w-3.5 ${syncingProfile ? "animate-spin" : ""}`} />
-                {syncingProfile ? "正在同步…" : "同步全部测评到 AI"}
+                {syncingProfile ? "正在同步…" : profileBound ? "同步全部测评到 AI" : "刷新画像状态"}
               </button>
               {profileSyncedAt ? (
                 <p className="text-[10px] font-mono text-muted-foreground text-center">
@@ -385,6 +419,17 @@ function ChatPage() {
             </div>
 
             <div ref={scrollRef} className="relative flex-1 overflow-y-auto px-4 md:px-7 py-6 space-y-4">
+              {showAiConfigHint ? (
+                <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-100/90 leading-relaxed">
+                  当前后端未配置正式 AI 模型（智谱 Key），回复为占位内容。画像同步与对话流程正常，配置密钥后将返回真实分析。
+                </div>
+              ) : null}
+              {contextLoading && messages.length === 0 ? (
+                <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                  <RefreshCw className="h-4 w-4 animate-spin opacity-70" />
+                  <span>正在连接顾问并读取测评画像…</span>
+                </div>
+              ) : null}
               <AnimatePresence initial={false}>
                 {messages.map((m, i) => (
                   <motion.div
@@ -420,7 +465,7 @@ function ChatPage() {
                 </motion.div>
               )}
 
-              {messages.length === 1 && active.prompts.length > 0 && (
+              {showQuickStarts && (
                 <div className="pt-2">
                   <div className="text-[10px] font-mono tracking-[0.3em] text-muted-foreground mb-2">// QUICK STARTS</div>
                   <div className="flex flex-wrap gap-2">

@@ -9,6 +9,20 @@ from typing import Any
 
 DATA_DIR = Path(__file__).resolve().parents[1] / "data"
 
+# Per-task caps keep prompts in the ~1000–1500 token band.
+TASK_DICT_MAX: dict[str, int] = {
+    "mate-reverse": 6,
+    "mate-observe": 4,
+    "mate-lens": 8,
+    "footer_marquee": 3,
+    "mate-rehearse": 6,
+    "mate-simulator": 4,
+    "mate-advice": 5,
+    "ros-insights": 8,
+    "ros-pair-analysis": 6,
+    "pair-analysis": 6,
+}
+
 
 @lru_cache(maxsize=1)
 def load_atom_dictionary() -> dict[str, Any]:
@@ -66,3 +80,9 @@ def retrieve_dictionary_snippets(
         if len(deduped) >= max_total:
             break
     return deduped
+
+
+def dictionary_limit_for_task(task: str | None, *, default: int = 8) -> int:
+    if not task:
+        return default
+    return TASK_DICT_MAX.get(task, default)

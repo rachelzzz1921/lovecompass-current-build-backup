@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
+import json
+from functools import lru_cache
+from pathlib import Path
 from typing import Any
 
 from app.ros_scoring import ROS_LAYER_CODES, ROS_LAYER_LABELS
+
+COLLISION_MAP_PATH = Path(__file__).resolve().parents[1] / "data" / "suite2_ros_female.json"
 
 ATTACHMENT_NORMALIZE = {
     "安全型": "安全型",
@@ -35,6 +40,55 @@ BOND_ADVICE: dict[str, dict[str, str]] = {
         "advice_ta": "约定一个固定的复盘时刻，让小情绪有出口。",
     },
 }
+
+ATTACHMENT_ADVICE_HINTS: dict[str, str] = {
+    "安全型": "把小事说具体，比猜更有用。",
+    "焦虑型": "说需求，而不是等确认。",
+    "回避型": "说「我需要时间」，而不是直接消失。",
+    "混合型": "识别自己此刻要的是空间还是连接。",
+    "高边界安全型": "边界清晰，也留一句「我在」。",
+    "低自我高投入型": "付出之前先问自己是否也被照顾。",
+}
+
+
+@lru_cache(maxsize=1)
+def _attachment_collision_map() -> dict[str, dict[str, str]]:
+    try:
+        data = json.loads(COLLISION_MAP_PATH.read_text(encoding="utf-8"))
+        raw = data.get("attachment_collision_map") or {}
+        return {str(k): dict(v) for k, v in raw.items() if isinstance(v, dict)}
+    except OSError:
+        return {}
+
+
+def _build_full_bond_advice() -> dict[str, dict[str, str]]:
+    merged = dict(BOND_ADVICE)
+    for key, entry in _attachment_collision_map().items():
+        if key in merged:
+            continue
+        parts = key.split("×")
+        you_type = parts[0] if parts else "你"
+        ta_type = parts[1] if len(parts) > 1 else "对方"
+        merged[key] = {
+            "gap_reason": str(entry.get("desc") or ""),
+            "advice_you": ATTACHMENT_ADVICE_HINTS.get(you_type, "先把感受说具体，再谈事情本身。"),
+            "advice_ta": ATTACHMENT_ADVICE_HINTS.get(ta_type, "留一句回应，而不是用沉默代替表达。"),
+        }
+    return merged
+
+
+FULL_BOND_ADVICE = _build_full_bond_advice()
+
+
+def get_bond_advice(you_attachment: str | None, ta_attachment: str | None) -> dict[str, str]:
+    you = normalize_attachment(you_attachment)
+    ta = normalize_attachment(ta_attachment)
+    key = f"{you}×{ta}"
+    if key in FULL_BOND_ADVICE:
+        return FULL_BOND_ADVICE[key]
+    if you == "低自我高投入型" and "低自我高投入型×任意" in FULL_BOND_ADVICE:
+        return FULL_BOND_ADVICE["低自我高投入型×任意"]
+    return FULL_BOND_ADVICE.get("焦虑型×回避型", BOND_ADVICE["焦虑型×回避型"])
 
 LAYER_PROBE = {
     "AT": "当初让你心动的那件事，最近还发生过类似的吗？",
@@ -185,7 +239,7 @@ def build_couple_insights(
     min_layer = layer_compare.get(min_key) or {}
     max_layer = layer_compare.get(max_key) or {}
     bond_key = f"{normalize_attachment(you_attachment)}×{normalize_attachment(ta_attachment)}"
-    advice = BOND_ADVICE.get(bond_key) or BOND_ADVICE.get("焦虑型×回避型", {})
+    advice = get_bond_advice(you_attachment, ta_attachment)
 
     return [
         {
@@ -230,7 +284,7 @@ def enrich_bond(
     biggest_gap_layer: str,
 ) -> dict[str, Any]:
     key = f"{normalize_attachment(you_attachment)}×{normalize_attachment(ta_attachment)}"
-    extra = BOND_ADVICE.get(key) or {}
+    extra = get_bond_advice(you_attachment, ta_attachment)
     return {
         **collision,
         "you_type": normalize_attachment(you_attachment),

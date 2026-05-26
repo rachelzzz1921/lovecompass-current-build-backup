@@ -1,0 +1,462 @@
+{
+  "suite_supplement": {
+    "id": "S03_MATE_PAIR_SUPPLEMENT",
+    "name": "双人适配补充题组",
+    "version": "1.1",
+    "note": "本题组在双人匹配流程中单独触发，男女题目相同，用于补全双人结果页所需的现实条件与规划议题数据。不计入单人 MATE 评分，仅用于双人适配分析。",
+    "total_questions": 14,
+    "modules": ["PR1", "PR2", "PR3"],
+    "question_types_used": ["binary", "choice", "slider"]
+  },
+
+  "modules_spec": {
+    "PR1": {
+      "label": "基本信息",
+      "purpose": "填补单人题组中未采集的基础字段，用于双人条件对比表",
+      "questions": ["PR1-01", "PR1-02", "PR1-03", "PR1-04"]
+    },
+    "PR2": {
+      "label": "婚育与生活规划",
+      "purpose": "采集关键 deal-item 数据，直接输出至「相亲必聊议题」模块。PR2-05 育儿分工输出至「性格与节奏」模块，做软化呈现。",
+      "questions": ["PR2-01", "PR2-02", "PR2-03", "PR2-04", "PR2-05", "PR2-06"]
+    },
+    "PR3": {
+      "label": "财务与家庭安排",
+      "purpose": "采集婚后财务模式、房产规划、彩礼预期等具体议题",
+      "questions": ["PR3-01", "PR3-02", "PR3-03", "PR3-04"]
+    }
+  },
+
+  "scoring_note": {
+    "general": "本题组不产生单一总分。每道题的结果直接作为字段值输出，供双人对比引擎做差值计算和一致性判断。",
+    "gap_logic": {
+      "identical": { "status": "一致", "badge": "ok" },
+      "close": { "status": "接近", "badge": "ok" },
+      "divergent": { "status": "有出入，需对齐", "badge": "warn" },
+      "conflict": { "status": "分歧明显", "badge": "alert" }
+    }
+  },
+
+  "questions": [
+
+    {
+      "id": "PR1-01",
+      "order": 1,
+      "module": "PR1",
+      "type": "slider",
+      "gender": "both",
+      "text": "你今年多少岁？",
+      "note": "用于年龄差计算，结果不直接展示原始数字，转化为年龄差描述。",
+      "slider": {
+        "min": 20,
+        "max": 45,
+        "step": 1,
+        "unit": "岁"
+      },
+      "output_field": "age",
+      "output_module": "condition_compare_table",
+      "pair_logic": {
+        "diff_calc": "abs(male.age - female.age)",
+        "gap_rules": [
+          { "range": [0, 2], "label": "年龄相当", "badge": "ok" },
+          { "range": [3, 5], "label": "差距合理", "badge": "ok" },
+          { "range": [6, 9], "label": "有一定差距", "badge": "warn" },
+          { "range": [10, 99], "label": "年龄差较大", "badge": "warn" }
+        ]
+      }
+    },
+
+    {
+      "id": "PR1-02",
+      "order": 2,
+      "module": "PR1",
+      "type": "choice",
+      "gender": "both",
+      "text": "你的最高学历是？",
+      "note": "用于学历差距判断，不单独评分，结合职业和收入综合呈现。学历高于对方这一事实在「需要关注的地方」中做中性描述，不作负面评判。",
+      "options": [
+        { "key": "A", "text": "高中及以下", "value": 1 },
+        { "key": "B", "text": "大专", "value": 2 },
+        { "key": "C", "text": "本科", "value": 3 },
+        { "key": "D", "text": "硕士", "value": 4 },
+        { "key": "E", "text": "博士及以上", "value": 5 }
+      ],
+      "output_field": "education_level",
+      "output_module": "condition_compare_table",
+      "pair_logic": {
+        "diff_calc": "abs(male.education_level - female.education_level)",
+        "gap_rules": [
+          { "range": [0, 1], "label": "学历相当", "badge": "ok" },
+          { "range": [2, 2], "label": "有差距，可接受", "badge": "warn" },
+          { "range": [3, 99], "label": "差距较大", "badge": "warn" }
+        ],
+        "attention_trigger": {
+          "condition": "female.education_level > male.education_level",
+          "message": "她的学历高于他，部分家庭会在意",
+          "desc": "学历差距本身不是问题，但在某些家庭场景下可能带来额外的外部压力。两人提前知道对方家里的态度，比被动面对要好。",
+          "badge": "warn"
+        }
+      }
+    },
+
+    {
+      "id": "PR1-03",
+      "order": 3,
+      "module": "PR1",
+      "type": "choice",
+      "gender": "both",
+      "text": "你的户籍在哪里？",
+      "options": [
+        { "key": "A", "text": "本地户籍（与现居住城市相同）", "value": "local" },
+        { "key": "B", "text": "外地户籍，但已办理或正在办理本地落户", "value": "transferring" },
+        { "key": "C", "text": "外地户籍，暂无落户计划", "value": "nonlocal" }
+      ],
+      "output_field": "huji",
+      "output_module": "condition_compare_table",
+      "pair_logic": {
+        "match_rules": [
+          { "condition": "both local", "label": "户籍一致", "badge": "ok" },
+          { "condition": "one local one transferring", "label": "基本无问题", "badge": "ok" },
+          { "condition": "both nonlocal", "label": "均为外地，需规划落户", "badge": "warn" },
+          { "condition": "one local one nonlocal", "label": "存在差异，影响子女就学等事项", "badge": "warn" }
+        ]
+      }
+    },
+
+    {
+      "id": "PR1-04",
+      "order": 4,
+      "module": "PR1",
+      "type": "choice",
+      "gender": "both",
+      "text": "你打算长期定居在哪个城市？",
+      "options": [
+        { "key": "A", "text": "就是现在这个城市，不打算动", "value": "current_fixed" },
+        { "key": "B", "text": "现在这里，但不排除以后换城市", "value": "current_flexible" },
+        { "key": "C", "text": "想换到另一个具体的城市", "value": "other_fixed" },
+        { "key": "D", "text": "还没想好，看发展", "value": "undecided" }
+      ],
+      "output_field": "target_city_plan",
+      "output_module": "deal_items_table",
+      "pair_logic": {
+        "match_rules": [
+          { "condition": "both current_fixed", "label": "城市规划一致", "badge": "ok" },
+          { "condition": "both current_flexible", "label": "方向一致，细节待定", "badge": "ok" },
+          { "condition": "one fixed one flexible (same city)", "label": "基本一致", "badge": "ok" },
+          { "condition": "values differ meaningfully", "label": "城市规划存在分歧", "badge": "warn" },
+          { "condition": "either undecided", "label": "一方尚未规划，建议沟通", "badge": "warn" }
+        ]
+      }
+    },
+
+    {
+      "id": "PR2-01",
+      "order": 5,
+      "module": "PR2",
+      "type": "binary",
+      "gender": "both",
+      "text": "你想要孩子吗？",
+      "options": [
+        { "key": "yes", "text": "想要", "value": "want" },
+        { "key": "no", "text": "不想要 / 还没想好", "value": "no_or_undecided" }
+      ],
+      "output_field": "want_children",
+      "output_module": "deal_items_table",
+      "pair_logic": {
+        "match_rules": [
+          { "condition": "both want", "label": "一致", "badge": "ok" },
+          { "condition": "both no_or_undecided", "label": "一致", "badge": "ok" },
+          { "condition": "values differ", "label": "分歧明显，需认真谈", "badge": "alert" }
+        ]
+      }
+    },
+
+    {
+      "id": "PR2-02",
+      "order": 6,
+      "module": "PR2",
+      "type": "choice",
+      "gender": "both",
+      "text": "如果要孩子，你希望在结婚后多久要第一个孩子？",
+      "show_if": "PR2-01 == want",
+      "options": [
+        { "key": "A", "text": "结婚后尽快，越早越好", "value": 0 },
+        { "key": "B", "text": "结婚后1年以内", "value": 1 },
+        { "key": "C", "text": "结婚2–3年后", "value": 2.5 },
+        { "key": "D", "text": "结婚3年以上，先把生活稳定下来", "value": 4 },
+        { "key": "E", "text": "还没想好，看情况", "value": -1 }
+      ],
+      "output_field": "children_timing",
+      "output_module": "deal_items_table",
+      "pair_logic": {
+        "diff_calc": "abs(male.children_timing - female.children_timing)",
+        "skip_if": "either value == -1",
+        "gap_rules": [
+          { "range": [0, 0], "label": "时间表一致", "badge": "ok" },
+          { "range": [0.1, 1.5], "label": "基本接近", "badge": "ok" },
+          { "range": [1.5, 3], "label": "有出入，需对齐", "badge": "warn" },
+          { "range": [3, 99], "label": "时间表差距大", "badge": "alert" }
+        ],
+        "undecided_rule": { "condition": "either value == -1", "label": "一方尚未规划", "badge": "warn" }
+      }
+    },
+
+    {
+      "id": "PR2-03",
+      "order": 7,
+      "module": "PR2",
+      "type": "choice",
+      "gender": "female",
+      "text": "婚后你打算继续工作吗？",
+      "note": "与男方 PR2-04 配对比较，交叉判断双方对「女方工作」这件事的预期是否一致。",
+      "options": [
+        { "key": "A", "text": "一直继续工作，事业对我很重要", "value": "fulltime" },
+        { "key": "B", "text": "生孩子前继续，产后看情况", "value": "flexible_after_birth" },
+        { "key": "C", "text": "生孩子后可能会全职在家一段时间", "value": "parttime_after_birth" },
+        { "key": "D", "text": "婚后就打算全职持家，不继续工作了", "value": "fulltime_home" }
+      ],
+      "output_field": "female_work_plan",
+      "output_module": "deal_items_table"
+    },
+
+    {
+      "id": "PR2-04",
+      "order": 8,
+      "module": "PR2",
+      "type": "choice",
+      "gender": "male",
+      "text": "你希望结婚后，另一半的工作状态是？",
+      "note": "与女方 PR2-03 配对比较。",
+      "options": [
+        { "key": "A", "text": "一直工作，我支持她的事业", "value": "fulltime" },
+        { "key": "B", "text": "生孩子前工作，产后由她自己决定", "value": "flexible_after_birth" },
+        { "key": "C", "text": "产后可以在家一段时间，我来承担主要经济压力", "value": "parttime_after_birth" },
+        { "key": "D", "text": "我希望她婚后以家庭为主，不一定需要工作", "value": "fulltime_home" }
+      ],
+      "output_field": "male_expect_female_work",
+      "output_module": "deal_items_table",
+      "pair_logic": {
+        "compare_fields": ["female_work_plan", "male_expect_female_work"],
+        "match_rules": [
+          { "condition": "both fulltime", "label": "一致", "badge": "ok" },
+          { "condition": "both flexible_after_birth", "label": "一致", "badge": "ok" },
+          { "condition": "both parttime_after_birth", "label": "一致", "badge": "ok" },
+          { "condition": "both fulltime_home", "label": "一致", "badge": "ok" },
+          { "condition": "adjacent values", "label": "基本接近，可沟通", "badge": "warn" },
+          { "condition": "female=fulltime AND male=fulltime_home", "label": "分歧明显", "badge": "alert" },
+          { "condition": "female=fulltime_home AND male=fulltime", "label": "分歧明显", "badge": "alert" }
+        ]
+      }
+    },
+
+    {
+      "id": "PR2-05",
+      "order": 9,
+      "module": "PR2",
+      "type": "choice",
+      "gender": "both",
+      "text": "婚后孩子主要由谁来带？",
+      "note": "结果不进入「相亲必聊议题」，软化后输出至「性格与节奏」模块，以「育儿分工灵活度」双色条形式呈现，无对错判断。所有 badge 上限为 warn，不触发 alert。",
+      "options": [
+        { "key": "A", "text": "双方共同承担，尽量不依赖父母", "value": "couple", "flexibility_score": 80 },
+        { "key": "B", "text": "主要靠父母帮带，我们上班", "value": "grandparents", "flexibility_score": 55 },
+        { "key": "C", "text": "请育儿嫂或保姆", "value": "nanny", "flexibility_score": 75 },
+        { "key": "D", "text": "其中一方为主承担，另一方主要负责赚钱", "value": "one_primary", "flexibility_score": 50 },
+        { "key": "E", "text": "还没想过这个问题", "value": "undecided", "flexibility_score": 60 }
+      ],
+      "output_field": "childcare_plan",
+      "output_module": "rhythm_section",
+      "rhythm_display": {
+        "label": "育儿分工灵活度",
+        "value_field": "flexibility_score",
+        "note_rules": [
+          { "condition": "diff <= 15", "note": "两人在育儿安排上灵活度接近" },
+          { "condition": "diff > 15 AND diff <= 30", "note": "育儿分工预期略有不同，可以聊" },
+          { "condition": "diff > 30", "note": "她在育儿上更灵活，他有一定倾向，可以聊" }
+        ]
+      },
+      "pair_logic": {
+        "note": "badge 上限为 warn，不触发 alert，差异仅做软性提示",
+        "match_rules": [
+          { "condition": "couple + nanny", "label": "方向接近", "badge": "ok" },
+          { "condition": "values identical", "label": "一致", "badge": "ok" },
+          { "condition": "grandparents + one_primary", "label": "有出入，可聊", "badge": "warn" },
+          { "condition": "either undecided", "label": "还在考虑中", "badge": "ok" },
+          { "condition": "couple + one_primary", "label": "预期略有不同", "badge": "warn" },
+          { "condition": "any other combination", "label": "可以聊聊各自的想法", "badge": "warn" }
+        ]
+      }
+    },
+
+    {
+      "id": "PR2-06",
+      "order": 10,
+      "module": "PR2",
+      "type": "choice",
+      "gender": "both",
+      "text": "你能接受异地恋（包括工作原因的短期异地）吗？",
+      "options": [
+        { "key": "A", "text": "完全不行，必须在同一个城市", "value": 0 },
+        { "key": "B", "text": "短期可以接受（3个月以内），长期不行", "value": 1 },
+        { "key": "C", "text": "半年以内可以，有明确结束时间就行", "value": 2 },
+        { "key": "D", "text": "可以接受，只要有规划和方向", "value": 3 }
+      ],
+      "output_field": "long_distance_tolerance",
+      "output_module": "deal_items_table",
+      "pair_logic": {
+        "diff_calc": "abs(male.value - female.value)",
+        "gap_rules": [
+          { "range": [0, 0], "label": "一致", "badge": "ok" },
+          { "range": [1, 1], "label": "基本接近", "badge": "ok" },
+          { "range": [2, 3], "label": "容忍度有差距", "badge": "warn" }
+        ]
+      }
+    },
+
+    {
+      "id": "PR3-01",
+      "order": 11,
+      "module": "PR3",
+      "type": "choice",
+      "gender": "both",
+      "text": "婚后你们的财务模式，你倾向于哪种？",
+      "options": [
+        { "key": "A", "text": "完全共同账户，收入全部放在一起管", "value": "full_joint" },
+        { "key": "B", "text": "部分共同，各自留一些私房钱", "value": "partial_joint" },
+        { "key": "C", "text": "AA为主，共同支出按比例分", "value": "aa_proportional" },
+        { "key": "D", "text": "AA，各自管各自的，共同花销对半", "value": "aa_equal" },
+        { "key": "E", "text": "男方主要承担，女方的钱是自己的零花", "value": "male_primary" }
+      ],
+      "output_field": "financial_model",
+      "output_module": "deal_items_table",
+      "pair_logic": {
+        "match_rules": [
+          { "condition": "values identical", "label": "一致", "badge": "ok" },
+          { "condition": "full_joint + partial_joint", "label": "方向接近", "badge": "ok" },
+          { "condition": "aa_proportional + aa_equal", "label": "方向接近", "badge": "ok" },
+          { "condition": "partial_joint + aa_proportional", "label": "有出入，可沟通", "badge": "warn" },
+          { "condition": "full_joint + aa_equal", "label": "差距较大，需对齐", "badge": "warn" },
+          { "condition": "full_joint + aa_proportional", "label": "差距较大，需对齐", "badge": "warn" },
+          { "condition": "male_primary vs others", "label": "预期有明显差异", "badge": "warn" }
+        ]
+      }
+    },
+
+    {
+      "id": "PR3-02",
+      "order": 12,
+      "module": "PR3",
+      "type": "choice",
+      "gender": "both",
+      "text": "婚后住房，你的预期是？",
+      "options": [
+        { "key": "A", "text": "婚前买房，有了房再结婚", "value": "buy_before" },
+        { "key": "B", "text": "先租房，结婚后再看情况买", "value": "rent_then_buy" },
+        { "key": "C", "text": "住在我（或对方）父母提供的房子里", "value": "family_house" },
+        { "key": "D", "text": "长期租房也可以，不一定非要买", "value": "rent_ok" }
+      ],
+      "output_field": "housing_plan",
+      "output_module": "deal_items_table",
+      "pair_logic": {
+        "match_rules": [
+          { "condition": "values identical", "label": "规划一致", "badge": "ok" },
+          { "condition": "buy_before + rent_then_buy", "label": "方向一致，节奏有差", "badge": "ok" },
+          { "condition": "rent_then_buy + rent_ok", "label": "基本接近", "badge": "ok" },
+          { "condition": "buy_before + rent_ok", "label": "预期有出入", "badge": "warn" },
+          { "condition": "family_house + any non-family", "label": "需要讨论", "badge": "warn" }
+        ]
+      }
+    },
+
+    {
+      "id": "PR3-03",
+      "order": 13,
+      "module": "PR3",
+      "type": "choice",
+      "gender": "both",
+      "text": "关于彩礼和嫁妆，你的态度是？",
+      "options": [
+        { "key": "A", "text": "象征性就好，不在意金额", "value": "symbolic" },
+        { "key": "B", "text": "有一定金额要求，这是传统，合理的", "value": "traditional_moderate" },
+        { "key": "C", "text": "金额要求较高，这是我（家里）的底线", "value": "high_requirement" },
+        { "key": "D", "text": "完全不需要，钱留给自己用更实际", "value": "none" }
+      ],
+      "output_field": "bride_price_attitude",
+      "output_module": "deal_items_table",
+      "pair_logic": {
+        "match_rules": [
+          { "condition": "both symbolic or none", "label": "无冲突", "badge": "ok" },
+          { "condition": "symbolic + traditional_moderate", "label": "基本可接受", "badge": "ok" },
+          { "condition": "none + traditional_moderate", "label": "有出入，可沟通", "badge": "warn" },
+          { "condition": "any + high_requirement", "label": "需要正式谈", "badge": "warn" }
+        ]
+      }
+    },
+
+    {
+      "id": "PR3-04",
+      "order": 14,
+      "module": "PR3",
+      "type": "choice",
+      "gender": "both",
+      "text": "婚后和父母的居住安排，你倾向于？",
+      "options": [
+        { "key": "A", "text": "和父母完全分开住，我们有自己的空间", "value": "independent" },
+        { "key": "B", "text": "住得近，但不同住", "value": "nearby" },
+        { "key": "C", "text": "暂时和父母同住，以后再看", "value": "temp_together" },
+        { "key": "D", "text": "长期和父母同住，我们需要互相照顾", "value": "long_together" }
+      ],
+      "output_field": "living_with_parents",
+      "output_module": "deal_items_table",
+      "pair_logic": {
+        "match_rules": [
+          { "condition": "values identical", "label": "一致", "badge": "ok" },
+          { "condition": "independent + nearby", "label": "方向一致", "badge": "ok" },
+          { "condition": "nearby + temp_together", "label": "有出入，可沟通", "badge": "warn" },
+          { "condition": "independent + long_together", "label": "分歧明显，需认真谈", "badge": "alert" },
+          { "condition": "independent + temp_together", "label": "有出入，需确认", "badge": "warn" },
+          { "condition": "nearby + long_together", "label": "有出入，需确认", "badge": "warn" }
+        ]
+      }
+    }
+
+  ],
+
+  "pair_output_map": {
+    "note": "双人引擎读取双方答题后，按以下字段生成结果页各模块数据",
+    "condition_compare_table": [
+      "age → PR1-01",
+      "education_level → PR1-02",
+      "huji → PR1-03",
+      "income_level → MS1-A-M-01 / FS3_A（已有）",
+      "housing_status → MS1-A-M-02（已有）",
+      "target_city_plan → PR1-04",
+      "career_track → MS1_B（已有）",
+      "family_support → MS1_C / FS3_B（已有）"
+    ],
+    "deal_items_table": [
+      "want_children → PR2-01",
+      "children_timing → PR2-02",
+      "female_work_plan × male_expect_female_work → PR2-03 & PR2-04",
+      "long_distance_tolerance → PR2-06",
+      "financial_model → PR3-01",
+      "housing_plan → PR3-02",
+      "bride_price_attitude → PR3-03",
+      "living_with_parents → PR3-04"
+    ],
+    "rhythm_section": [
+      "childcare_plan (flexibility_score) → PR2-05 · 软化后输出，仅做双色条展示"
+    ],
+    "attention_triggers": [
+      "female.education_level > male.education_level → PR1-02 attention_trigger",
+      "male.huji == nonlocal → 住房与户籍注意项",
+      "FS5_B high → 她对回应节奏有需求",
+      "MS5_C low + FS5_C low → 家庭干预风险低（正向）"
+    ]
+  },
+
+  "changelog": {
+    "v1.0": "初始版本",
+    "v1.1": "PR2-05 育儿分工 badge 上限降为 warn，移出 deal_items_table，改输出至 rhythm_section 做软化呈现；模块「相处节奏参考」更名为「性格与节奏」；PR1-02 新增 attention_trigger 处理女方学历高于男方的场景。"
+  }
+}

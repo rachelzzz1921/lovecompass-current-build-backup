@@ -42,6 +42,7 @@ function MateInvitePage() {
   const [suiteTier, setSuiteTier] = useState<SuiteTier>("full");
   const [previewLoading, setPreviewLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [liteBlocked, setLiteBlocked] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -56,6 +57,7 @@ function MateInvitePage() {
               ? "lite"
               : "full",
         );
+        setLiteBlocked(preview.suiteTier === "lite");
       } catch (e) {
         if (!cancelled) toast.error(formatApiErrorMessage(e));
       } finally {
@@ -131,10 +133,12 @@ function MateInvitePage() {
             <div className="text-center text-xs text-muted-foreground">
               {previewLoading
                 ? "正在读取 TA 的测试版本…"
-                : `与 TA 对齐 · ${tierInfo.label} · ${tierInfo.questions} 题 · 约 ${tierInfo.minutes} 分钟`}
+                : liteBlocked
+                  ? "TA 使用的是快速版，MATE 双人匹配需完整版。请联系 TA 升级后重新邀请。"
+                  : `与 TA 对齐 · ${tierInfo.label} · ${tierInfo.questions} 题 · 约 ${tierInfo.minutes} 分钟`}
             </div>
 
-            <PrimaryFlowButton theme={theme} onClick={() => void start()} disabled={submitting || previewLoading}>
+            <PrimaryFlowButton theme={theme} onClick={() => void start()} disabled={submitting || previewLoading || liteBlocked}>
               {submitting ? (
                 <span className="flex items-center gap-2 font-mono text-sm tracking-[0.15em]">
                   <Sparkles className="h-4 w-4 animate-pulse-ring" /> 验证中…

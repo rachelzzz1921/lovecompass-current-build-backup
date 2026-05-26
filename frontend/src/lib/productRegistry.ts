@@ -224,7 +224,7 @@ export function setStoredGender(productId: ProductId, gender: SuiteGender) {
   const spec = PRODUCT_FLOW_SPECS[productId];
   sessionStorage.setItem(spec.genderStorageKey, gender);
   const tierRaw = sessionStorage.getItem(`${productId}:tier`);
-  const tier: SuiteTier = tierRaw === "lite" ? "lite" : "full";
+  const tier: SuiteTier = tierRaw === "full" ? "full" : "lite";
   sessionStorage.setItem(`suite:${productId}`, resolveSuiteSlugForTier(productId, gender, tier));
 }
 
@@ -238,7 +238,7 @@ export function resolveActiveSuiteSlug(options: {
   if (sessionSuiteSlug?.includes("_")) return sessionSuiteSlug;
   const gender = getStoredGender(productId) ?? "female";
   const tierRaw = typeof window !== "undefined" ? sessionStorage.getItem(`${productId}:tier`) : null;
-  const tier: SuiteTier = tierRaw === "lite" ? "lite" : "full";
+  const tier: SuiteTier = tierRaw === "full" ? "full" : "lite";
   return resolveSuiteSlugForTier(productId, gender, tier);
 }
 
@@ -259,3 +259,6 @@ export function nextMultiStepStep(current: MultiStepEntryStepId): MultiStepEntry
   if (current === "stage") return "setup";
   return null;
 }
+
+/** Declarative flow graphs — see `productFlow/flowGraph.ts` */
+export { PRODUCT_FLOW_GRAPHS, flowGraphFor, type ProductFlowGraph, type FlowStepId } from "@/lib/productFlow/flowGraph";

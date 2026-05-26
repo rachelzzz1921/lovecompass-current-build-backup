@@ -5,25 +5,25 @@ import uuid
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
 from psycopg.types.json import Jsonb
 
 from app.auth import resolve_user_id
 from app.db import get_conn
 from app.json_utils import coerce_dict, jsonable
 from app.ros_couple import attempt_snapshot, build_couple_payload
-from app.ros_couple_ai_content import attach_ros_couple_ai_content
+from app.ros_ai_content import attach_ros_ai_content_to_payload, enhance_ros_ai_background
+from app.ros_couple_ai_content import (
+    attach_ros_couple_ai_content,
+    couple_payload_is_legacy,
+    couple_payload_needs_attach,
+    enhance_ros_couple_for_session,
+    enhance_ros_couple_session_background,
+)
 from app.ros_scoring import is_ros_suite
 
 router = APIRouter(prefix="/ros", tags=["ros"])
 
 RELATION_CODE_PATTERN = re.compile(r"^ROS-[A-Z0-9]{4}-[A-Z0-9]{4}$")
-
-
-class StoryAnalyzeIn(BaseModel):
-    timeline: list[dict[str, Any]] = Field(min_length=1, max_length=8)
-    milestones: list[dict[str, Any]] = Field(default_factory=list, max_length=6)
-    stageName: str = Field(min_length=1, max_length=40)
 
 
 def _normalize_relation_code(code: str) -> str:
@@ -147,7 +147,13 @@ def merge_and_store_couple_report(conn: Any, session_id: uuid.UUID) -> dict[str,
             type_rules=type_rules,
         )
     )
-    couple_payload = attach_ros_couple_ai_content(couple_payload, use_ai=True)
+    couple_payload = attach_ros_couple_ai_content(
+        couple_payload,
+        conn=conn,
+        initiator_attempt_id=str(initiator["id"]),
+        partner_attempt_id=str(partner["id"]),
+        use_ai=False,
+    )
 
     conn.execute(
         """
@@ -309,6 +315,26 @@ def get_couple_report(code: str, user_id: str = Depends(resolve_user_id)):
             conn.commit()
         else:
             couple_payload = coerce_dict(session.get("couple_payload"))
+            if couple_payload_is_legacy(couple_payload):
+                couple_payload = merge_and_store_couple_report(conn, session["id"])
+                conn.commit()
+            elif couple_payload_needs_attach(couple_payload):
+                couple_payload = attach_ros_couple_ai_content(
+                    couple_payload,
+                    conn=conn,
+                    initiator_attempt_id=str(session.get("initiator_attempt_id") or ""),
+                    partner_attempt_id=str(session.get("partner_attempt_id") or ""),
+                    use_ai=False,
+                )
+                conn.execute(
+                    "UPDATE public.ros_relation_sessions SET couple_payload = %s WHERE id = %s",
+                    (Jsonb(couple_payload), session["id"]),
+                )
+                conn.commit()
+
+        mode = (couple_payload.get("ai_content") or {}).get("mode")
+        if mode == "deterministic":
+            enhance_ros_couple_session_background(str(session["id"]))
 
     return {"ok": True, "code": normalized, "couple": jsonable(couple_payload)}
 
@@ -329,8 +355,6 @@ def get_ros_single_result(attempt_id: str, user_id: str = Depends(resolve_user_i
 
         payload = attempt.get("result_payload") or {}
         if isinstance(payload, dict):
-            from app.ros_ai_content import attach_ros_ai_content_to_payload
-
             payload = attach_ros_ai_content_to_payload(
                 conn,
                 attempt_id,
@@ -343,6 +367,8 @@ def get_ros_single_result(attempt_id: str, user_id: str = Depends(resolve_user_i
         session = _fetch_session_by_code(conn, code) if code else None
 
     single = payload if isinstance(payload, dict) else {}
+    if isinstance(single, dict) and (single.get("ai_content") or {}).get("mode") == "deterministic":
+        enhance_ros_ai_background(attempt_id)
     if isinstance(single, dict) and single.get("layers") and not single.get("layerDetails"):
         layer_scores = {
             str(item.get("code", "")).upper(): float(item.get("score") or item.get("displayScore") or 0)
@@ -361,54 +387,4 @@ def get_ros_single_result(attempt_id: str, user_id: str = Depends(resolve_user_i
         "partnerStatus": (session or {}).get("status"),
         "coupleUnlocked": (session or {}).get("status") == "completed",
         "invitePath": f"/ros/invite/{code}" if code else None,
-    }
-
-
-@router.post("/story/analyze")
-def analyze_story(data: StoryAnalyzeIn):
-    points = data.timeline
-    if len(points) < 2:
-        trend_label = "平稳"
-    else:
-        diff = float(points[-1].get("value", 0)) - float(points[0].get("value", 0))
-        if abs(diff) < 6:
-            trend_label = "起伏中保持平稳"
-        elif diff >= 6:
-            trend_label = "整体回暖上升"
-        else:
-            trend_label = "正在降温下行"
-
-    last = points[-1]
-    note = last.get("note")
-    note_clause = f"特别是「{note}」这个节点，" if note else ""
-    curve_insight = (
-        f"从你们填写的曲线看，{trend_label}。{note_clause}"
-        "这本身就是一段真实关系会有的样子——有高有低。继续把那些让彼此靠近的小事记下来，关系会自己告诉你们下一步去哪。"
-    )
-
-    milestones = data.milestones
-    if not milestones:
-        milestone_insight = "还没有里程碑，等你们去把那些重要时刻一一记下。"
-    else:
-        sparks = sum(1 for m in milestones if m.get("tone") == "spark")
-        cools = sum(1 for m in milestones if m.get("tone") == "cool")
-        warms = sum(1 for m in milestones if m.get("tone") == "warm")
-        last_m = milestones[-1]
-        tilt = (
-            "心动多过降温"
-            if sparks > cools
-            else "降温多过心动"
-            if cools > sparks
-            else "心动与降温几乎持平"
-        )
-        milestone_insight = (
-            f"从你们记下的 {len(milestones)} 个时刻看，{tilt}，温暖时刻有 {warms} 个。"
-            f"最近一次是「{last_m.get('title') or last_m.get('when')}」——这些被你们记住的瞬间，才是关系真正长出来的地方。"
-        )
-
-    return {
-        "mode": "template",
-        "curveInsight": curve_insight,
-        "milestoneInsight": milestone_insight,
-        "trend": {"label": trend_label},
     }

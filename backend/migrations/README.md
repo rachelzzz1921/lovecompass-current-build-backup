@@ -20,6 +20,10 @@
 | 14 | `202605250001_ros_relation_sessions.sql` | ROS 关系码双人会话表 |
 | 15 | `202605240003_mate_relation_sessions.sql` | MATE 关系码双人会话表（与 ROS 分表，码格式共用） |
 | 16 | `202605250002_self_ai_pattern_cache.sql` | SELF `ai_content` 分数 pattern 缓存 |
+| 17 | `202605250003_ros_ai_pattern_cache.sql` | ROS 单人 Layer C pattern 缓存 |
+| 18 | `202605250004_mate_ai_pattern_cache.sql` | MATE Layer C pattern 缓存 |
+| 19 | `202605250004_ros_couple_ai_pattern_cache.sql` | ROS 双人报告 Layer C pattern 缓存 |
+| 20 | `202605250005_mate_ai_cache_rehearse_simulator.sql` | MATE 缓存扩展：预演 + 模拟器叙事 |
 
 ## 目标库状态（三套体系齐全后）
 
@@ -47,6 +51,28 @@ python3 scripts/run_sql_file.py data/004_import_s02_s03_question_banks.sql
 ```
 
 `004_import_s02_s03_question_banks.sql` 由 `scripts/generate_import_sql.py` 从 `data/suite2_ros_*.json` 与 `data/suite3_mate_*.json` 生成；更新题库 JSON 后重新生成并执行。
+
+## 精简版（lite）题库
+
+精简版 JSON（6 个 `*_lite.json`）**不要手改**，由生成器维护：
+
+| 源 | 生成 |
+|----|------|
+| `scripts/build_lite_question_banks.py` | `data/suite1_self_*_lite.json`、`suite2_ros_*_lite.json`、`suite3_mate_*_lite.json` |
+| 完整版 JSON + 题干相似度 | 自动合并滑杆 `feedback` / `reference` / `footnote`（见 `app/question_bank_guidance.py`） |
+
+修改 lite 题目设计或完整版滑杆引导后：
+
+```bash
+cd backend
+python3 scripts/build_lite_question_banks.py   # 重新生成 6 个 lite JSON
+python3 scripts/check_lite_question_banks.py     # 确认已提交文件与生成器一致
+python3 scripts/validate_slider_guidance.py    # 确认全部 suite*.json 滑杆有引导
+```
+
+CI（`.github/workflows/lite-question-banks.yml`）在 `backend/data/**` 或生成脚本变更时会自动跑后两条校验；lite JSON 与生成器不同步会直接失败。
+
+更新 lite JSON 后，如需同步数据库，重新生成并执行 `data/005_import_lite_question_banks.sql`（或对应 apply 流程）。
 
 ## 体系文档索引
 

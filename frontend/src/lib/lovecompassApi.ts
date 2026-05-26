@@ -3,6 +3,8 @@ import { formatApiErrorMessage } from "@/lib/apiErrors";
 import { fetchWithMirrorFallback, getEndpointProfile } from "@/lib/mirrorEndpoints";
 import { getRequiredAccessToken } from "@/lib/supabaseSession";
 
+export type { AnswerDraft } from "@/lib/questionTypes";
+
 export type ChatContext = {
   attemptId: string;
   productSet?: "SELF" | "ROS" | "MATE" | string;
@@ -44,6 +46,8 @@ export type ChatContextResponse = {
   bound: boolean;
   context: ChatContext | null;
   profile?: ChatProfileSnapshot | null;
+  conversationId?: string | null;
+  messages?: Array<{ role: "user" | "ai"; content: string }>;
 };
 
 export type ChatSyncProfileResponse = ChatContextResponse & {
@@ -325,12 +329,17 @@ export const lovecompassApi = {
       },
       true,
     ),
-  getChatContext: (attemptId?: string) =>
-    requestJson<ChatContextResponse>(
-      `/chat/context${attemptId ? `?attemptId=${encodeURIComponent(attemptId)}` : ""}`,
+  getChatContext: (options?: { attemptId?: string; analystId?: string }) => {
+    const params = new URLSearchParams();
+    if (options?.attemptId) params.set("attemptId", options.attemptId);
+    if (options?.analystId) params.set("analystId", options.analystId);
+    const qs = params.toString();
+    return requestJson<ChatContextResponse>(
+      `/chat/context${qs ? `?${qs}` : ""}`,
       undefined,
       true,
-    ),
+    );
+  },
   syncChatProfile: () =>
     requestJson<ChatSyncProfileResponse>(
       "/chat/sync-profile",
@@ -362,11 +371,39 @@ export const lovecompassApi = {
       attemptId: string;
       single: Record<string, unknown>;
       gender?: string;
+      suiteTier?: "lite" | "full";
       relationCode?: string;
       partnerStatus?: string;
       coupleUnlocked?: boolean;
+      pairSupplementComplete?: boolean;
+      pairSupplementPath?: string;
       invitePath?: string;
     }>(`/mate/attempts/${encodeURIComponent(attemptId)}/single`, undefined, true),
+  getMatePairSupplementQuestions: (gender: "female" | "male", attemptId?: string) =>
+    requestJson<{
+      ok: boolean;
+      gender: string;
+      questions: import("@/lib/questionTypes").ApiQuestion[];
+      totalQuestions: number;
+      skipQuestionIds?: string[];
+      prefilledFromSingle?: Record<string, unknown>;
+      singleMappedNote?: string | null;
+    }>(
+      `/mate/pair-supplement/questions?gender=${encodeURIComponent(gender)}${
+        attemptId ? `&attemptId=${encodeURIComponent(attemptId)}` : ""
+      }`,
+      undefined,
+      true,
+    ),
+  submitMatePairSupplement: (
+    attemptId: string,
+    answers: Array<{ questionId: string; optionKey?: string; value?: number }>,
+  ) =>
+    requestJson<{ ok: boolean; attemptId: string; fields: Record<string, unknown> }>(
+      `/mate/attempts/${encodeURIComponent(attemptId)}/pair-supplement`,
+      { method: "POST", body: JSON.stringify({ answers }) },
+      true,
+    ),
   previewMateRelationCode: (code: string) =>
     requestJson<{
       ok: boolean;

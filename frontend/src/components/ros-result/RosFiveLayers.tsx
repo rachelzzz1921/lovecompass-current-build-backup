@@ -6,6 +6,8 @@ import type { RosLayerDetail, RosSingleResult } from "@/data/rosTypes";
 import { chatRouteSearch } from "@/lib/chatRouteSearch";
 import { rosLayerChatPrefill, rosPartnerInvitePrefill } from "@/lib/rosLayerChatPrefill";
 
+import { RosLayerRadar } from "@/components/ros-result/RosLayerRadar";
+
 const LAYER_META: { key: RosSingleResult["dims"][0]["key"]; code: string; label: string }[] = [
   { key: "at", code: "AT", label: "吸引基础" },
   { key: "in", code: "IN", label: "互动质量" },
@@ -38,24 +40,48 @@ function rkLabel(v: number) {
   return "偏高";
 }
 
-function fallbackLayerDetail(label: string, value: number): RosLayerDetail {
+function fallbackLayerDetail(label: string, value: number, exampleMode = false): RosLayerDetail {
+  const summary = value >= 65 ? "表现稳定" : "还在发展阶段";
   return {
-    displaySummary: value >= 65 ? "表现稳定" : "还在发展阶段",
-    read: `${label}：基于你的作答综合评估。`,
-    bright: "你愿意认真看这段关系，这本身就是投入。",
-    watch: "把感受说具体，比猜更有用。",
+    displaySummary: summary,
+    read: exampleMode ? `${label}：基于档案场景的综合推算。` : `${label}：基于你的作答综合评估。`,
+    bright: exampleMode ? "这段关系的投入与张力，在档案里都有迹可循。" : "你愿意认真看这段关系，这本身就是投入。",
+    watch: exampleMode ? "把感受说具体，比猜更有用——档案也这么提醒。" : "把感受说具体，比猜更有用。",
     tags: [label],
   };
+}
+
+function LayerInsightCards({ bright, watch }: { bright: string; watch: string }) {
+  return (
+    <div className="grid sm:grid-cols-2 gap-2">
+      <div
+        className="rounded-xl p-3"
+        style={{ background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.22)" }}
+      >
+        <div className="text-[10px] font-mono tracking-widest text-[#a5b8ff] mb-1.5">亮点</div>
+        <p className="text-xs text-white/78 leading-relaxed">{bright}</p>
+      </div>
+      <div
+        className="rounded-xl p-3"
+        style={{ background: "rgba(251,191,36,0.06)", border: "1px solid rgba(251,191,36,0.18)" }}
+      >
+        <div className="text-[10px] font-mono tracking-widest text-amber-200/80 mb-1.5">留意</div>
+        <p className="text-xs text-white/78 leading-relaxed">{watch}</p>
+      </div>
+    </div>
+  );
 }
 
 export function RosFiveLayers({
   result,
   attemptId,
   inviteCode,
+  exampleMode = false,
 }: {
   result: RosSingleResult;
   attemptId: string;
   inviteCode: string;
+  exampleMode?: boolean;
 }) {
   const [open, setOpen] = useState<string | null>(null);
   const valueOf = (k: string) => result.dims.find((d) => d.key === k)?.value ?? 0;
@@ -63,6 +89,7 @@ export function RosFiveLayers({
   return (
     <section>
       <div className="text-[10px] tracking-[0.3em] font-mono text-white/40 mb-3">HOW · 五维透视镜</div>
+      <RosLayerRadar result={result} />
       <div className="rounded-2xl overflow-hidden"
         style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.08)" }}>
         {LAYER_META.map((m, i) => {
@@ -71,7 +98,7 @@ export function RosFiveLayers({
           const c = healthColor(v, isRk);
           const isOpen = open === m.key;
           const filled = Math.round(v / 10);
-          const detail = result.layerDetails?.[m.key] ?? fallbackLayerDetail(m.label, v);
+          const detail = result.layerDetails?.[m.key] ?? fallbackLayerDetail(m.label, v, exampleMode);
           const expansion = result.aiContent?.layer_expansion?.[m.key];
           const tierLabel = expansion?.tier_label || detail.displaySummary;
           const evidence = expansion?.evidence_text || detail.read;
@@ -84,7 +111,7 @@ export function RosFiveLayers({
                 onClick={() => setOpen(isOpen ? null : m.key)}
                 className="w-full flex items-center gap-3 p-4 text-left hover:bg-white/[0.02] transition"
               >
-                <span className="text-[10px] font-mono text-white/35 w-6">{m.code}</span>
+                <span className="text-[11px] text-white/50 w-6 shrink-0">{i + 1}</span>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium text-white/90">{m.label}</span>
@@ -109,21 +136,27 @@ export function RosFiveLayers({
                     className="overflow-hidden"
                   >
                     <div className="px-4 pb-4 pl-10 space-y-4">
-                      <p className="text-xs text-white/65 leading-relaxed">{tierLabel}</p>
+                      <p className="text-sm text-white/85 leading-relaxed font-medium">{tierLabel}</p>
 
                       {expansion?.subdims?.length ? (
-                        <div className="space-y-2">
+                        <div className="space-y-2.5">
                           <div className="text-[10px] font-mono text-white/35 tracking-widest">子维度</div>
                           {expansion.subdims.map((sub) => (
-                            <div key={sub.key} className="flex items-center gap-2 text-[11px]">
-                              <span className="w-20 shrink-0 text-white/55">{sub.label}</span>
-                              <span className="font-mono tracking-tight" style={{ color: c }}>
-                                {Array.from({ length: 8 }).map((_, j) =>
-                                  j < Math.round(sub.score / 12.5) ? "█" : "░",
-                                ).join("")}
-                              </span>
-                              <span className="text-white/45 tabular-nums w-6 text-right">{sub.score}</span>
-                              <span className="text-white/50 flex-1 truncate">「{sub.summary}」</span>
+                            <div
+                              key={sub.key}
+                              className="rounded-lg px-3 py-2.5"
+                              style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
+                            >
+                              <div className="flex items-center gap-2 text-[11px] mb-1">
+                                <span className="w-20 shrink-0 text-white/60">{sub.label}</span>
+                                <span className="font-mono tracking-tight flex-1" style={{ color: c }}>
+                                  {Array.from({ length: 8 }).map((_, j) =>
+                                    j < Math.round(sub.score / 12.5) ? "█" : "░",
+                                  ).join("")}
+                                </span>
+                                <span className="text-white/45 tabular-nums w-6 text-right">{sub.score}</span>
+                              </div>
+                              <p className="text-[11px] text-white/55 leading-relaxed">「{sub.summary}」</p>
                             </div>
                           ))}
                         </div>
@@ -131,55 +164,83 @@ export function RosFiveLayers({
 
                       <div className="h-px bg-white/[0.08]" />
                       <div>
-                        <div className="text-[10px] font-mono text-white/35 tracking-widest mb-1.5">答题证据</div>
-                        <p className="text-xs text-white/70 leading-relaxed">{evidence}</p>
+                        <div className="text-[10px] font-mono text-white/35 tracking-widest mb-1.5">
+                          {exampleMode ? "档案依据" : "答题证据"}
+                        </div>
+                        <p className="text-xs text-white/75 leading-relaxed">{evidence}</p>
                       </div>
+
+                      {detail.bright && detail.watch ? (
+                        <LayerInsightCards bright={detail.bright} watch={detail.watch} />
+                      ) : null}
 
                       {probe ? (
                         <>
                           <div className="h-px bg-white/[0.08]" />
-                          <div className="rounded-xl p-3" style={{ background: "rgba(99,102,241,0.08)" }}>
-                            <div className="text-[10px] font-mono text-[#a5a8ff] tracking-widest mb-1">问诊式追问</div>
-                            <p className="text-sm text-white/85 leading-relaxed whitespace-pre-line">{probe}</p>
-                            <Link
-                              to="/chat"
-                              search={chatRouteSearch(
-                                attemptId,
-                                undefined,
-                                rosLayerChatPrefill(m.code, m.label, v, probe, evidence),
-                              )}
-                              className="inline-block mt-3 text-xs text-[#c2c4ff] hover:underline"
+                          <div
+                            className="rounded-xl p-3"
+                            style={{
+                              background: exampleMode ? "rgba(255,255,255,0.04)" : "rgba(99,102,241,0.08)",
+                              border: exampleMode
+                                ? "1px solid rgba(255,255,255,0.1)"
+                                : "1px solid rgba(99,102,241,0.2)",
+                            }}
+                          >
+                            <div
+                              className={`text-[10px] font-mono tracking-widest mb-1.5 ${
+                                exampleMode ? "text-white/45" : "text-[#a5a8ff]"
+                              }`}
                             >
-                              回忆一下，告诉 AI 分析师 →
-                            </Link>
+                              {exampleMode ? "档案追问 · 读完后想一想" : "问诊式追问"}
+                            </div>
+                            <p className="text-sm text-white/85 leading-relaxed whitespace-pre-line">{probe}</p>
+                            {!exampleMode ? (
+                              <Link
+                                to="/chat"
+                                search={chatRouteSearch(
+                                  attemptId,
+                                  undefined,
+                                  rosLayerChatPrefill(m.code, m.label, v, probe, evidence),
+                                )}
+                                className="inline-block mt-3 text-xs text-[#c2c4ff] hover:underline"
+                              >
+                                回忆一下，告诉 AI 分析师 →
+                              </Link>
+                            ) : null}
                           </div>
                         </>
                       ) : null}
 
-                      <div className="rounded-xl p-3 border border-dashed border-white/15">
-                        <div className="text-[10px] text-white/45 mb-1">如果对方来做会怎样</div>
-                        <p className="text-xs text-white/60">你给{m.label}打出了 {v} 分</p>
-                        <p className="text-sm text-white/75 mt-2">他/她会打几分？<span className="text-white/45"> 等待中…</span></p>
-                        <Link
-                          to="/chat"
-                          search={chatRouteSearch(
-                            attemptId,
-                            undefined,
-                            rosPartnerInvitePrefill(m.label, v),
-                          )}
-                          className="inline-block mt-2 mr-2 text-[10px] text-white/45 hover:text-white/70"
-                        >
-                          先跟 AI 聊聊差异 →
-                        </Link>
-                        <Link
-                          to="/ros/invite/$code"
-                          params={{ code: inviteCode }}
-                          className="inline-block mt-3 text-xs px-3 py-1.5 rounded-lg text-white"
-                          style={{ background: "rgba(99,102,241,0.35)" }}
-                        >
-                          邀请他/她来做 →
-                        </Link>
-                      </div>
+                      {!exampleMode ? (
+                        <div className="rounded-xl p-3 border border-dashed border-white/15">
+                          <div className="text-[10px] text-white/45 mb-1">如果对方来做会怎样</div>
+                          <p className="text-xs text-white/60">
+                            你给{m.label}打出了 {v} 分
+                          </p>
+                          <p className="text-sm text-white/75 mt-2">
+                            他/她会打几分？<span className="text-white/45"> 等待中…</span>
+                          </p>
+                          <Link
+                            to="/chat"
+                            search={chatRouteSearch(
+                              attemptId,
+                              undefined,
+                              rosPartnerInvitePrefill(m.label, v),
+                            )}
+                            className="inline-block mt-2 mr-2 text-[10px] text-white/45 hover:text-white/70"
+                          >
+                            先跟 AI 聊聊差异 →
+                          </Link>
+                          <Link
+                            to="/ros/invite/$code"
+                            params={{ code: inviteCode }}
+                            className="inline-block mt-3 text-xs px-3 py-1.5 rounded-lg text-white"
+                            style={{ background: "rgba(99,102,241,0.35)" }}
+                          >
+                            邀请他/她来做 →
+                          </Link>
+                        </div>
+                      ) : null}
                     </div>
                   </motion.div>
                 )}

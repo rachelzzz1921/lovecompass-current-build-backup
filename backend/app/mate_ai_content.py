@@ -43,6 +43,18 @@ MATE_MODULE_SPECS: list[tuple[str, str]] = [
 """.strip(),
     ),
     (
+        "mate-rehearse",
+        """
+只输出 JSON：
+{"rehearseEpisodes":[
+  {"name":"EP1 初见阶段","time":"Day 1 - 3","desc":"心动发生的瞬间","plot":"","partnerPsychology":"","warning":"","suggestion":"","comfortIndex":""},
+  {"name":"EP2 试探阶段","time":"Day 30","desc":"情绪稳定性的博弈","plot":"","partnerPsychology":"","warning":"","suggestion":"","comfortIndex":""},
+  {"name":"EP3 真实阶段","time":"Day 90+","desc":"核心资产的沉淀","plot":"","partnerPsychology":"","warning":"","suggestion":"","comfortIndex":""}
+]}
+plot 各 60-90 字；partnerPsychology / warning / suggestion 各 30-50 字；comfortIndex 为 5 格 💙 与 ○ 组合。
+""".strip(),
+    ),
+    (
         "mate-lens",
         """
 只输出 JSON：
@@ -61,6 +73,14 @@ MATE_MODULE_SPECS: list[tuple[str, str]] = [
   "adviceV4":{"goodNews":"","warning":""}
 }
 insights 各 100-130 字；lensGrid 各 60-90 字。
+""".strip(),
+    ),
+    (
+        "mate-simulator",
+        """
+只输出 JSON：
+{"simulator":{"dynamicText":"","slogan":""}}
+dynamicText 60-100 字，可含 {{boost}} {{baseline}} {{projected}} 占位符；slogan 20-35 字。只改叙事，不改数值。
 """.strip(),
     ),
     (
@@ -102,6 +122,7 @@ def fetch_pattern_cache(conn: Any, pattern_key: str) -> dict[str, Any] | None:
         row = conn.execute(
             """
             SELECT reverse, observe_slices, advice_v4, lens_grid, insights,
+                   rehearse_episodes, simulator,
                    generation_mode, hit_count
             FROM public.mate_ai_pattern_cache
             WHERE pattern_key = %s
@@ -137,15 +158,18 @@ def save_pattern_cache(
             """
             INSERT INTO public.mate_ai_pattern_cache(
               pattern_key, position_name, sub_type, gender, score_pattern,
-              reverse, observe_slices, advice_v4, lens_grid, insights, generation_mode
+              reverse, observe_slices, advice_v4, lens_grid, insights,
+              rehearse_episodes, simulator, generation_mode
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             ON CONFLICT (pattern_key) DO UPDATE SET
               reverse = EXCLUDED.reverse,
               observe_slices = EXCLUDED.observe_slices,
               advice_v4 = EXCLUDED.advice_v4,
               lens_grid = EXCLUDED.lens_grid,
               insights = EXCLUDED.insights,
+              rehearse_episodes = EXCLUDED.rehearse_episodes,
+              simulator = EXCLUDED.simulator,
               generation_mode = EXCLUDED.generation_mode,
               updated_at = now()
             """,
@@ -160,6 +184,8 @@ def save_pattern_cache(
                 Jsonb(ai_content.get("advice_v4") or {}),
                 Jsonb(ai_content.get("lens_grid") or []),
                 Jsonb(ai_content.get("insights") or []),
+                Jsonb(ai_content.get("rehearse_episodes") or []),
+                Jsonb(ai_content.get("simulator") or {}),
                 ai_content.get("mode") or "deterministic",
             ),
         )
@@ -247,21 +273,7 @@ def _parse_json_object(raw: str) -> dict[str, Any] | None:
 
 
 def _run_director_module(context: AssembledAIContext, task: str, extra_rules: str) -> dict[str, Any] | None:
-    module_context = AssembledAIContext(
-        role=context.role,
-        product_set=context.product_set,
-        main_type=context.main_type,
-        sub_type=context.sub_type,
-        profile_atoms=dict(context.profile_atoms),
-        pair_atoms=dict(context.pair_atoms),
-        evidence=list(context.evidence),
-        dictionary=list(context.dictionary),
-        cross_model_summary=list(context.cross_model_summary),
-        display_summaries=list(context.display_summaries),
-        user_traits=list(context.user_traits),
-        task=task,
-    )
-    prompt = build_director_prompt(task=task, context=module_context, extra_rules=extra_rules)
+    prompt = build_director_prompt(task=task, context=context, extra_rules=extra_rules)
     try:
         raw = get_ai_adapter().generate(prompt, json_mode=True)
         if looks_like_placeholder_report(raw):
@@ -294,6 +306,18 @@ def _merge_ai_modules(base: dict[str, Any], parsed: dict[str, Any]) -> dict[str,
 
     if isinstance(parsed.get("observeSlices"), list) and parsed["observeSlices"]:
         merged["observeSlices"] = parsed["observeSlices"]
+
+    if isinstance(parsed.get("rehearseEpisodes"), list) and len(parsed["rehearseEpisodes"]) >= 3:
+        merged["rehearseEpisodes"] = parsed["rehearseEpisodes"]
+
+    sim = parsed.get("simulator")
+    if isinstance(sim, dict) and sim:
+        base_sim = dict(merged.get("simulator") or {})
+        if sim.get("dynamicText"):
+            base_sim["dynamicText"] = str(sim["dynamicText"])
+        if sim.get("slogan"):
+            base_sim["slogan"] = str(sim["slogan"])
+        merged["simulator"] = base_sim
 
     advice = parsed.get("adviceV4")
     if isinstance(advice, dict) and advice:
@@ -339,6 +363,8 @@ def try_enhance_mate_modules_with_ai(
             "insights": combined.get("insights") or fallback_insights,
             "reverse": merged_payload.get("reverse"),
             "observe_slices": merged_payload.get("observeSlices"),
+            "rehearse_episodes": merged_payload.get("rehearseEpisodes"),
+            "simulator": merged_payload.get("simulator"),
             "advice_v4": merged_payload.get("adviceV4"),
             "lens_grid": merged_payload.get("lensGrid"),
             "social_quotes": merged_payload.get("socialQuotes"),
@@ -426,6 +452,10 @@ def _apply_ai_content_to_payload(payload: dict[str, Any], ai_content: dict[str, 
         payload["adviceV4"] = ai_content["advice_v4"]
     if ai_content.get("lens_grid"):
         payload["lensGrid"] = ai_content["lens_grid"]
+    if ai_content.get("rehearse_episodes"):
+        payload["rehearseEpisodes"] = ai_content["rehearse_episodes"]
+    if ai_content.get("simulator"):
+        payload["simulator"] = {**(payload.get("simulator") or {}), **ai_content["simulator"]}
     if ai_content.get("social_quotes"):
         payload["socialQuotes"] = ai_content["social_quotes"]
     return payload
@@ -464,10 +494,16 @@ def attach_mate_ai_content_to_payload(
                 payload["adviceV4"] = cached["advice_v4"]
             if cached.get("lens_grid"):
                 payload["lensGrid"] = cached["lens_grid"]
+            if cached.get("rehearse_episodes"):
+                payload["rehearseEpisodes"] = cached["rehearse_episodes"]
+            if cached.get("simulator"):
+                payload["simulator"] = {**(payload.get("simulator") or {}), **cached["simulator"]}
             ai_content = {
                 "insights": cached.get("insights") or payload.get("insights") or [],
                 "reverse": cached.get("reverse"),
                 "observe_slices": cached.get("observe_slices"),
+                "rehearse_episodes": cached.get("rehearse_episodes"),
+                "simulator": cached.get("simulator"),
                 "advice_v4": cached.get("advice_v4"),
                 "lens_grid": cached.get("lens_grid"),
                 "assembled_context": payload.get("assembledAiContext") or {},

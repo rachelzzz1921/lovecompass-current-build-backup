@@ -6,6 +6,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+from app.semantic_translation import FORBIDDEN_RULES_MARKDOWN
+
 SPECS_PATH = Path(__file__).resolve().parents[1] / "data" / "result_page_specs_v1.json"
 
 
@@ -148,6 +150,8 @@ tagline：{summary.get('tagline') or '（无）'}
 
 只输出 JSON：
 {{"core_traits":[{{"icon":"shield|key|eye","title":"","body":"","highlight":false}}],"insights":[{{"kind":"strength|watch|match|growth","title":"","body":""}}],"behaviors":[{{"scene":"","title":"","body":""}}]}}
+
+{FORBIDDEN_RULES_MARKDOWN}
 """.strip()
         return prompt, payload_meta, version
 
@@ -173,6 +177,8 @@ tagline：{summary.get('tagline') or '（无）'}
 
 只输出 JSON：
 {{"insights":[{{"kind":"strength|watch|advice|action","title":"","body":""}}],"prescription":{{"complaint":"","prescription_text":"","followup":"三个月后"}},"blind_spot":""}}
+
+{FORBIDDEN_RULES_MARKDOWN}
 """.strip()
         return prompt, payload_meta, version
 
@@ -197,6 +203,8 @@ tagline：{summary.get('tagline') or '（无）'}
 
 只输出 JSON：
 {{"insights":[{{"kind":"strength|watch|match|growth","title":"","body":""}}],"matchmaker_records":[{{"id":"","title":"","narrative":""}}],"ai_lens":[{{"key":"","title":"","tag":"","body":""}}],"secular_advice":[{{"title":"","dont":"","do":"","reason":""}}],"social_quotes":["",""]}}
+
+{FORBIDDEN_RULES_MARKDOWN}
 """.strip()
     return prompt, payload_meta, version
 

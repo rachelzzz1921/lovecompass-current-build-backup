@@ -65,9 +65,12 @@ export function detectProductSetFromAttempt(attempt: Record<string, unknown>): P
   const payload = (attempt.result_payload ?? {}) as Record<string, unknown>;
   const raw = payload.productSet ?? payload.product_set;
   if (raw === "ROS" || raw === "MATE" || raw === "SELF") return raw;
-  if (payload.model === "MATE_V3" || payload.model === "MATE_V4") return "MATE";
-  if (payload.model === "ROS_V3" || payload.relationCode) return "ROS";
   const slug = String(attempt.test_id ?? attempt.suite_slug ?? payload.suiteSlug ?? "");
+  if (slug.includes("ros") || slug.includes("s02")) return "ROS";
+  if (slug.includes("mate") || slug.includes("s03")) return "MATE";
+  if (slug.includes("self") || slug.includes("s01")) return "SELF";
+  if (payload.model === "MATE_V3" || payload.model === "MATE_V4") return "MATE";
+  if (payload.model === "ROS_V3") return "ROS";
   return productSetFromSlug(slug);
 }
 
@@ -140,6 +143,7 @@ export function safeResultRouteFromAttempt(
 
 export type SubmitAttemptResponse = {
   attemptId: string;
+  status?: "completed" | "in_progress";
   next?: string;
   productSet?: string;
   relationCode?: string;

@@ -1,0 +1,35 @@
+name: SELF ROS backend tests
+
+on:
+  push:
+    paths:
+      - "backend/**"
+      - ".github/workflows/self-ros-tests.yml"
+  pull_request:
+    paths:
+      - "backend/**"
+      - ".github/workflows/self-ros-tests.yml"
+
+jobs:
+  backend-scripts:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run SELF/ROS unit scripts
+        run: |
+          python scripts/test_self_static_copy.py
+          python scripts/test_self_ai_content.py
+          python scripts/test_core_traits.py
+          python scripts/test_ros_scoring.py
+          python scripts/test_ros_ai_content.py
+          python scripts/test_ros_couple_content.py
+          python scripts/test_ros_couple_bond_advice.py
+          python scripts/test_self_match_suggestions.py

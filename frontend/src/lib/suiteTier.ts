@@ -71,3 +71,29 @@ export function readStashedLiteAnswers(suiteSlug: string): Record<string, unknow
     return null;
   }
 }
+
+/** 完整版开跑时，按 externalId 匹配快速版已答题目 */
+export function mergeLiteAnswersForFullSuite<
+  TQuestion extends { id: string; externalId: string },
+  TPayload,
+>(
+  questions: TQuestion[],
+  fullSuiteSlug: string,
+  isAnswered: (question: TQuestion, payload: TPayload | undefined) => boolean,
+): { answers: Record<string, TPayload>; count: number } {
+  if (isLiteSuite(fullSuiteSlug)) return { answers: {}, count: 0 };
+  const stashed = readStashedLiteAnswers(liteSuiteSlugFrom(fullSuiteSlug));
+  if (!stashed) return { answers: {}, count: 0 };
+
+  const answers: Record<string, TPayload> = {};
+  let count = 0;
+  for (const question of questions) {
+    const raw = stashed[question.externalId];
+    if (!raw || typeof raw !== "object") continue;
+    const payload = raw as TPayload;
+    if (!isAnswered(question, payload)) continue;
+    answers[question.id] = payload;
+    count += 1;
+  }
+  return { answers, count };
+}

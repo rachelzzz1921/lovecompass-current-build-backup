@@ -1,0 +1,63 @@
+name: Suite flow matrix
+
+on:
+  push:
+    paths:
+      - "backend/**"
+      - "frontend/src/lib/productFlow/**"
+      - "frontend/src/lib/accessGate.ts"
+      - "frontend/src/lib/productAccessFlow.ts"
+      - "frontend/src/lib/productRegistry.ts"
+      - "frontend/src/lib/productRoutes.ts"
+      - "frontend/src/routes/tests.*"
+      - "frontend/src/routes/access.tsx"
+      - "frontend/src/routes/ros.start.tsx"
+      - ".github/workflows/suite-flow-matrix.yml"
+  pull_request:
+    paths:
+      - "backend/**"
+      - "frontend/src/lib/productFlow/**"
+      - "frontend/src/lib/accessGate.ts"
+      - "frontend/src/lib/productAccessFlow.ts"
+      - "frontend/src/lib/productRegistry.ts"
+      - "frontend/src/lib/productRoutes.ts"
+      - "frontend/src/routes/tests.*"
+      - "frontend/src/routes/access.tsx"
+      - "frontend/src/routes/ros.start.tsx"
+      - ".github/workflows/suite-flow-matrix.yml"
+  workflow_dispatch:
+
+jobs:
+  frontend-flow-unit:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Product flow engine unit tests
+        run: npm run test:flow
+
+  backend-flow-matrix:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Validate all suite flows (production API)
+        env:
+          LOVECOMPASS_API_BASE: https://lovecompass-api-backend.vercel.app
+        run: python scripts/validate_all_suite_flows.py

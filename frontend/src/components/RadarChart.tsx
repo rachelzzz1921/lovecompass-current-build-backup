@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 
 type Axis = { label: string; value: number; color?: string; key?: string };
 
@@ -56,10 +56,20 @@ function drawPolygon(
   }
 }
 
+function chartMetrics(size: number) {
+  const plotSize = Math.round(size);
+  const cx = plotSize / 2;
+  const cy = plotSize / 2;
+  const labelMargin = 120;
+  const r = Math.max(56, (plotSize - labelMargin) / 2);
+  const labelR = r + 22;
+  return { plotSize, cx, cy, r, labelR };
+}
+
 export function RadarChart({
   data,
   baseline,
-  size = 280,
+  size = 300,
   variant = "violet",
   onAxisClick,
   activeAxis,
@@ -72,27 +82,47 @@ export function RadarChart({
   activeAxis?: number | null;
 }) {
   const ref = useRef<HTMLCanvasElement>(null);
-  const geomRef = useRef<{ cx: number; cy: number; r: number; n: number } | null>(null);
+  const geomRef = useRef<{ cx: number; cy: number; r: number; n: number; size: number } | null>(null);
+  const plotSize = Math.max(260, Math.round(size));
+  const { cx, cy, r, labelR } = chartMetrics(plotSize);
+  const n = data.length;
+
+  const labelPositions = useMemo(() => {
+    if (!n) return [];
+    return data.map((d, i) => {
+      const a = (Math.PI * 2 * i) / n - Math.PI / 2;
+      return {
+        key: d.key ?? d.label,
+        label: d.label,
+        x: cx + Math.cos(a) * labelR,
+        y: cy + Math.sin(a) * labelR,
+        active: activeAxis === i,
+      };
+    });
+  }, [activeAxis, cx, cy, data, labelR, n]);
 
   useEffect(() => {
     const cvs = ref.current;
-    if (!cvs) return;
-    const dpr = window.devicePixelRatio || 1;
-    cvs.width = size * dpr;
-    cvs.height = size * dpr;
-    cvs.style.width = size + "px";
-    cvs.style.height = size + "px";
-    const ctx = cvs.getContext("2d")!;
-    ctx.scale(dpr, dpr);
-    ctx.clearRect(0, 0, size, size);
+    if (!cvs || !n) return;
 
-    const cx = size / 2;
-    const cy = size / 2;
-    const r = (size - 80) / 2;
-    const n = data.length;
+    const dpr = Math.max(1, Math.round(window.devicePixelRatio || 1));
+    const backing = plotSize * dpr;
+    cvs.width = backing;
+    cvs.height = backing;
+    cvs.style.width = `${plotSize}px`;
+    cvs.style.height = `${plotSize}px`;
+
+    const ctx = cvs.getContext("2d");
+    if (!ctx) return;
+
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, plotSize, plotSize);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+
     const ang = (i: number) => (Math.PI * 2 * i) / n - Math.PI / 2;
     const palette = VARIANT_STYLES[variant];
-    geomRef.current = { cx, cy, r, n };
+    geomRef.current = { cx, cy, r, n, size: plotSize };
 
     ctx.strokeStyle = palette.grid;
     ctx.lineWidth = 1;
@@ -114,83 +144,79 @@ export function RadarChart({
       ctx.moveTo(cx, cy);
       ctx.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
       ctx.strokeStyle = highlighted ? palette.stroke : palette.grid;
-      ctx.lineWidth = highlighted ? 1.8 : 1;
+      ctx.lineWidth = highlighted ? 1.75 : 1;
       ctx.stroke();
     }
 
     if (baseline?.length === n) {
-      drawPolygon(
-        ctx,
-        cx,
-        cy,
-        r,
-        n,
-        ang,
-        baseline.map((b) => b.value),
-        { stroke: palette.baseline, lineWidth: 1.4, dash: [5, 4] },
-      );
+      drawPolygon(ctx, cx, cy, r, n, ang, baseline.map((b) => b.value), {
+        stroke: palette.baseline,
+        lineWidth: 1.4,
+        dash: [5, 4],
+      });
     }
 
     const grad = ctx.createRadialGradient(cx, cy, 10, cx, cy, r);
     grad.addColorStop(0, palette.fill[0]);
     grad.addColorStop(1, palette.fill[1]);
 
-    drawPolygon(
-      ctx,
-      cx,
-      cy,
-      r,
-      n,
-      ang,
-      data.map((d) => d.value),
-      { fill: grad, stroke: palette.stroke, lineWidth: 1.6 },
-    );
+    drawPolygon(ctx, cx, cy, r, n, ang, data.map((d) => d.value), {
+      fill: grad,
+      stroke: palette.stroke,
+      lineWidth: 1.75,
+    });
 
     data.forEach((d, i) => {
       const a = ang(i);
       const rr = (Math.max(0, Math.min(100, d.value)) / 100) * r;
       const x = cx + Math.cos(a) * rr;
       const y = cy + Math.sin(a) * rr;
+      const radius = activeAxis === i ? 5 : 4;
       ctx.beginPath();
-      ctx.arc(x, y, activeAxis === i ? 5.5 : 4, 0, Math.PI * 2);
-      ctx.fillStyle = d.color || palette.point;
-      ctx.shadowColor = d.color || palette.point;
-      ctx.shadowBlur = activeAxis === i ? 14 : 10;
+      ctx.arc(x, y, radius + 2, 0, Math.PI * 2);
+      ctx.fillStyle = `${d.color || palette.point}33`;
       ctx.fill();
-      ctx.shadowBlur = 0;
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.fillStyle = d.color || palette.point;
+      ctx.fill();
     });
-
-    ctx.font = "500 11px 'Inter', sans-serif";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    data.forEach((d, i) => {
-      const a = ang(i);
-      const x = cx + Math.cos(a) * (r + 22);
-      const y = cy + Math.sin(a) * (r + 22);
-      ctx.fillStyle = activeAxis === i ? "rgba(255,255,255,0.95)" : "rgba(220,220,235,0.78)";
-      ctx.fillText(d.label, x, y);
-    });
-  }, [data, baseline, size, variant, activeAxis]);
+  }, [activeAxis, baseline, cx, cy, data, n, plotSize, r, variant]);
 
   const handleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!onAxisClick || !geomRef.current) return;
     const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left - geomRef.current.cx;
-    const y = e.clientY - rect.top - geomRef.current.cy;
+    const scale = geomRef.current.size / rect.width;
+    const x = (e.clientX - rect.left) * scale - geomRef.current.cx;
+    const y = (e.clientY - rect.top) * scale - geomRef.current.cy;
     const angle = Math.atan2(y, x) + Math.PI / 2;
     const normalized = angle < 0 ? angle + Math.PI * 2 : angle;
-    const n = geomRef.current.n;
-    const slice = (Math.PI * 2) / n;
-    const index = Math.round(normalized / slice) % n;
+    const slice = (Math.PI * 2) / geomRef.current.n;
+    const index = Math.round(normalized / slice) % geomRef.current.n;
     onAxisClick(index);
   };
 
   return (
-    <canvas
-      ref={ref}
-      className={`block ${onAxisClick ? "cursor-pointer" : ""}`}
-      onClick={handleClick}
-      aria-label="六维雷达图"
-    />
+    <div className="relative shrink-0" style={{ width: plotSize, height: plotSize }}>
+      <canvas
+        ref={ref}
+        className={onAxisClick ? "cursor-pointer" : undefined}
+        onClick={handleClick}
+        aria-label="六维雷达图"
+      />
+      <div className="pointer-events-none absolute inset-0" aria-hidden>
+        {labelPositions.map((item) => (
+          <span
+            key={item.key}
+            className={`absolute whitespace-nowrap text-center text-[10px] sm:text-[11px] leading-none -translate-x-1/2 -translate-y-1/2 ${
+              item.active ? "text-foreground font-medium" : "text-foreground/75"
+            }`}
+            style={{ left: item.x, top: item.y }}
+          >
+            {item.label}
+          </span>
+        ))}
+      </div>
+    </div>
   );
 }

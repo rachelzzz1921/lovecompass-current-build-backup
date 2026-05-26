@@ -2,6 +2,8 @@ import type { ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import type { MateCoupleResult } from "@/data/mateCoupleTypes";
+import { LiteCoupleResultNotice } from "@/components/LiteCoupleResultNotice";
+import { MatePairCompareTable } from "@/components/mate/MatePairCompareTable";
 
 const ROSE = {
   chip: "rgba(244,114,182,0.12)",
@@ -17,6 +19,7 @@ function SectionLabel({ children }: { children: ReactNode }) {
 }
 
 export function MateCoupleResultView({ result }: { result: MateCoupleResult }) {
+  const supplement = result.pairSupplement;
   return (
     <main className="relative min-h-screen" style={{ background: "#100a0d" }}>
       <header
@@ -36,6 +39,7 @@ export function MateCoupleResultView({ result }: { result: MateCoupleResult }) {
       </header>
 
       <div className="max-w-[480px] mx-auto px-5 pb-24 space-y-8">
+        <LiteCoupleResultNotice productId="mate" participants={result.participants} />
         <section>
           <SectionLabel>📍 适配坐标</SectionLabel>
           <div
@@ -65,6 +69,69 @@ export function MateCoupleResultView({ result }: { result: MateCoupleResult }) {
             </div>
           </div>
         </section>
+
+        {supplement && !supplement.supplementComplete ? (
+          <section
+            className="rounded-2xl px-4 py-3 text-xs text-white/70"
+            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
+          >
+            双方完成「双人补充题」后，条件对比与必聊议题会更完整。
+            {!supplement.youSupplementComplete ? " 你这边尚未完成补充题。" : ""}
+            {!supplement.taSupplementComplete ? " TA 尚未完成补充题。" : ""}
+          </section>
+        ) : null}
+
+        {supplement?.conditionCompareTable.length ? (
+          <MatePairCompareTable title="📊 条件对比" rows={supplement.conditionCompareTable} />
+        ) : null}
+
+        {supplement?.dealItemsTable.length ? (
+          <MatePairCompareTable title="💬 相亲必聊议题" rows={supplement.dealItemsTable} />
+        ) : null}
+
+        {supplement?.rhythmSection.note ? (
+          <section>
+            <SectionLabel>🎵 {supplement.rhythmSection.label}</SectionLabel>
+            <div
+              className="rounded-2xl p-4 space-y-3"
+              style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}
+            >
+              <div className="grid grid-cols-2 gap-3 text-center">
+                <div className="rounded-xl p-3 bg-black/15">
+                  <div className="text-2xl text-white">
+                    {supplement.rhythmSection.youScore ?? "—"}
+                  </div>
+                  <div className="text-[10px] text-white/45 mt-1">你</div>
+                </div>
+                <div className="rounded-xl p-3 bg-black/15">
+                  <div className="text-2xl text-white">
+                    {supplement.rhythmSection.taScore ?? "—"}
+                  </div>
+                  <div className="text-[10px] text-white/45 mt-1">TA</div>
+                </div>
+              </div>
+              <p className="text-sm text-white/75 leading-relaxed">{supplement.rhythmSection.note}</p>
+            </div>
+          </section>
+        ) : null}
+
+        {supplement?.attentionItems.length ? (
+          <section>
+            <SectionLabel>👀 需要关注</SectionLabel>
+            <div className="space-y-2">
+              {supplement.attentionItems.map((item) => (
+                <div
+                  key={item.label}
+                  className="rounded-2xl px-4 py-3 text-sm"
+                  style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}
+                >
+                  <div className="text-white/90 font-medium">{item.message}</div>
+                  <p className="text-xs text-white/55 mt-1 leading-relaxed">{item.desc}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : null}
 
         <section>
           <SectionLabel>🔬 关系拆解</SectionLabel>

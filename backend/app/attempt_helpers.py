@@ -30,15 +30,16 @@ def batch_insert_attempt_answers(
         )
         for q in questions
     ]
-    conn.executemany(
-        """
-        INSERT INTO public.test_attempt_answers(
-          attempt_id, question_id, external_question_id, answer_payload, numeric_score, dimension_code
+    with conn.cursor() as cur:
+        cur.executemany(
+            """
+            INSERT INTO public.test_attempt_answers(
+              attempt_id, question_id, external_question_id, answer_payload, numeric_score, dimension_code
+            )
+            VALUES (%s, %s, %s, %s, %s, %s)
+            """,
+            rows,
         )
-        VALUES (%s, %s, %s, %s, %s, %s)
-        """,
-        rows,
-    )
 
 
 def rebuild_portrait_background(user_id: str) -> None:

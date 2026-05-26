@@ -1,0 +1,25 @@
+/** MATE · 与全站 oklch 色板对齐（背景同 ROS，强调 rose + violet） */
+export const MATE_THEME = {
+  bg: "#0c0e11",
+  violet: "oklch(0.68 0.18 285)",
+  violetSoft: "oklch(0.50 0.20 285 / 0.14)",
+  violetBorder: "oklch(0.68 0.18 285 / 0.38)",
+  violetText: "oklch(0.88 0.10 285)",
+  rose: "oklch(0.72 0.18 360)",
+  chip: "rgba(244, 114, 182, 0.12)",
+  chipText: "#f9a8d4",
+  chipBorder: "rgba(244, 114, 182, 0.35)",
+  accent: "#fb7185",
+  accentSoft: "rgba(244, 114, 182, 0.10)",
+  accentBorder: "rgba(244, 114, 182, 0.28)",
+  gold: "oklch(0.82 0.14 75)",
+  goldSoft: "rgba(251, 191, 36, 0.08)",
+  goldBorder: "rgba(251, 191, 36, 0.22)",
+  goldText: "oklch(0.88 0.10 75)",
+  glow: "rgba(244, 114, 182, 0.16)",
+  /** @deprecated 使用 violet* / accent* */
+  purple: "oklch(0.68 0.18 285)",
+  purpleSoft: "oklch(0.50 0.20 285 / 0.14)",
+  purpleBorder: "oklch(0.68 0.18 285 / 0.38)",
+  purpleText: "oklch(0.88 0.10 285)",
+} as const;

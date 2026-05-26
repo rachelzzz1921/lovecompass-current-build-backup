@@ -6,7 +6,7 @@ import json
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
-from app.dictionary_retrieval import retrieve_dictionary_snippets
+from app.dictionary_retrieval import dictionary_limit_for_task, retrieve_dictionary_snippets
 from app.profile_center import resolve_product_set
 from app.ros_scoring import ROS_LAYER_CODES, ROS_LAYER_LABELS
 from app.semantic_translation import (
@@ -20,6 +20,34 @@ from app.semantic_translation import (
 )
 
 ROS_LAYER_ORDER = ROS_LAYER_CODES
+
+# Module-scoped atom buckets — each director call sees only what it needs.
+TASK_PROFILE_BUCKETS: dict[str, frozenset[str]] = {
+    "mate-reverse": frozenset({"trait_atoms", "behavior_atoms", "scene_atoms"}),
+    "mate-observe": frozenset({"trait_atoms", "scene_atoms"}),
+    "mate-lens": frozenset({"trait_atoms", "behavior_atoms", "relationship_atoms", "scene_atoms"}),
+    "footer_marquee": frozenset({"trait_atoms", "scene_atoms"}),
+    "mate-rehearse": frozenset({"trait_atoms", "behavior_atoms", "scene_atoms"}),
+    "mate-simulator": frozenset({"trait_atoms", "behavior_atoms"}),
+    "mate-advice": frozenset({"trait_atoms", "behavior_atoms", "relationship_atoms"}),
+    "ros-insights": frozenset({"trait_atoms", "behavior_atoms", "scene_atoms"}),
+}
+
+TASK_PAIR_BUCKETS: dict[str, frozenset[str] | None] = {
+    "mate-reverse": frozenset(),
+    "mate-observe": frozenset(),
+    "mate-lens": frozenset(),
+    "footer_marquee": frozenset(),
+    "mate-rehearse": frozenset(),
+    "mate-simulator": frozenset(),
+    "mate-advice": frozenset(),
+    "ros-insights": frozenset(),
+    "pair-analysis": frozenset({"pair_atoms", "common_atoms", "difference_atoms"}),
+    "ros-pair-analysis": frozenset({"pair_atoms", "common_atoms", "difference_atoms"}),
+}
+
+TASK_INCLUDE_CROSS_SUMMARY = frozenset({"mate-lens", "ros-insights", "pair-analysis", "ros-pair-analysis"})
+TASK_INCLUDE_TRAITS = frozenset({"mate-lens", "ros-insights"})
 
 
 def resolve_attempt_product_set(attempt: dict[str, Any]) -> str:
@@ -65,6 +93,87 @@ class AssembledAIContext:
 
     def to_model_safe_prompt_dict(self) -> dict[str, Any]:
         return to_model_safe_context(self.to_prompt_dict())
+
+    def slice_for_task(self, task: str) -> AssembledAIContext:
+        """Return a minimal context slice for one director module."""
+        profile_buckets = TASK_PROFILE_BUCKETS.get(task)
+        pair_buckets = TASK_PAIR_BUCKETS.get(task)
+
+        profile_atoms = dict(self.profile_atoms)
+        pair_atoms = dict(self.pair_atoms)
+
+        if profile_buckets is not None:
+            profile_atoms = {k: list(v) for k, v in profile_atoms.items() if k in profile_buckets and v}
+        if pair_buckets is not None:
+            pair_atoms = {k: list(v) for k, v in pair_atoms.items() if k in pair_buckets and v}
+
+        dict_max = dictionary_limit_for_task(task)
+        ros_patterns = profile_atoms.get("behavior_atoms") if self.product_set == "ROS" else None
+        dictionary = retrieve_dictionary_snippets(
+            trait_atoms=profile_atoms.get("trait_atoms"),
+            behavior_atoms=profile_atoms.get("behavior_atoms"),
+            relationship_atoms=profile_atoms.get("relationship_atoms"),
+            scene_atoms=profile_atoms.get("scene_atoms"),
+            pair_atoms=pair_atoms.get("pair_atoms"),
+            ros_patterns=ros_patterns,
+            max_total=dict_max,
+        )
+
+        cross = list(self.cross_model_summary[:3]) if task in TASK_INCLUDE_CROSS_SUMMARY else []
+        traits = list(self.user_traits[:4]) if task in TASK_INCLUDE_TRAITS else []
+
+        return AssembledAIContext(
+            role=self.role,
+            product_set=self.product_set,
+            main_type=self.main_type,
+            sub_type=self.sub_type,
+            profile_atoms=profile_atoms,
+            pair_atoms=pair_atoms,
+            evidence=[],
+            dictionary=dictionary,
+            cross_model_summary=cross,
+            display_summaries=[],
+            user_traits=traits,
+            task=task,
+        )
+
+    def to_director_payload(self, task: str | None = None) -> dict[str, Any]:
+        """Compact JSON for the model — flat atoms, no scores, no nested buckets."""
+        profile: list[str] = []
+        for key in ("trait_atoms", "behavior_atoms", "relationship_atoms", "scene_atoms"):
+            for item in self.profile_atoms.get(key) or []:
+                text = str(item).strip()
+                if text and text not in profile:
+                    profile.append(text)
+        profile = profile[:8]
+
+        pair: list[str] = []
+        for key in ("pair_atoms", "common_atoms", "difference_atoms"):
+            for item in self.pair_atoms.get(key) or []:
+                text = str(item).strip()
+                if text and text not in pair:
+                    pair.append(text)
+        pair = pair[:6]
+
+        payload: dict[str, Any] = {"role": self.role or "婚恋档案导演"}
+        if self.main_type:
+            payload["main_type"] = self.main_type
+        if self.sub_type:
+            payload["sub_type"] = self.sub_type
+        if profile:
+            payload["profile"] = profile
+        if pair:
+            payload["pair"] = pair
+        if self.dictionary:
+            payload["dictionary"] = self.dictionary[: dictionary_limit_for_task(task)]
+        if self.user_traits:
+            payload["traits"] = self.user_traits[:4]
+        if self.cross_model_summary:
+            payload["cross_model_summary"] = self.cross_model_summary[:3]
+        if task:
+            payload["task"] = task
+
+        return sanitize_deep(payload)
 
     def to_compact_block(self, *, max_tokens_hint: int = 1500) -> str:
         """Human-readable block for chat / report injection."""

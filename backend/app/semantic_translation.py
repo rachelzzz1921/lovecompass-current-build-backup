@@ -8,8 +8,6 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
-from app.chat_prompt_layers import score_band_label
-
 DICT_DIR = Path(__file__).resolve().parents[1] / "data" / "semantic_dictionary"
 
 INTERNAL_CODE_RE = re.compile(
@@ -89,6 +87,8 @@ def hidden_dictionary_for_prompt(codes: list[str] | None = None) -> dict[str, st
 
 
 def score_band_phrase(score: float) -> str:
+    from app.chat_prompt_layers import score_band_label
+
     return score_band_label(score)
 
 
@@ -98,10 +98,10 @@ def score_to_user_trait(code: str, score: float, *, gender: str = "female") -> s
     desc = user_descriptions(code, limit=1)
     tail = desc[0] if desc else band
     if score >= 65:
-        return f"{label}是你的优势面——{tail}"
+        return f"{label}是你的优势面，{tail}"
     if score <= 45:
-        return f"{label}还有提升空间——{tail}"
-    return f"{label}{band}——{tail}"
+        return f"{label}还有提升空间，{tail}"
+    return f"{label}{band}，{tail}"
 
 
 def scores_to_user_traits(
@@ -235,21 +235,73 @@ def forbidden_patterns() -> list[re.Pattern[str]]:
 
 
 FORBIDDEN_RULES_MARKDOWN = """
-# Forbidden Rules（硬规则）
+# Forbidden Rules（硬规则 · 所有结果分析 / 报告 / 顾问回复）
 
-禁止输出任何内部模型字段、模块编号、数据库字段或算法分值。
+禁止向用户输出任何内部专业属性字母、模块编号、数据库字段或算法分值。
 
-禁止出现（含变体）：
-- AS / SF / P1–P6 / FS1–FS5 / MS1–MS5 / SA1–SA6 / AT / IN / CO / EV / RK
-- 「根据 XX 得分」「在 P2 模块中」「你的 FS1 偏高」
-- 裸数字分数、percent、模块代号
+禁止出现（含变体、大小写、带下划线）：
+- AS / SF / P1–P6 / FS1–FS5 / MS1–MS5 / SA1–SA6 / AT / IN / CO / EV / RK / PRE
+- 「根据 XX 得分」「在 P2 模块中」「你的 FS1 偏高」「SA2/SA3 灰色地带」
+- 裸数字分数、percent、模块代号、dimension_code
 
 如果需要表达同一含义，必须翻译成人类语言，例如：
-- 错误：你的 AS 偏高
+- 错误：你的 AS 偏高 / 你的 FS1 很高
 - 正确：你属于第一眼容易让人记住的人
+- 错误：AT 层较低
+- 正确：吸引基础这一面还有成长空间
 
 内部字段仅供理解上下文；只允许输出对应的用户名称与行为描述。
 """.strip()
+
+# 结构化字段保留原值；仅清洗用户会读到的文案
+_SKIP_SANITIZE_KEYS = frozenset(
+    {
+        "code",
+        "key",
+        "id",
+        "kind",
+        "icon",
+        "type",
+        "model",
+        "engine",
+        "productSet",
+        "suiteTier",
+        "fullSuiteSlug",
+        "externalId",
+        "pattern_key",
+        "model_key",
+        "model_version",
+        "archetype_code",
+        "attachment_type",
+        "suiteSlug",
+        "attemptId",
+        "gender",
+        "direction",
+        "question_type",
+        "dimension_code",
+        "external_question_id",
+        "source_dimension",
+        "storageIndex",
+        "pinOrder",
+        "scoringSensitive",
+        "relationshipType",
+        "relationshipStage",
+        "timeTag",
+        "positionType",
+        "quadrant",
+        "spark",
+        "status",
+        "mode",
+        "tag",
+        "optionKey",
+        "pinyin",
+        "profileEngine",
+        "computedLayers",
+        "trait_atoms",
+        "scene_atoms",
+        "behavior_atoms",
+    }
+)
 
 
 def contains_forbidden(text: str) -> bool:
@@ -322,11 +374,64 @@ _SKIP_SANITIZE_KEYS = frozenset(
 )
 
 
+_INTERNAL_NARRATIVE_TERMS = (
+    "市场显示度",
+    "门面显示度",
+    "社交显示度",
+    "吸引力/门面显示度",
+    "门面/情感显示度",
+    "低显示人格",
+    "高显示人格",
+    "低显示型吸引力",
+    "低显示度",
+    "高显示度",
+    "低显示",
+    "高显示",
+    "显示度",
+    "风险净值",
+    "现实支撑力",
+    "现实支撑叙事",
+    "档案呈现为",
+    "四象限",
+    "trait_atoms",
+    "profile_engine",
+)
+
+_ARCHIVE_LAYER_RE = re.compile(r"在「[^」]+」这一层，档案呈现为「[^」]+」——?")
+_FROM_MARKET_RE = re.compile(r"从市场含义看，[^。！？；]+。")
+_QUADRANT_MAP_RE = re.compile(r"(?:已映射到|映射到)\s*四象限\s*[A-Z0-9_\-]+[。]?")
+_INTERNAL_DASH_LEAD_RE = re.compile(
+    r"^[^。！？]{0,48}(?:"
+    + "|".join(re.escape(term) for term in _INTERNAL_NARRATIVE_TERMS)
+    + r")[^。！？]{0,24}——\s*"
+)
+
+
+def polish_narrative_copy(text: str) -> str:
+    """Strip internal analysis lead-ins (especially em-dash templates) before user sees copy."""
+    if not text:
+        return text
+    output = str(text).strip()
+    output = _ARCHIVE_LAYER_RE.sub("", output)
+    output = _FROM_MARKET_RE.sub("", output)
+    output = _QUADRANT_MAP_RE.sub("", output)
+    output = _INTERNAL_DASH_LEAD_RE.sub("", output)
+    if "——" in output:
+        lead, tail = output.split("——", 1)
+        lead = lead.strip()
+        tail = tail.strip()
+        if tail and any(term in lead for term in _INTERNAL_NARRATIVE_TERMS):
+            output = tail
+    output = re.sub(r"^——+\s*", "", output)
+    output = re.sub(r"\s*——+\s*$", "", output)
+    return output.strip()
+
+
 def sanitize_text(text: str) -> str:
     """Output Guard — semantic replace, then strip remaining internal tokens."""
     if not text:
         return text
-    output = text
+    output = polish_narrative_copy(text)
     replace_map = semantic_replace_map()
     for key in sorted(replace_map.keys(), key=len, reverse=True):
         value = replace_map[key]
@@ -337,6 +442,7 @@ def sanitize_text(text: str) -> str:
             output = re.sub(_code_pattern(term), "", output, flags=re.IGNORECASE)
     output = re.sub(r"\s{2,}", " ", output)
     output = re.sub(r"[，。；]\s*[，。；]", "，", output)
+    output = re.sub(r"，{2,}", "，", output)
     return output.strip()
 
 

@@ -9,6 +9,8 @@ import { formatApiErrorMessage } from "@/lib/apiErrors";
 import { mapApiMateCouplePayload } from "@/lib/mapMateCoupleResult";
 import { lovecompassApi } from "@/lib/lovecompassApi";
 import { AuthChecking, useRequireAuth } from "@/lib/requireAuth";
+import { takeResultPrefetch } from "@/lib/resultPrefetchCache";
+import { ResultDataLoading } from "@/components/ResultDataLoading";
 
 export const Route = createFileRoute("/result/mate/couple/$code")({
   ssr: false,
@@ -32,6 +34,15 @@ function MateCouplePage() {
   useEffect(() => {
     if (authPending) return;
     let cancelled = false;
+    const normalized = code.trim().toUpperCase();
+
+    const cached = takeResultPrefetch(`couple:${normalized}`);
+    if (cached?.kind === "mate-couple" && cached.code === normalized) {
+      setResult(mapApiMateCouplePayload(cached.data));
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     lovecompassApi
       .getMateCoupleReport(code)
@@ -57,7 +68,8 @@ function MateCouplePage() {
     };
   }, [authPending, code]);
 
-  if (authPending || loading) return <AuthChecking />;
+  if (authPending) return <AuthChecking />;
+  if (loading) return <ResultDataLoading label="读取双人报告…" />;
 
   if (waitingPartner) {
     return (

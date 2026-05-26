@@ -9,6 +9,11 @@ import { RosCoupleHeartbeat } from "@/components/ros-couple-result/RosCoupleHear
 import { RosCoupleNext } from "@/components/ros-couple-result/RosCoupleNext";
 import { RosSectionDivider } from "@/components/ros-couple-result/RosSectionDivider";
 import { RosCoupleShareDialog } from "@/components/ros-couple-result/RosCoupleShareDialog";
+import { LiteCoupleResultNotice } from "@/components/LiteCoupleResultNotice";
+import { FloatingSectionNav } from "@/components/reading/FloatingSectionNav";
+import { ResultReadingThreshold } from "@/components/reading/ResultReadingThreshold";
+import { useFloatingResultNav } from "@/components/reading/useFloatingResultNav";
+import { ROS_COUPLE_RESULT_SECTIONS } from "@/lib/readingSections";
 
 export type RosCoupleResultViewProps = {
   result: RosCoupleResult;
@@ -17,6 +22,7 @@ export type RosCoupleResultViewProps = {
 
 export function RosCoupleResultView({ result, initiatorAttemptId }: RosCoupleResultViewProps) {
   const [shareOpen, setShareOpen] = useState(false);
+  const { activeSectionId, visible: showFloatingNav } = useFloatingResultNav(ROS_COUPLE_RESULT_SECTIONS);
 
   return (
     <main className="relative min-h-screen" style={{ background: "#0c0e11" }}>
@@ -37,30 +43,50 @@ export function RosCoupleResultView({ result, initiatorAttemptId }: RosCoupleRes
       </header>
 
       <div className="max-w-[480px] mx-auto px-5 pb-24 space-y-2">
-        <RosCoupleOverview result={result} />
+        <LiteCoupleResultNotice productId="ros" participants={result.participants} className="mb-4" />
+        <ResultReadingThreshold productId="ros" headline={result.type.name} surface="dark" />
+        <section id="ros-couple-overview" className="scroll-mt-32">
+          <RosCoupleOverview result={result} />
+        </section>
 
         <RosSectionDivider hint="数字背后，你们各自感受到了什么" />
 
-        <RosCoupleCompare result={result} initiatorAttemptId={initiatorAttemptId} />
+        <section id="ros-couple-compare" className="scroll-mt-32">
+          <RosCoupleCompare result={result} initiatorAttemptId={initiatorAttemptId} />
+        </section>
 
         <RosSectionDivider hint="这些差距，有更深层的原因" />
 
-        <RosCoupleBond result={result} />
+        <section id="ros-couple-bond" className="scroll-mt-32">
+          <RosCoupleBond result={result} />
+        </section>
 
         <RosSectionDivider hint="把它们叠在一起，看看你们独特的样子" />
 
-        <RosCoupleHeartbeat result={result} />
+        <section id="ros-couple-signal" className="scroll-mt-32">
+          <RosCoupleHeartbeat result={result} />
+        </section>
 
         <RosSectionDivider hint="看见了，然后呢" />
 
-        <RosCoupleNext
-          result={result}
-          initiatorAttemptId={initiatorAttemptId}
-          onShare={() => setShareOpen(true)}
-        />
+        <section id="ros-couple-next" className="scroll-mt-32">
+          <RosCoupleNext
+            result={result}
+            initiatorAttemptId={initiatorAttemptId}
+            onShare={() => setShareOpen(true)}
+          />
+        </section>
       </div>
 
       <RosCoupleShareDialog result={result} open={shareOpen} onOpenChange={setShareOpen} />
+
+      <FloatingSectionNav
+        visible={showFloatingNav}
+        sections={ROS_COUPLE_RESULT_SECTIONS}
+        activeSectionId={activeSectionId}
+        tone="indigo"
+        appearance="glass"
+      />
     </main>
   );
 }

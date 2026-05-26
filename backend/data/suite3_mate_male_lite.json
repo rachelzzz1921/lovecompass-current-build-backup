@@ -761,7 +761,37 @@
         "min": 0,
         "max": 100,
         "min_label": "我可能比较无聊",
-        "max_label": "跟我在一起不无聊"
+        "max_label": "跟我在一起不无聊",
+        "feedback": [
+          {
+            "range": [
+              0,
+              30
+            ],
+            "text": "你可能需要发展一些制造趣味的能力"
+          },
+          {
+            "range": [
+              31,
+              55
+            ],
+            "text": "有时有趣，有时比较平"
+          },
+          {
+            "range": [
+              56,
+              75
+            ],
+            "text": "整体有趣，相处体验不错"
+          },
+          {
+            "range": [
+              76,
+              100
+            ],
+            "text": "你是那种让人觉得跟你在一起不无聊的人"
+          }
+        ]
       },
       "scoring": {
         "method": "slider_to_5",
@@ -773,22 +803,119 @@
     {
       "id": "MS4-M-15",
       "order": 15,
+      "module": "MS4",
+      "sub": "MS4_A",
       "type": "slider",
       "weight": 1.5,
       "direction": "positive",
-      "text": "你觉得自己的整体外形，在同龄男性里处于什么水平？",
+      "text": "你觉得自己的外形资产大概在哪个位置？",
+      "subtitle": "包含长相、身材、穿搭、整体气质",
+      "note": "这个观察只帮助系统理解你的起点，不会以数字形式出现在结果里。",
       "slider": {
-        "min": 0,
-        "max": 100,
-        "min_label": "比较普通，外形不是我的优势",
-        "max_label": "外形明显好于同龄人"
+        "min": 1,
+        "max": 10,
+        "step": 1,
+        "displayMode": "appearance",
+        "tierLabels": [
+          {
+            "range": [
+              1,
+              2
+            ],
+            "label": "自然型"
+          },
+          {
+            "range": [
+              3,
+              4
+            ],
+            "label": "普通辨识度"
+          },
+          {
+            "range": [
+              5,
+              6
+            ],
+            "label": "有记忆点"
+          },
+          {
+            "range": [
+              7,
+              8
+            ],
+            "label": "高辨识度"
+          },
+          {
+            "range": [
+              9,
+              10
+            ],
+            "label": "极高辨识度"
+          }
+        ],
+        "footnote": "注意：不是素颜自拍视角，也不是美颜后的自己。\n参考：现实社交 + 日常状态 + 外形管理后的综合感受",
+        "reference": [
+          {
+            "score": 1,
+            "perception": "外形存在明显短板",
+            "behavior": "整体形象管理较少"
+          },
+          {
+            "score": 2,
+            "perception": "很少因为外形被关注",
+            "behavior": "基本不构成优势"
+          },
+          {
+            "score": 3,
+            "perception": "偶尔被夸精神",
+            "behavior": "熟人评价更多"
+          },
+          {
+            "score": 4,
+            "perception": "普通水平",
+            "behavior": "放在人群里不突出"
+          },
+          {
+            "score": 5,
+            "perception": "中位值",
+            "behavior": "干净舒服，不减分"
+          },
+          {
+            "score": 6,
+            "perception": "有记忆点",
+            "behavior": "身材/气质/穿搭有亮点"
+          },
+          {
+            "score": 7,
+            "perception": "明显加分",
+            "behavior": "异性会主动注意"
+          },
+          {
+            "score": 8,
+            "perception": "同龄前10%左右",
+            "behavior": "常被夸有魅力"
+          },
+          {
+            "score": 9,
+            "perception": "同龄前3%左右",
+            "behavior": "外形会带来社交优势"
+          },
+          {
+            "score": 10,
+            "perception": "极少数",
+            "behavior": "长相或整体气质非常突出"
+          }
+        ]
       },
       "scoring": {
-        "method": "slider_to_5",
-        "formula": "value / 100 * 5"
-      },
-      "module": "MS4",
-      "sub": "MS4_A"
+        "method": "direct_times_10",
+        "sensitive": "appearance",
+        "calibrationSignals": [
+          "MS4-M-16",
+          "MS4-M-17",
+          "MS4-M-14"
+        ]
+      }
     },
     {
       "id": "MS4-M-16",

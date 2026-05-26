@@ -5,6 +5,7 @@ import type {
   MateDeepArchive,
   MateIdentityDossier,
   MateLensCard,
+  MateInsight,
   MateLensGridItem,
   MateMarketCoordinate,
   MateMatchZone,
@@ -12,6 +13,7 @@ import type {
   MateModule,
   MateModuleAccordion,
   MateObserveSlice,
+  MatePartnerPortrait,
   MateProfileEngine,
   MateRehearseEpisode,
   MateResult,
@@ -69,7 +71,7 @@ function mapMarketCoordinate(raw: unknown): MateMarketCoordinate {
   return {
     axisX: asNumber(m.axisX, 50),
     axisY: asNumber(m.axisY, 50),
-    horizontalLabel: asString(m.horizontalLabel, "显示度"),
+    horizontalLabel: asString(m.horizontalLabel, "第一印象"),
     verticalLabel: asString(m.verticalLabel, "现实支撑"),
     summary: {
       firstImpression: asString(summary.firstImpression),
@@ -112,6 +114,23 @@ function mapTimeline(raw: unknown): MateTimelineNode[] {
   });
 }
 
+function mapPartnerPortraits(raw: unknown): MatePartnerPortrait[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  return raw
+    .map((item) => {
+      const p = item as ApiPayload;
+      return {
+        id: asString(p.id),
+        name: asString(p.name),
+        tags: Array.isArray(p.tags) ? p.tags.map(String) : [],
+        snapshot: asString(p.snapshot),
+        matchScore: p.matchScore != null ? asNumber(p.matchScore) : undefined,
+        stableProbability: p.stableProbability != null ? asNumber(p.stableProbability) : undefined,
+      };
+    })
+    .filter((p) => p.name);
+}
+
 function mapTraitProfile(raw: unknown, fallbackTitle: string): MateTraitProfile {
   const p = (raw && typeof raw === "object" ? raw : {}) as ApiPayload;
   const traitsRaw = (p.traits as ApiPayload) || {};
@@ -124,6 +143,12 @@ function mapTraitProfile(raw: unknown, fallbackTitle: string): MateTraitProfile 
     traits,
     summary: asString(p.summary),
     venues: Array.isArray(p.venues) ? p.venues.map(String) : undefined,
+    matchScore: p.matchScore != null ? asNumber(p.matchScore) : undefined,
+    stableProbability: p.stableProbability != null ? asNumber(p.stableProbability) : undefined,
+    marriageAdaptScore: p.marriageAdaptScore != null ? asNumber(p.marriageAdaptScore) : undefined,
+    bandLabel: p.bandLabel ? asString(p.bandLabel) : undefined,
+    portraits: mapPartnerPortraits(p.portraits),
+    warning: p.warning ? asString(p.warning) : undefined,
   };
 }
 
@@ -134,12 +159,18 @@ function mapSweetSpot(raw: unknown): MateSweetSpot {
   for (const [k, v] of Object.entries(profileRaw)) {
     profile[k] = asString(v);
   }
+  const successRate = asNumber(s.successRate, asNumber(s.matchScore, 70));
   return {
-    title: asString(s.title, "最高成功概率区"),
+    title: asString(s.title, "最佳适配区"),
     profile,
-    successRate: asNumber(s.successRate, 70),
+    successRate,
     reason: asString(s.reason),
     summary: asString(s.summary),
+    matchScore: s.matchScore != null ? asNumber(s.matchScore) : undefined,
+    stableProbability: s.stableProbability != null ? asNumber(s.stableProbability) : undefined,
+    marriageAdaptScore: s.marriageAdaptScore != null ? asNumber(s.marriageAdaptScore) : undefined,
+    bandLabel: s.bandLabel ? asString(s.bandLabel) : undefined,
+    portraits: mapPartnerPortraits(s.portraits),
   };
 }
 
@@ -239,6 +270,22 @@ function mapAiContent(raw: unknown): MateAiContent | undefined {
   };
 }
 
+function mapInsights(raw: unknown): MateInsight[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((item) => {
+      const row = item as ApiPayload;
+      const kind = row.kind;
+      if (kind !== "strength" && kind !== "watch" && kind !== "match" && kind !== "growth") return null;
+      return {
+        kind,
+        title: asString(row.title),
+        body: asString(row.body),
+      };
+    })
+    .filter((x): x is MateInsight => Boolean(x?.title && x?.body));
+}
+
 export function mapApiSingleToMateResult(attemptId: string, single: ApiPayload): MateResult {
   const pos = (single.positionType as ApiPayload) || {};
   const identityRaw = single.identityCard || {
@@ -280,6 +327,7 @@ export function mapApiSingleToMateResult(attemptId: string, single: ApiPayload):
     lensGrid: Array.isArray(single.lensGrid) ? (single.lensGrid as MateLensGridItem[]) : undefined,
     footerMarquee: single.footerMarquee as MateResult["footerMarquee"],
     aiContent: mapAiContent(single.ai_content),
+    insights: mapInsights(single.insights),
   };
 }
 

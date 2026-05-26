@@ -1,6 +1,12 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { AuthChecking, useRequireAuth } from "@/lib/requireAuth";
-import { lovecompassApi } from "@/lib/lovecompassApi";
+import { waitForResultReady } from "@/lib/waitForResultReady";
+import {
+  clearAnalyzingSession,
+  peekAnalyzingSession,
+  stashAnalyzingSession,
+  type AnalyzingSessionState,
+} from "@/lib/analyzingSession";
 import {
   detectProductSetFromAttempt,
   resolvePostAnalyzingRoute,
@@ -9,13 +15,16 @@ import {
   type ProductSet,
 } from "@/lib/resultRoutes";
 import { resolveAnalyzingProfile, type AnalyzingProfile } from "@/lib/analyzingProfiles";
+import { computeAnalyzingTimeline, formatAnalyzingWaitMessage } from "@/lib/analyzingTimeline";
 import {
   clearPendingAttemptSubmit,
-  markPendingHandlerAttached,
   peekPendingAttemptSubmit,
+  peekStashedSubmitContext,
   takeStashedSubmitResult,
 } from "@/lib/pendingAttemptSubmit";
 import { formatApiErrorMessage } from "@/lib/apiErrors";
+import type { SubmitAttemptResponse } from "@/lib/resultRoutes";
+import { lovecompassApi } from "@/lib/lovecompassApi";
 import { ApiErrorPanel } from "@/components/ApiErrorPanel";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -53,22 +62,52 @@ function AnalyzingPage() {
   } = Route.useSearch();
   const { pending: authPending } = useRequireAuth();
 
-  const [resolvedProductSet, setResolvedProductSet] = useState<ProductSet | null>(
-    searchProductSet ?? null,
-  );
-  const [submitNext, setSubmitNext] = useState<string | null>(null);
-  const [resolvedAttemptId, setResolvedAttemptId] = useState<string | null>(
-    initialAttemptId ?? null,
-  );
-  const [workState, setWorkState] = useState<WorkState>(
-    searchPending ? "submitting" : initialAttemptId ? "ready" : "error",
-  );
-  const [errorMessage, setErrorMessage] = useState<string | null>(
-    searchPending || initialAttemptId ? null : "缺少分析会话，请从测试页提交后再进入。",
-  );
+  const [resolvedProductSet, setResolvedProductSet] = useState<ProductSet | null>(() => {
+    const restored = peekAnalyzingSession();
+    return restored?.productSet ?? searchProductSet ?? null;
+  });
+  const [resolvedAttemptId, setResolvedAttemptId] = useState<string | null>(() => {
+    const restored = peekAnalyzingSession();
+    return restored?.attemptId ?? initialAttemptId ?? null;
+  });
+  const [submitNext, setSubmitNext] = useState<string | null>(() => peekAnalyzingSession()?.submitNext ?? null);
+  const [workState, setWorkState] = useState<WorkState>(() => {
+    const restored = peekAnalyzingSession();
+    if (restored?.ready) return "ready";
+    return searchPending || initialAttemptId ? "submitting" : "error";
+  });
+  const [errorMessage, setErrorMessage] = useState<string | null>(() => {
+    if (peekAnalyzingSession()?.ready) return null;
+    return searchPending || initialAttemptId ? null : "缺少分析会话，请从测试页提交后再进入。";
+  });
   const [stage, setStage] = useState(0);
   const [overall, setOverall] = useState(0);
-  const workStartedRef = useRef(false);
+  const [waiting, setWaiting] = useState(false);
+  const [done, setDone] = useState(false);
+  const [elapsedMs, setElapsedMs] = useState(0);
+  const [partnerRelationCode, setPartnerRelationCode] = useState<string | null>(null);
+  const [backRouteId, setBackRouteId] = useState<string>(() => {
+    const ctx = peekStashedSubmitContext();
+    return ctx?.routeId ?? ctx?.suiteSlug ?? "self";
+  });
+  const timelineStartRef = useRef<number | null>(null);
+  const completionScheduledRef = useRef(false);
+
+  const applySubmitResult = (res: SubmitAttemptResponse) => {
+    if (res.relationCode && typeof window !== "undefined") {
+      sessionStorage.setItem("ros:myCode", res.relationCode);
+    }
+    setResolvedAttemptId(res.attemptId);
+    if (res.productSet === "ROS" || res.productSet === "MATE" || res.productSet === "SELF") {
+      setResolvedProductSet(res.productSet);
+    }
+    setSubmitNext(res.next ?? null);
+  };
+
+  const markAnalyzingReady = (session: Omit<AnalyzingSessionState, "ready">) => {
+    stashAnalyzingSession({ ...session, ready: true });
+    setWorkState("ready");
+  };
 
   const profile = useMemo(
     () => resolveAnalyzingProfile(resolvedProductSet ?? searchProductSet),
@@ -76,71 +115,138 @@ function AnalyzingPage() {
   );
 
   const lastStageIdx = profile.stages.length - 1;
-  const done = stage >= profile.stages.length;
+
+  const prefetchResult = async (
+    attemptId: string,
+    productSet: ProductSet,
+    partnerCode?: string | null,
+  ) => {
+    await waitForResultReady({
+      attemptId,
+      productSet,
+      partnerRelationCode: partnerCode ?? partnerRelationCode,
+    });
+  };
 
   /* —— 绑定真实提交：pending 时在此页等待 API —— */
   useEffect(() => {
-    if (workStartedRef.current) return;
-    workStartedRef.current = true;
+    const restored = peekAnalyzingSession();
+    if (restored?.ready && restored.attemptId) {
+      setResolvedAttemptId(restored.attemptId);
+      setResolvedProductSet(restored.productSet);
+      setSubmitNext(restored.submitNext ?? null);
+      if (restored.partnerRelationCode) setPartnerRelationCode(restored.partnerRelationCode);
+      setWorkState("ready");
+      return;
+    }
 
     if (searchPending) {
       const ctx = peekPendingAttemptSubmit();
-      const stashed = ctx ? null : takeStashedSubmitResult();
-      if (!ctx && stashed) {
-        if (stashed.relationCode && typeof window !== "undefined") {
-          sessionStorage.setItem("ros:myCode", stashed.relationCode);
-        }
-        setResolvedAttemptId(stashed.attemptId);
-        if (stashed.productSet === "ROS" || stashed.productSet === "MATE" || stashed.productSet === "SELF") {
-          setResolvedProductSet(stashed.productSet);
-        }
-        setSubmitNext(stashed.next ?? null);
-        setWorkState("ready");
-        clearPendingAttemptSubmit();
-        return;
-      }
-      if (!ctx) {
-        setWorkState("error");
-        setErrorMessage("分析会话已过期，请返回测试页重新提交。");
-        return;
-      }
-      if (!markPendingHandlerAttached()) {
-        return;
-      }
-      if (ctx.productSet) setResolvedProductSet(ctx.productSet);
-      setWorkState("submitting");
+      if (ctx) {
+        if (ctx.partnerRelationCode) setPartnerRelationCode(ctx.partnerRelationCode);
+        if (ctx.productSet) setResolvedProductSet(ctx.productSet);
+        if (ctx.routeId || ctx.suiteSlug) setBackRouteId(ctx.routeId ?? ctx.suiteSlug ?? "self");
+        setWorkState("submitting");
 
-      void ctx.promise
-        .then((res) => {
-          if (res.relationCode && typeof window !== "undefined") {
-            sessionStorage.setItem("ros:myCode", res.relationCode);
+        let cancelled = false;
+        void ctx.promise
+          .then(async (res) => {
+            if (cancelled) return;
+            applySubmitResult(res);
+            const resolvedPs =
+              res.productSet === "ROS" || res.productSet === "MATE" || res.productSet === "SELF"
+                ? res.productSet
+                : ctx.productSet ?? searchProductSet ?? "SELF";
+            await prefetchResult(res.attemptId, resolvedPs, ctx.partnerRelationCode);
+            if (cancelled) return;
+            markAnalyzingReady({
+              attemptId: res.attemptId,
+              productSet: resolvedPs,
+              submitNext: res.next ?? null,
+              partnerRelationCode: ctx.partnerRelationCode ?? null,
+            });
+          })
+          .catch((e: unknown) => {
+            if (cancelled) return;
+            setWorkState("error");
+            setErrorMessage(formatApiErrorMessage(e));
+          })
+          .finally(() => {
+            if (!cancelled) clearPendingAttemptSubmit();
+          });
+
+        return () => {
+          cancelled = true;
+        };
+      }
+
+      const stashed = takeStashedSubmitResult();
+      if (stashed) {
+        applySubmitResult(stashed);
+        const stashedCtx = peekStashedSubmitContext();
+        let cancelled = false;
+        const ps =
+          stashed.productSet === "ROS" || stashed.productSet === "MATE" || stashed.productSet === "SELF"
+            ? stashed.productSet
+            : stashedCtx?.productSet ?? searchProductSet ?? "SELF";
+        if (stashedCtx?.partnerRelationCode) setPartnerRelationCode(stashedCtx.partnerRelationCode);
+        void (async () => {
+          try {
+            await prefetchResult(stashed.attemptId, ps);
+            if (!cancelled) {
+              markAnalyzingReady({
+                attemptId: stashed.attemptId,
+                productSet: ps,
+                submitNext: stashed.next ?? null,
+              });
+            }
+          } catch (e: unknown) {
+            if (!cancelled) {
+              setWorkState("error");
+              setErrorMessage(formatApiErrorMessage(e));
+            }
           }
-          setResolvedAttemptId(res.attemptId);
-          if (res.productSet === "ROS" || res.productSet === "MATE" || res.productSet === "SELF") {
-            setResolvedProductSet(res.productSet);
-          }
-          setSubmitNext(res.next ?? null);
-          setWorkState("ready");
-        })
-        .catch((e: unknown) => {
-          setWorkState("error");
-          setErrorMessage(formatApiErrorMessage(e));
-        })
-        .finally(() => {
-          clearPendingAttemptSubmit();
-        });
+        })();
+        clearPendingAttemptSubmit();
+        return () => {
+          cancelled = true;
+        };
+      }
+
+      setWorkState("error");
+      setErrorMessage("分析会话已过期，请返回测试页重新提交。");
       return;
     }
 
     if (initialAttemptId) {
       setResolvedAttemptId(initialAttemptId);
-      setWorkState("ready");
-      return;
+      setWorkState("submitting");
+      let cancelled = false;
+      void (async () => {
+        try {
+          const ps = searchProductSet ?? "SELF";
+          await prefetchResult(initialAttemptId, ps);
+          if (!cancelled) {
+            markAnalyzingReady({
+              attemptId: initialAttemptId,
+              productSet: ps,
+            });
+          }
+        } catch (e: unknown) {
+          if (!cancelled) {
+            setWorkState("error");
+            setErrorMessage(formatApiErrorMessage(e));
+          }
+        }
+      })();
+      return () => {
+        cancelled = true;
+      };
     }
 
     setWorkState("error");
     setErrorMessage("缺少分析会话，请从测试页提交后再进入。");
-  }, [searchPending, initialAttemptId, profile.stages.length]);
+  }, [searchPending, initialAttemptId]);
 
   /* —— 已有 attemptId 时补全 productSet —— */
   useEffect(() => {
@@ -161,64 +267,108 @@ function AnalyzingPage() {
     };
   }, [resolvedAttemptId, searchProductSet, workState]);
 
-  /* —— 阶段推进：最后一阶段卡住，直到 API 真正完成 —— */
+  /* —— 均匀时间轴：按 elapsed 推进阶段；API 慢时在尾段循环，不卡最后一屏 —— */
   useEffect(() => {
     if (workState === "error") return;
-    if (done) return;
-    if (stage >= lastStageIdx && workState !== "ready") return;
-
-    const t = setTimeout(() => setStage((s) => s + 1), profile.stages[stage].dur);
-    return () => clearTimeout(t);
-  }, [stage, workState, done, lastStageIdx, profile]);
-
-  /* —— API 完成后：若还在前面阶段，快进到最后一阶段再收尾 —— */
-  useEffect(() => {
-    if (workState !== "ready" || done) return;
-    if (stage < lastStageIdx) {
-      setStage(lastStageIdx);
-      return;
+    if (timelineStartRef.current === null) {
+      timelineStartRef.current = performance.now();
     }
-    const t = setTimeout(() => setStage((s) => s + 1), 420);
-    return () => clearTimeout(t);
-  }, [workState, stage, done, lastStageIdx]);
 
-  /* —— 完成后跳转 —— */
-  useEffect(() => {
+    const stageDurations = profile.stages.map((s) => s.dur);
     let raf = 0;
+
     const tick = () => {
-      setOverall((prev) => {
-        const stageCap = ((Math.min(stage, lastStageIdx) + 1) / profile.stages.length) * 92;
-        const target =
-          workState === "ready" || done
-            ? 100
-            : workState === "error"
-              ? Math.min(prev, 30)
-              : Math.min(92, stageCap);
-        const next = prev + (target - prev) * 0.08;
-        return Math.abs(next - target) < 0.3 ? target : next;
+      const elapsed = performance.now() - (timelineStartRef.current ?? performance.now());
+      const apiReady = workState === "ready";
+      const tl = computeAnalyzingTimeline({
+        elapsedMs: elapsed,
+        stageDurations,
+        apiReady,
       });
-      raf = requestAnimationFrame(tick);
+
+      setStage(tl.stageIndex);
+      setWaiting(tl.waiting);
+      setElapsedMs(elapsed);
+      setOverall((prev) => {
+        const target = done ? 100 : tl.canComplete ? 100 : tl.overall;
+        const next = prev + (target - prev) * 0.1;
+        return Math.abs(next - target) < 0.25 ? target : next;
+      });
+
+      if (tl.canComplete && !done && !completionScheduledRef.current) {
+        completionScheduledRef.current = true;
+        window.setTimeout(() => setDone(true), 260);
+      }
+
+      if (!done) {
+        raf = requestAnimationFrame(tick);
+      }
     };
+
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [stage, workState, done, lastStageIdx, profile.stages.length]);
+  }, [workState, profile.stages, done]);
 
   /* —— 完成后跳转 —— */
   useEffect(() => {
     if (!done || workState === "submitting" || workState === "error") return;
     let cancelled = false;
+    let fallbackTimer: number | undefined;
 
     const finish = async () => {
-      await new Promise((resolve) => setTimeout(resolve, 380));
       if (cancelled) return;
+
+      const ps = resolvedProductSet ?? searchProductSet;
+      if (partnerRelationCode) {
+        clearAnalyzingSession();
+        if (ps === "MATE") {
+          void nav({ to: "/result/mate/couple/$code", params: { code: partnerRelationCode } });
+        } else {
+          void nav({ to: "/result/ros/couple/$code", params: { code: partnerRelationCode } });
+        }
+        return;
+      }
 
       const explicit = resolvePostAnalyzingRoute({
         next: to ?? submitNext ?? undefined,
         attemptId: resolvedAttemptId,
         productSet: resolvedProductSet ?? searchProductSet ?? null,
       });
-      if (explicit) {
+      if (explicit && explicit.to !== "/analyzing") {
+        clearAnalyzingSession();
         void nav(explicit);
+        fallbackTimer = window.setTimeout(() => {
+          if (cancelled || typeof window === "undefined") return;
+          const path =
+            explicit.to === "/result/$attemptId"
+              ? `/result/${explicit.params.attemptId}`
+              : explicit.to === "/result/ros/$id"
+                ? `/result/ros/${explicit.params.id}`
+                : explicit.to === "/result/mate/$id"
+                  ? `/result/mate/${explicit.params.id}`
+                  : null;
+          if (path && !window.location.pathname.startsWith(path.split("?")[0])) {
+            window.location.assign(path);
+          }
+        }, 2500);
+        return;
+      }
+
+      if (resolvedAttemptId && ps) {
+        clearAnalyzingSession();
+        void nav(resultRouteForProductSet(ps, resolvedAttemptId));
+        fallbackTimer = window.setTimeout(() => {
+          if (cancelled || typeof window === "undefined") return;
+          const path =
+            ps === "ROS"
+              ? `/result/ros/${resolvedAttemptId}`
+              : ps === "MATE"
+                ? `/result/mate/${resolvedAttemptId}`
+                : `/result/${resolvedAttemptId}`;
+          if (!window.location.pathname.includes(resolvedAttemptId)) {
+            window.location.assign(path);
+          }
+        }, 2500);
         return;
       }
 
@@ -226,14 +376,16 @@ function AnalyzingPage() {
         try {
           const res = await lovecompassApi.getAttemptResult(resolvedAttemptId);
           const attempt = (res.attempt ?? {}) as Record<string, unknown>;
+          clearAnalyzingSession();
           void nav(safeResultRouteFromAttempt(resolvedAttemptId, attempt));
           return;
         } catch {
-          const ps = resolvedProductSet ?? searchProductSet;
           if (ps && ps !== "SELF") {
+            clearAnalyzingSession();
             void nav(resultRouteForProductSet(ps, resolvedAttemptId));
             return;
           }
+          clearAnalyzingSession();
           void nav({ to: "/result/$attemptId", params: { attemptId: resolvedAttemptId } });
         }
       }
@@ -242,6 +394,7 @@ function AnalyzingPage() {
     void finish();
     return () => {
       cancelled = true;
+      if (fallbackTimer) window.clearTimeout(fallbackTimer);
     };
   }, [
     done,
@@ -252,20 +405,55 @@ function AnalyzingPage() {
     resolvedProductSet,
     submitNext,
     searchProductSet,
+    partnerRelationCode,
   ]);
 
   const cur = profile.stages[Math.min(stage, lastStageIdx)];
+  const stageDurations = profile.stages.map((s) => s.dur);
+  const waitMessage = formatAnalyzingWaitMessage({
+    elapsedMs,
+    stageDurations,
+    waiting,
+    estimatedWaitLabel: profile.estimatedWaitLabel,
+    longWaitHint: profile.longWaitHint,
+  });
 
   if (authPending) return <AuthChecking />;
 
   if (workState === "error") {
+    const canRetryPrefetch = Boolean(resolvedAttemptId && resolvedProductSet);
     return (
       <main className="min-h-screen flex items-center justify-center px-5 py-10">
         <div className="w-full max-w-md">
           <ApiErrorPanel
             title="分析未能完成"
             message={errorMessage ?? "提交失败，请稍后再试"}
-            backTo={{ to: "/tests/$id", params: { id: profile.productSet.toLowerCase() }, label: "返回测试" }}
+            onRetry={
+              canRetryPrefetch
+                ? () => {
+                    setWorkState("submitting");
+                    setErrorMessage(null);
+                    void prefetchResult(resolvedAttemptId!, resolvedProductSet!)
+                      .then(() => {
+                        markAnalyzingReady({
+                          attemptId: resolvedAttemptId!,
+                          productSet: resolvedProductSet!,
+                          submitNext,
+                          partnerRelationCode,
+                        });
+                      })
+                      .catch((e: unknown) => {
+                        setWorkState("error");
+                        setErrorMessage(formatApiErrorMessage(e));
+                      });
+                  }
+                : undefined
+            }
+            backTo={{
+              to: "/tests/$id/run",
+              params: { id: backRouteId },
+              label: "返回测试",
+            }}
           />
         </div>
       </main>
@@ -279,7 +467,8 @@ function AnalyzingPage() {
       overall={overall}
       done={done}
       cur={cur}
-      waiting={workState === "submitting" && stage >= lastStageIdx}
+      waiting={waiting}
+      waitMessage={waitMessage}
     />
   );
 }
@@ -291,6 +480,7 @@ function AnalyzingView({
   done,
   cur,
   waiting,
+  waitMessage,
 }: {
   profile: AnalyzingProfile;
   stage: number;
@@ -298,6 +488,7 @@ function AnalyzingView({
   done: boolean;
   cur: AnalyzingProfile["stages"][number];
   waiting?: boolean;
+  waitMessage: string;
 }) {
   return (
     <main className="relative min-h-screen flex items-center justify-center px-5 py-10 overflow-hidden">
@@ -352,9 +543,13 @@ function AnalyzingView({
               <Sparkles className="h-3 w-3" /> MIRROR · {profile.chip}
             </span>
             <span className="font-mono text-[10px] tracking-[0.3em] text-muted-foreground">
-              {waiting ? "WAIT · API" : "LIVE"}
+              {waiting ? "SYNC" : "LIVE"}
             </span>
           </div>
+
+          <p className="relative -mt-2 mb-4 text-center text-[11px] text-muted-foreground leading-relaxed px-2">
+            {done ? "正在打开你的结果…" : waitMessage}
+          </p>
 
           <div className="relative h-44 flex items-center justify-center mb-2">
             {[0, 1, 2].map((i) => (
@@ -410,16 +605,16 @@ function AnalyzingView({
                 transition={{ duration: 0.45 }}
               >
                 <div className="font-mono text-[10px] tracking-[0.3em] text-muted-foreground">
-                  {done ? profile.doneDetail : waiting ? "WAITING · BACKEND" : cur.detail}
+                  {done ? profile.doneDetail : waiting ? "SYNC · BACKEND" : cur.detail}
                 </div>
                 <h2 className={`font-display text-2xl mt-2 leading-tight ${profile.theme.titleClass}`}>
-                  {done ? profile.doneTitle : waiting ? profile.stages[profile.stages.length - 1].title : cur.title}
+                  {done ? profile.doneTitle : cur.title}
                 </h2>
                 <p className="text-[13px] text-foreground/70 mt-2 italic">
                   {done
                     ? profile.doneWhisper
                     : waiting
-                      ? "「服务器还在算，这一步不会先走。」"
+                      ? "结果生成中，完成后会直接打开，不会再来一页等待。"
                       : `「${cur.whisper}」`}
                 </p>
               </motion.div>

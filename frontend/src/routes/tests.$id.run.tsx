@@ -10,6 +10,7 @@ import { ApiErrorPanel } from "@/components/ApiErrorPanel";
 import { formatApiErrorMessage, getApiErrorHint } from "@/lib/apiErrors";
 import { AuthChecking, safeReturnPath, useRequireAuth } from "@/lib/requireAuth";
 import { getPartnerRelationCode, getRedemptionEventId, hasRedeemableSuiteAccess } from "@/lib/accessGate";
+import { guardRunPage, guardSubmitAccess } from "@/lib/productFlow";
 import { stashLiteAnswers, isSelfLiteSuite, isLiteSuite, mergeLiteAnswersForFullSuite } from "@/lib/suiteTier";
 import { lovecompassApi } from "@/lib/lovecompassApi";
 import { findProductByRouteId, inferGenderFromSuiteSlug, productSetFromSlug, testEntryRouteId, type ProductSet } from "@/lib/resultRoutes";
@@ -169,12 +170,10 @@ function TestRun() {
     if (authPending) return;
     const productId = resolveProductId(routeSuiteSlug);
 
-    if (productId === "ros" && !routeSuiteSlug.includes("_")) {
-      void nav({ to: "/ros/start" });
-      return;
-    }
-    if ((productId === "mate" || productId === "self") && !routeSuiteSlug.includes("_")) {
-      void nav({ to: "/tests/$id", params: { id: productId } });
+    const guard = guardRunPage({ routeSuiteSlug, authPending });
+    if (!guard.ok) {
+      if (guard.toast) toast.info(guard.toast);
+      void nav(guard.route);
       return;
     }
 
@@ -185,36 +184,6 @@ function TestRun() {
       if (productId === "self") setStoredSelfGender(slugGender);
     }
 
-    const storedSuiteSlug =
-      typeof window !== "undefined" ? window.sessionStorage.getItem(`suite:${productId}`) : null;
-    const suiteSlug = resolveSuiteSlug({
-      productId,
-      routeId: routeSuiteSlug,
-      sessionSuiteSlug: storedSuiteSlug,
-    });
-    const partnerCode = getPartnerRelationCode();
-    if (partnerCode) {
-      setAccessChecked(true);
-      return;
-    }
-    if (productId === "ros" && !hasRedeemableSuiteAccess("ros", suiteSlug)) {
-      toast.info("请先完成 ROS 入门流程（兑换码 · 版本 · 阶段）");
-      void nav({ to: "/ros/start" });
-      return;
-    }
-    if (!hasRedeemableSuiteAccess(productId, suiteSlug) && !isSelfLiteSuite(suiteSlug)) {
-      toast.info("请先输入兑换码解锁本题库");
-      const tier = isLiteSuite(suiteSlug) ? ("lite" as const) : ("full" as const);
-      void nav({
-        to: "/access",
-        search: {
-          product: productId,
-          redirect: `/tests/${productId}`,
-          tier,
-        },
-      });
-      return;
-    }
     setAccessChecked(true);
   }, [authPending, routeSuiteSlug, nav]);
 
@@ -398,31 +367,10 @@ function TestRun() {
         typeof window !== "undefined" ? getRedemptionEventId(productId, suiteSlug) : null;
       const partnerRelationCode = getPartnerRelationCode();
       const selfLiteFree = isSelfLiteSuite(suiteSlug);
-      const hasAccess = hasRedeemableSuiteAccess(productId, suiteSlug);
-      if (!partnerRelationCode && !redemptionEventId && !selfLiteFree) {
-        if (hasAccess) {
-          toast.error("兑换凭证已失效，请重新验证兑换码后再提交");
-          const tier = isLiteSuite(suiteSlug) ? ("lite" as const) : ("full" as const);
-          void nav({
-            to: "/access",
-            search: {
-              product: productId,
-              redirect: `/tests/${routeSuiteSlug}/run`,
-              tier,
-            },
-          });
-        } else {
-          toast.error("请先输入兑换码解锁本题库");
-          if (productId === "ros") {
-            void nav({ to: "/ros/start" });
-          } else {
-            const tier = isLiteSuite(suiteSlug) ? ("lite" as const) : ("full" as const);
-            void nav({
-              to: "/access",
-              search: { product: productId, redirect: `/tests/${productId}`, tier },
-            });
-          }
-        }
+      const submitGuard = guardSubmitAccess({ productId, suiteSlug, routeSuiteSlug });
+      if (!partnerRelationCode && !redemptionEventId && !selfLiteFree && !submitGuard.ok) {
+        if (submitGuard.toast) toast.error(submitGuard.toast);
+        void nav(submitGuard.route);
         return;
       }
 
@@ -445,6 +393,7 @@ function TestRun() {
           answers: payload,
         },
         nav,
+        routeSuiteSlug,
       );
     } catch (e) {
       submitGuardRef.current = false;

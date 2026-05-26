@@ -19,7 +19,7 @@ function rkLabelShort(v: number) {
   return "高";
 }
 
-export function RosHeartbeatLine({ result }: { result: RosSingleResult }) {
+export function RosHeartbeatLine({ result, exampleMode = false }: { result: RosSingleResult; exampleMode?: boolean }) {
   const W = 400;
   const H = 120;
   const sectionRef = useRef<HTMLElement>(null);
@@ -106,18 +106,20 @@ export function RosHeartbeatLine({ result }: { result: RosSingleResult }) {
         <p className="text-xs text-white/55 text-center mt-3 leading-relaxed">
           每段关系都有自己的节律
           <br />
-          这是你们独有的心跳
+          {exampleMode ? "这是这段关系独有的心跳" : "这是你们独有的心跳"}
         </p>
-        <button
-          type="button"
-          disabled={sharing}
-          onClick={exportImage}
-          className="mt-3 w-full h-9 rounded-lg text-xs text-white/75 flex items-center justify-center gap-1.5 hover:bg-white/[0.04] transition disabled:opacity-50"
-          style={{ border: "1px solid rgba(255,255,255,0.1)" }}
-        >
-          <Share2 className="h-3.5 w-3.5" />
-          {sharing ? "生成中…" : "分享这张图"}
-        </button>
+        {!exampleMode ? (
+          <button
+            type="button"
+            disabled={sharing}
+            onClick={exportImage}
+            className="mt-3 w-full h-9 rounded-lg text-xs text-white/75 flex items-center justify-center gap-1.5 hover:bg-white/[0.04] transition disabled:opacity-50"
+            style={{ border: "1px solid rgba(255,255,255,0.1)" }}
+          >
+            <Share2 className="h-3.5 w-3.5" />
+            {sharing ? "生成中…" : "分享这张图"}
+          </button>
+        ) : null}
       </div>
     </section>
   );
@@ -127,10 +129,12 @@ export function RosBlindSpot({
   text,
   attemptId,
   result,
+  exampleMode = false,
 }: {
   text?: string;
   attemptId: string;
   result: RosSingleResult;
+  exampleMode?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   if (!text) return null;
@@ -143,7 +147,9 @@ export function RosBlindSpot({
       className="mt-4 rounded-2xl p-4"
       style={{ background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.25)" }}
     >
-      <div className="text-xs font-mono text-amber-200/80 mb-1">⚠ 你可能没有注意到的</div>
+      <div className="text-xs font-mono text-amber-200/80 mb-1">
+        {exampleMode ? "⚠ 容易忽视的视角" : "⚠ 你可能没有注意到的"}
+      </div>
       <p className="text-sm text-white/80 leading-relaxed">{expanded ? text : preview}</p>
       {!expanded && text.length > 72 ? (
         <button
@@ -154,14 +160,16 @@ export function RosBlindSpot({
           展开全文 →
         </button>
       ) : null}
-      <Link
-        to="/chat"
-        search={chatRouteSearch(attemptId, undefined, prefill)}
-        className="inline-flex items-center gap-1 mt-3 text-xs px-3 py-1.5 rounded-lg text-amber-100/90 hover:bg-amber-500/10 transition"
-        style={{ border: "1px solid rgba(251,191,36,0.3)" }}
-      >
-        展开了解盲区 · 告诉 AI 分析师 →
-      </Link>
+      {!exampleMode ? (
+        <Link
+          to="/chat"
+          search={chatRouteSearch(attemptId, undefined, prefill)}
+          className="inline-flex items-center gap-1 mt-3 text-xs px-3 py-1.5 rounded-lg text-amber-100/90 hover:bg-amber-500/10 transition"
+          style={{ border: "1px solid rgba(251,191,36,0.3)" }}
+        >
+          展开了解盲区 · 告诉 AI 分析师 →
+        </Link>
+      ) : null}
     </div>
   );
 }

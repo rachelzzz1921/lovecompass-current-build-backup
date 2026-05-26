@@ -2,8 +2,10 @@
  * 国内 / 镜像域访问：在 Vercel 主站不可达时，切换到镜像 API 与 Supabase 代理。
  *
  * 环境变量（均为公开 URL，可写入前端构建）：
- * - VITE_LOVECOMPASS_API_MIRROR_URL — 镜像后端（如 https://api.mirror.example.com）
- * - VITE_SUPABASE_MIRROR_URL — Supabase 反向代理（如 https://sb.mirror.example.com）
+ * - VITE_LOVECOMPASS_API_BASE_URL — 主 API（Vercel 后端）
+ * - VITE_LOVECOMPASS_API_MIRROR_URL — 镜像后端（见 docs/CHINA_MIRROR.md）
+ * - VITE_LOVECOMPASS_API_USE_LOCAL — dev 时额外尝试 http://localhost:8000
+ * - VITE_SUPABASE_MIRROR_URL — Supabase 反向代理
  * - VITE_MIRROR_HOSTNAMES — 逗号分隔，访问这些域名时强制走镜像
  * - VITE_AUTO_MIRROR_FOR_CN — "true" 时，东八区时区优先尝试镜像 API
  */
@@ -13,12 +15,10 @@ const PRIMARY_API = (import.meta.env.VITE_LOVECOMPASS_API_BASE_URL as string | u
   "",
 );
 
-/** 新加坡 VPS 默认镜像（sslip.io + Nginx，见 mirror/install-on-server.sh） */
-const BUILTIN_MIRROR_API = "https://47-237-68-213.sslip.io/api";
-
-const MIRROR_API = (
-  (import.meta.env.VITE_LOVECOMPASS_API_MIRROR_URL as string | undefined) || BUILTIN_MIRROR_API
-)?.replace(/\/$/, "");
+const MIRROR_API = (import.meta.env.VITE_LOVECOMPASS_API_MIRROR_URL as string | undefined)?.replace(
+  /\/$/,
+  "",
+);
 
 const PRIMARY_SUPABASE =
   import.meta.env.NEXT_PUBLIC_SUPABASE_URL ||
@@ -34,6 +34,10 @@ const MIRROR_HOSTS = String(import.meta.env.VITE_MIRROR_HOSTNAMES ?? "")
 
 const AUTO_MIRROR_CN =
   String(import.meta.env.VITE_AUTO_MIRROR_FOR_CN ?? "true").toLowerCase() === "true";
+
+const USE_LOCAL_DEV_API =
+  import.meta.env.DEV &&
+  String(import.meta.env.VITE_LOVECOMPASS_API_USE_LOCAL ?? "false").toLowerCase() === "true";
 
 const STORAGE_KEY = "mirror:prefer";
 
@@ -75,6 +79,7 @@ function likelyMainlandTimezone(): boolean {
 }
 
 export function shouldPreferMirror(): boolean {
+  if (import.meta.env.DEV) return false;
   const stored = readPreferMirrorStorage();
   if (stored === true) return Boolean(MIRROR_API);
   if (stored === false) return false;
@@ -83,9 +88,27 @@ export function shouldPreferMirror(): boolean {
   return false;
 }
 
+function devLocalBase(): string | null {
+  if (!import.meta.env.DEV || typeof window === "undefined") return null;
+  const host = window.location.hostname === "127.0.0.1" ? "127.0.0.1" : "localhost";
+  return `http://${host}:8000`;
+}
+
+/** Ordered API bases to try. Dev 默认只打远程主站，除非显式开启 USE_LOCAL。 */
 export function apiBaseCandidates(): string[] {
   const primary = PRIMARY_API;
   const mirror = MIRROR_API;
+  const devLocal = devLocalBase();
+
+  if (import.meta.env.DEV) {
+    const ordered: string[] = [];
+    if (primary) ordered.push(primary);
+    if (USE_LOCAL_DEV_API && devLocal) ordered.push(devLocal);
+    if (mirror) ordered.push(mirror);
+    if (!ordered.length && devLocal) ordered.push(devLocal);
+    return [...new Set(ordered.filter(Boolean))];
+  }
+
   if (!mirror) return primary ? [primary] : [];
   if (!primary) return [mirror];
   return shouldPreferMirror() ? [mirror, primary] : [primary, mirror];
@@ -111,7 +134,18 @@ export function getEndpointProfile(): EndpointProfile {
   return { mode, apiBase, supabaseUrl, label };
 }
 
-const PROBE_TIMEOUT_MS = 7000;
+function requestTimeoutMs(path: string, init?: RequestInit): number {
+  const method = (init?.method ?? "GET").toUpperCase();
+  if (method === "POST" && path === "/attempts") return 90_000;
+  if (method === "POST" && path.includes("/report")) return 60_000;
+  return 20_000;
+}
+
+function shouldReturnClientErrorImmediately(base: string, status: number): boolean {
+  if (status < 400 || status >= 500) return false;
+  // 主站已明确拒绝（登录/校验），不要误试 localhost 或镜像
+  return Boolean(PRIMARY_API && base === PRIMARY_API);
+}
 
 /** 依次尝试主站与镜像 API，首个成功响应即返回。 */
 export async function fetchWithMirrorFallback(
@@ -124,21 +158,30 @@ export async function fetchWithMirrorFallback(
   }
 
   let lastError: unknown;
+  let lastResponse: Response | null = null;
+  const timeoutMs = requestTimeoutMs(path, init);
+
   for (const base of bases) {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
       const res = await fetch(`${base}${path}`, {
         ...init,
         signal: controller.signal,
       });
       clearTimeout(timer);
-      if (res.ok || res.status < 500) return res;
+      if (res.ok) return res;
+      if (shouldReturnClientErrorImmediately(base, res.status)) return res;
+      if (res.status < 500) {
+        lastResponse = res;
+        continue;
+      }
       lastError = new Error(`HTTP ${res.status}`);
     } catch (err) {
       clearTimeout(timer);
       lastError = err;
     }
   }
+  if (lastResponse) return lastResponse;
   throw lastError instanceof Error ? lastError : new Error(String(lastError));
 }

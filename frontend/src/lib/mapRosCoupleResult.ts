@@ -82,6 +82,8 @@ export function mapApiCouplePayload(raw: Record<string, unknown>): RosCoupleResu
       label: "感知高度一致",
       message: "你们对这段关系的感受比较接近。",
     },
+    participants: raw.participants as RosCoupleResult["participants"],
+    ai_content: (raw.ai_content as RosCoupleResult["ai_content"]) ?? undefined,
   };
 
   return mapped;

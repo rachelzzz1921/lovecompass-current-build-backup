@@ -19,6 +19,8 @@
 | crisis-guard | `crisis-guard/` | `assess_crisis()` + 高危短路回复 | 自伤/自杀安全护栏 |
 | portrait-reader | `portrait-reader/` | `build_portrait_reader_layer()` | SELF/ROS/MATE 跨套画像 |
 | triage | `triage/` | `triage_counselor()` + `POST /chat/triage` | 推荐顾问 |
+| mirror-product-flow | `mirror-product-flow/` | 前端 productFlowEngine + accessGate | 三套题动线唯一规范 |
+| mirror-admin | `mirror-admin/` | `backend/app/admin.py` + `/admin/*` | 管理后台开发与运营规范 |
 
 **词库数据源：** `backend/data/analysis_phrase_library_v1.json`
 

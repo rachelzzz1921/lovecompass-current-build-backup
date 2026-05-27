@@ -39,7 +39,8 @@ function RhythmBar({ score, color }: { score: number; color: string }) {
 }
 
 export function MateCoupleResultView({ result }: { result: MateCoupleResult }) {
-  const { verdict, dealItems } = result;
+  const { verdict, dealItems, scoreScope, relationshipModules } = result;
+  const scoreLabel = scoreScope?.shortLabel ?? scoreScope?.label ?? "配对适配";
 
   return (
     <main className="relative min-h-screen" style={{ background: "#100a0d" }}>
@@ -68,10 +69,13 @@ export function MateCoupleResultView({ result }: { result: MateCoupleResult }) {
         >
           <div className="text-center shrink-0 w-[60px]">
             <div className="font-display text-[42px] leading-none text-white">{verdict.score}</div>
-            <div className="text-[9px] tracking-[0.08em] uppercase text-white/40 mt-1">现实适配</div>
+            <div className="text-[9px] tracking-[0.08em] uppercase text-white/40 mt-1">{scoreLabel}</div>
           </div>
           <div className="w-px self-stretch bg-white/10" />
           <div className="min-w-0">
+            {scoreScope?.hint ? (
+              <p className="text-[10px] text-white/45 leading-relaxed mb-2">{scoreScope.hint}</p>
+            ) : null}
             <div className="text-[11px] font-medium mb-1" style={{ color: ROSE.accent }}>
               {verdict.oneliner}
             </div>
@@ -82,6 +86,26 @@ export function MateCoupleResultView({ result }: { result: MateCoupleResult }) {
             ) : null}
           </div>
         </section>
+
+        {relationshipModules.length > 0 ? (
+          <section>
+            <SectionLabel>六维拆解</SectionLabel>
+            <div className="flex flex-wrap gap-2">
+              {relationshipModules.map((mod) => (
+                <div
+                  key={mod.code}
+                  className="rounded-xl px-3 py-2 text-xs border border-white/10 bg-white/[0.03]"
+                >
+                  <span className="font-mono text-[10px] text-white/40">{mod.code}</span>
+                  <span className="text-white/75 ml-2">{mod.dimension}</span>
+                  <span className="text-white/55 ml-2">
+                    {mod.pending || mod.score == null ? "待评估" : `${Math.round(mod.score)} · ${mod.level}`}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : null}
 
         {!result.supplementComplete ? (
           <section

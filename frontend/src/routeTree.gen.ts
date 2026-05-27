@@ -23,8 +23,11 @@ import { Route as ResultAttemptIdRouteImport } from './routes/result.$attemptId'
 import { Route as ExamplesIdRouteImport } from './routes/examples.$id'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
+import { Route as AdminQuestionsRouteImport } from './routes/admin/questions'
 import { Route as AdminMonitorRouteImport } from './routes/admin/monitor'
 import { Route as AdminCodesRouteImport } from './routes/admin/codes'
+import { Route as AdminChatRouteImport } from './routes/admin/chat'
+import { Route as AdminAuditRouteImport } from './routes/admin/audit'
 import { Route as AdminAttemptsRouteImport } from './routes/admin/attempts'
 import { Route as AdminAnalystsRouteImport } from './routes/admin/analysts'
 import { Route as TestsIdRunRouteImport } from './routes/tests.$id.run'
@@ -106,6 +109,11 @@ const AdminUsersRoute = AdminUsersRouteImport.update({
   path: '/users',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminQuestionsRoute = AdminQuestionsRouteImport.update({
+  id: '/questions',
+  path: '/questions',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminMonitorRoute = AdminMonitorRouteImport.update({
   id: '/monitor',
   path: '/monitor',
@@ -114,6 +122,16 @@ const AdminMonitorRoute = AdminMonitorRouteImport.update({
 const AdminCodesRoute = AdminCodesRouteImport.update({
   id: '/codes',
   path: '/codes',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminChatRoute = AdminChatRouteImport.update({
+  id: '/chat',
+  path: '/chat',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminAuditRoute = AdminAuditRouteImport.update({
+  id: '/audit',
+  path: '/audit',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminAttemptsRoute = AdminAttemptsRouteImport.update({
@@ -178,8 +196,11 @@ export interface FileRoutesByFullPath {
   '/history': typeof HistoryRoute
   '/admin/analysts': typeof AdminAnalystsRoute
   '/admin/attempts': typeof AdminAttemptsRoute
+  '/admin/audit': typeof AdminAuditRoute
+  '/admin/chat': typeof AdminChatRoute
   '/admin/codes': typeof AdminCodesRoute
   '/admin/monitor': typeof AdminMonitorRoute
+  '/admin/questions': typeof AdminQuestionsRoute
   '/admin/users': typeof AdminUsersRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/examples/$id': typeof ExamplesIdRoute
@@ -205,8 +226,11 @@ export interface FileRoutesByTo {
   '/history': typeof HistoryRoute
   '/admin/analysts': typeof AdminAnalystsRoute
   '/admin/attempts': typeof AdminAttemptsRoute
+  '/admin/audit': typeof AdminAuditRoute
+  '/admin/chat': typeof AdminChatRoute
   '/admin/codes': typeof AdminCodesRoute
   '/admin/monitor': typeof AdminMonitorRoute
+  '/admin/questions': typeof AdminQuestionsRoute
   '/admin/users': typeof AdminUsersRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/examples/$id': typeof ExamplesIdRoute
@@ -234,8 +258,11 @@ export interface FileRoutesById {
   '/history': typeof HistoryRoute
   '/admin/analysts': typeof AdminAnalystsRoute
   '/admin/attempts': typeof AdminAttemptsRoute
+  '/admin/audit': typeof AdminAuditRoute
+  '/admin/chat': typeof AdminChatRoute
   '/admin/codes': typeof AdminCodesRoute
   '/admin/monitor': typeof AdminMonitorRoute
+  '/admin/questions': typeof AdminQuestionsRoute
   '/admin/users': typeof AdminUsersRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/examples/$id': typeof ExamplesIdRoute
@@ -264,8 +291,11 @@ export interface FileRouteTypes {
     | '/history'
     | '/admin/analysts'
     | '/admin/attempts'
+    | '/admin/audit'
+    | '/admin/chat'
     | '/admin/codes'
     | '/admin/monitor'
+    | '/admin/questions'
     | '/admin/users'
     | '/auth/callback'
     | '/examples/$id'
@@ -291,8 +321,11 @@ export interface FileRouteTypes {
     | '/history'
     | '/admin/analysts'
     | '/admin/attempts'
+    | '/admin/audit'
+    | '/admin/chat'
     | '/admin/codes'
     | '/admin/monitor'
+    | '/admin/questions'
     | '/admin/users'
     | '/auth/callback'
     | '/examples/$id'
@@ -319,8 +352,11 @@ export interface FileRouteTypes {
     | '/history'
     | '/admin/analysts'
     | '/admin/attempts'
+    | '/admin/audit'
+    | '/admin/chat'
     | '/admin/codes'
     | '/admin/monitor'
+    | '/admin/questions'
     | '/admin/users'
     | '/auth/callback'
     | '/examples/$id'
@@ -459,6 +495,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminUsersRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/questions': {
+      id: '/admin/questions'
+      path: '/questions'
+      fullPath: '/admin/questions'
+      preLoaderRoute: typeof AdminQuestionsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/monitor': {
       id: '/admin/monitor'
       path: '/monitor'
@@ -471,6 +514,20 @@ declare module '@tanstack/react-router' {
       path: '/codes'
       fullPath: '/admin/codes'
       preLoaderRoute: typeof AdminCodesRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/chat': {
+      id: '/admin/chat'
+      path: '/chat'
+      fullPath: '/admin/chat'
+      preLoaderRoute: typeof AdminChatRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/audit': {
+      id: '/admin/audit'
+      path: '/audit'
+      fullPath: '/admin/audit'
+      preLoaderRoute: typeof AdminAuditRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/attempts': {
@@ -549,8 +606,11 @@ declare module '@tanstack/react-router' {
 interface AdminRouteChildren {
   AdminAnalystsRoute: typeof AdminAnalystsRoute
   AdminAttemptsRoute: typeof AdminAttemptsRoute
+  AdminAuditRoute: typeof AdminAuditRoute
+  AdminChatRoute: typeof AdminChatRoute
   AdminCodesRoute: typeof AdminCodesRoute
   AdminMonitorRoute: typeof AdminMonitorRoute
+  AdminQuestionsRoute: typeof AdminQuestionsRoute
   AdminUsersRoute: typeof AdminUsersRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
@@ -558,8 +618,11 @@ interface AdminRouteChildren {
 const AdminRouteChildren: AdminRouteChildren = {
   AdminAnalystsRoute: AdminAnalystsRoute,
   AdminAttemptsRoute: AdminAttemptsRoute,
+  AdminAuditRoute: AdminAuditRoute,
+  AdminChatRoute: AdminChatRoute,
   AdminCodesRoute: AdminCodesRoute,
   AdminMonitorRoute: AdminMonitorRoute,
+  AdminQuestionsRoute: AdminQuestionsRoute,
   AdminUsersRoute: AdminUsersRoute,
   AdminIndexRoute: AdminIndexRoute,
 }

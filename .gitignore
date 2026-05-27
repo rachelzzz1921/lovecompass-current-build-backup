@@ -18,4 +18,6 @@ coverage/
 .idea/
 .vscode/
 .vercel
-.env*
+docs/vercel-env-sg.txt
+backend/.migration_batch/sg_import/
+backend/.migration_batch/sg_import/**

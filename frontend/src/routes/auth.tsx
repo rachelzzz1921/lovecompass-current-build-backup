@@ -11,6 +11,7 @@ import { safeReturnPath } from "@/lib/requireAuth";
 import { oauthCallbackUrl, stashOAuthReturn } from "@/lib/oauthReturn";
 import { completeSupabaseAuthFromUrl, getSessionWithRefresh } from "@/lib/supabaseSession";
 import { formatAuthError, normalizeAuthEmail } from "@/lib/authErrors";
+import { fetchAuthCapabilities, type AuthCapabilities } from "@/lib/authCapabilities";
 
 const AuthSearchSchema = z.object({
   redirect: z.string().optional(),
@@ -45,6 +46,7 @@ function AuthPage() {
   const [pw, setPw] = useState("");
   const [loading, setLoading] = useState(false);
   const [booting, setBooting] = useState(true);
+  const [authCaps, setAuthCaps] = useState<AuthCapabilities | null>(null);
 
   const returnPath = safeReturnPath(search.redirect);
 
@@ -52,6 +54,9 @@ function AuthPage() {
     let cancelled = false;
 
     void (async () => {
+      const caps = await fetchAuthCapabilities();
+      if (!cancelled) setAuthCaps(caps);
+
       const hasOAuthParams =
         window.location.search.includes("code=") || window.location.hash.includes("access_token");
 
@@ -89,6 +94,10 @@ function AuthPage() {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (mode === "signup" && authCaps?.disableSignup) {
+      toast.error("当前已关闭新用户注册");
+      return;
+    }
     setLoading(true);
     const normalizedEmail = normalizeAuthEmail(email);
     try {
@@ -146,6 +155,10 @@ function AuthPage() {
   };
 
   const google = async () => {
+    if (authCaps && !authCaps.google) {
+      toast.error(formatAuthError("Unsupported provider: provider is not enabled", "login"));
+      return;
+    }
     setLoading(true);
     try {
       stashOAuthReturn(returnPath);
@@ -157,7 +170,7 @@ function AuthPage() {
       });
       if (error) throw error;
     } catch (e) {
-      toast.error((e as Error).message || "Google 登录失败");
+      toast.error(formatAuthError((e as Error).message || "Google 登录失败", "login"));
       setLoading(false);
     }
   };
@@ -293,20 +306,32 @@ function AuthPage() {
             <div className="flex-1 divider-line" />
           </div>
 
-          <Button
-            onClick={google}
-            disabled={loading}
-            variant="outline"
-            className="w-full h-11 rounded-full bg-glass border-border/60 hover:bg-secondary/40"
-          >
-            <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
-              <path
-                fill="#EA4335"
-                d="M12 10.2v3.9h5.5c-.2 1.4-1.6 4.2-5.5 4.2-3.3 0-6-2.7-6-6.1s2.7-6.1 6-6.1c1.9 0 3.1.8 3.8 1.5l2.6-2.5C16.8 3.6 14.6 2.7 12 2.7 6.9 2.7 2.7 6.9 2.7 12s4.2 9.3 9.3 9.3c5.4 0 8.9-3.8 8.9-9.1 0-.6-.1-1.1-.1-1.5H12z"
-              />
-            </svg>
-            使用 Google 继续
-          </Button>
+          {authCaps?.google ? (
+            <Button
+              onClick={google}
+              disabled={loading}
+              variant="outline"
+              className="w-full h-11 rounded-full bg-glass border-border/60 hover:bg-secondary/40"
+            >
+              <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
+                <path
+                  fill="#EA4335"
+                  d="M12 10.2v3.9h5.5c-.2 1.4-1.6 4.2-5.5 4.2-3.3 0-6-2.7-6-6.1s2.7-6.1 6-6.1c1.9 0 3.1.8 3.8 1.5l2.6-2.5C16.8 3.6 14.6 2.7 12 2.7 6.9 2.7 2.7 6.9 2.7 12s4.2 9.3 9.3 9.3c5.4 0 8.9-3.8 8.9-9.1 0-.6-.1-1.1-.1-1.5H12z"
+                />
+              </svg>
+              使用 Google 继续
+            </Button>
+          ) : (
+            <p className="text-center text-xs text-muted-foreground">
+              Google 登录暂未开启，请使用邮箱注册/登录。
+            </p>
+          )}
+
+          {mode === "signup" && authCaps && !authCaps.mailerAutoconfirm ? (
+            <p className="mt-3 text-center text-[11px] text-muted-foreground">
+              注册后需查收验证邮件才能登录（请检查垃圾箱）。
+            </p>
+          ) : null}
 
           <p className="mt-6 flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground">
             <ShieldCheck className="h-3 w-3" />

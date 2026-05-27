@@ -25,6 +25,16 @@ def _clamp(value: float, lo: float, hi: float) -> float:
     return max(lo, min(hi, value))
 
 
+@lru_cache(maxsize=1)
+def load_pair_model_weights() -> dict[str, float]:
+    path = DATA_DIR / "mate_pair_model_v1.json"
+    if not path.exists():
+        return {"P1": 0.30, "P2": 0.25, "P3": 0.15, "P4": 0.15, "P5": 0.10, "P6": 0.05}
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    weights = raw.get("module_weights") or {}
+    return {str(k): float(v) for k, v in weights.items()}
+
+
 def compute_pair_compatibility_base(
     *,
     module_scores: dict[str, float],
@@ -49,7 +59,15 @@ def compute_pair_compatibility_base(
         p6 = module_scores.get("MS4", 50)
 
     p5 = 100 - risk
-    base = p1 * 0.30 + p2 * 0.25 + p3 * 0.15 + p4 * 0.15 + p5 * 0.10 + p6 * 0.05
+    weights = load_pair_model_weights()
+    base = (
+        p1 * weights.get("P1", 0.30)
+        + p2 * weights.get("P2", 0.25)
+        + p3 * weights.get("P3", 0.15)
+        + p4 * weights.get("P4", 0.15)
+        + p5 * weights.get("P5", 0.10)
+        + p6 * weights.get("P6", 0.05)
+    )
     return {
         "P1": round(p1, 1),
         "P2": round(p2, 1),
@@ -223,6 +241,7 @@ def build_match_bounds(
                 "现实差距可控": metrics["P1"],
                 "情感需求同频": metrics["P2"],
                 "长期可谈": metrics["P4"],
+                "火花潜力": metrics["P6"],
             },
             "venues": list((lib.get("meet_scenes") or {}).get(gender) or ["熟人局", "行业小圈", "兴趣固定局"]),
             "pairMetrics": metrics,
@@ -260,5 +279,7 @@ def build_match_bounds(
             "partnerNoun": partner,
             "stableProbability": stable_prob,
             "marriageAdaptScore": marriage_score,
+            "pairMetrics": metrics,
+            "scoreScope": lib.get("score_scope") or {},
         },
     }

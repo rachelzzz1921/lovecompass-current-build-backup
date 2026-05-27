@@ -1,8 +1,49 @@
 import { formatApiErrorMessage } from "@/lib/apiErrors";
 import { fetchWithMirrorFallback } from "@/lib/mirrorEndpoints";
+import { getAdminUnlockToken } from "@/lib/adminUnlock";
 import { getRequiredAccessToken } from "@/lib/supabaseSession";
 
+export class AdminRequestError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "AdminRequestError";
+    this.status = status;
+  }
+}
+
+export function classifyAdminAccessError(err: unknown): "auth" | "unlock" | "other" {
+  const message = err instanceof Error ? err.message : String(err);
+  if (/管理密码不正确/.test(message)) {
+    return "other";
+  }
+  if (err instanceof AdminRequestError) {
+    if (err.status === 403) return "unlock";
+    if (err.status === 401) return "auth";
+  }
+  if (
+    /403/.test(message) ||
+    /需要管理员权限/.test(message) ||
+    (/管理员/.test(message) && !/管理密码/.test(message))
+  ) {
+    return "unlock";
+  }
+  if (
+    /401/.test(message) ||
+    /登录/.test(message) ||
+    /令牌/.test(message) ||
+    /需要登录/.test(message) ||
+    /未提供登录/.test(message) ||
+    /无效或过期的登录令牌/.test(message)
+  ) {
+    return "auth";
+  }
+  return "other";
+}
+
 async function adminRequest<T>(path: string, init?: RequestInit): Promise<T> {
+  const unlockToken = getAdminUnlockToken();
   let res: Response;
   try {
     res = await fetchWithMirrorFallback(path, {
@@ -10,10 +51,15 @@ async function adminRequest<T>(path: string, init?: RequestInit): Promise<T> {
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${await getRequiredAccessToken()}`,
+        ...(unlockToken ? { "X-Admin-Unlock": unlockToken } : {}),
         ...(init?.headers as Record<string, string> | undefined),
       },
     });
   } catch (err) {
+    const kind = classifyAdminAccessError(err);
+    if (kind === "auth") {
+      throw new AdminRequestError(formatApiErrorMessage(err), 401);
+    }
     throw new Error(formatApiErrorMessage(err));
   }
   const payload = await res.json().catch(() => null);
@@ -23,7 +69,7 @@ async function adminRequest<T>(path: string, init?: RequestInit): Promise<T> {
       typeof detail === "string"
         ? detail
         : payload?.message || payload?.error || `请求失败：${res.status}`;
-    throw new Error(message);
+    throw new AdminRequestError(message, res.status);
   }
   return payload as T;
 }
@@ -43,6 +89,13 @@ export type AdminStats = {
     active_codes?: number;
     ai_reports?: number;
     chat_sessions?: number;
+    ros_couples_completed?: number;
+    mate_couples_completed?: number;
+    ros_couples_waiting?: number;
+    mate_couples_waiting?: number;
+    chat_messages?: number;
+    chat_messages_today?: number;
+    chat_sessions_today?: number;
   };
   attemptsBySuite: Array<{ slug: string; name: string; attempts: number }>;
   recentRedemptions: Array<{
@@ -52,8 +105,48 @@ export type AdminStats = {
     suite_slug?: string;
     code?: string;
   }>;
+  recentAuditLogs?: AdminAuditLogRow[];
   inProgressAttempts?: number;
   todayCompletedAttempts?: number;
+};
+
+export type AdminAuditLogRow = {
+  id: string;
+  action: string;
+  target_table?: string | null;
+  target_id?: string | null;
+  before_payload?: Record<string, unknown> | null;
+  after_payload?: Record<string, unknown> | null;
+  created_at?: string;
+  admin_user_id?: string | null;
+  admin_email?: string | null;
+  admin_name?: string | null;
+};
+
+export type AdminChatAnalytics = {
+  summary: {
+    total_sessions?: number;
+    sessions_today?: number;
+    total_messages?: number;
+    messages_today?: number;
+    unique_chat_users?: number;
+  };
+  byAnalyst: Array<{
+    slug: string;
+    name: string;
+    session_count: number;
+    message_count: number;
+  }>;
+  recentSessions: Array<{
+    id: string;
+    title?: string | null;
+    created_at?: string;
+    updated_at?: string;
+    user_email?: string | null;
+    analyst_slug?: string;
+    analyst_name?: string;
+    message_count?: number;
+  }>;
 };
 
 export type AdminLiveMonitor = {
@@ -117,6 +210,8 @@ export type RedemptionCodeRow = {
 
 export type AdminUserRow = {
   id: string;
+  user_code?: string;
+  registration_no?: number;
   email?: string | null;
   display_name?: string | null;
   role?: string;
@@ -140,8 +235,44 @@ export type AdminAnalystRow = {
   updated_at?: string;
 };
 
+export type AdminQuestionRow = {
+  id: string;
+  external_question_id: string;
+  display_order: number;
+  dimension_code: string;
+  question_type: string;
+  weight?: number;
+  direction?: string;
+  question_text: string;
+  question_payload?: Record<string, unknown>;
+  is_active?: boolean;
+  updated_at?: string;
+  suite_slug?: string;
+  suite_name?: string;
+  answerRefCount?: number;
+  canDelete?: boolean;
+};
+
+export type AdminQuestionStats = {
+  slug: string;
+  name: string;
+  total_questions?: number;
+  active_count: number;
+  inactive_count: number;
+  deletable_inactive_count: number;
+};
+
 export const adminApi = {
-  me: () => adminRequest<{ ok: boolean; user: AdminUser }>("/admin/me"),
+  me: () => adminRequest<{ ok: boolean; accessMode?: string; user: AdminUser }>("/admin/me"),
+  unlock: (password: string) =>
+    adminRequest<{
+      ok: boolean;
+      accessMode: string;
+      unlockToken?: string | null;
+      expiresAt?: string | null;
+      ttlHours?: number;
+      message?: string;
+    }>("/admin/unlock", { method: "POST", body: JSON.stringify({ password }) }),
   stats: () => adminRequest<AdminStats>("/admin/stats"),
   liveMonitor: (limit = 25) =>
     adminRequest<AdminLiveMonitor>(`/admin/monitor/live?limit=${limit}`),
@@ -177,6 +308,7 @@ export const adminApi = {
     expiresAt?: string;
     prefix?: string;
     note?: string;
+    customCode?: string;
   }) =>
     adminRequest<{ ok: boolean; batchId: string; codes: Array<{ id: string; code: string }> }>(
       "/admin/redemption/codes",
@@ -236,4 +368,105 @@ export const adminApi = {
       method: "PATCH",
       body: JSON.stringify(data),
     }),
+  universalRedemption: () =>
+    adminRequest<{
+      configuredCode: string | null;
+      isConfigured: boolean;
+      description: string;
+      allProvisioned: boolean;
+      suites: Array<{
+        suiteSlug: string;
+        shadowCode: string;
+        provisioned: boolean;
+        isActive?: boolean;
+        status?: string | null;
+        usedCount?: number;
+      }>;
+    }>("/admin/redemption/universal"),
+  ensureUniversalShadows: () =>
+    adminRequest<{
+      ok: boolean;
+      universalCode: string;
+      allOk: boolean;
+      results: Array<{ suiteSlug: string; ok: boolean; codeId?: string; error?: string }>;
+    }>("/admin/redemption/universal/ensure-all", { method: "POST" }),
+  inviteUser: (data: { email: string; password?: string; displayName?: string; role?: string }) =>
+    adminRequest<{
+      ok: boolean;
+      created: boolean;
+      promoted: boolean;
+      user: AdminUserRow;
+      temporaryPassword?: string | null;
+    }>("/admin/users/invite", { method: "POST", body: JSON.stringify(data) }),
+  patchUser: (userId: string, data: { role?: string; status?: string; displayName?: string }) =>
+    adminRequest<{ ok: boolean; user: AdminUserRow }>(`/admin/users/${userId}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  deleteUser: (userId: string, hard = false) =>
+    adminRequest<{ ok: boolean; hard: boolean; user?: AdminUserRow; deletedUserId?: string }>(
+      `/admin/users/${userId}${hard ? "?hard=true" : ""}`,
+      { method: "DELETE" },
+    ),
+  listQuestions: (params: {
+    suiteSlug: string;
+    q?: string;
+    activeOnly?: boolean;
+    inactiveOnly?: boolean;
+    limit?: number;
+    offset?: number;
+  }) => {
+    const search = new URLSearchParams({ suiteSlug: params.suiteSlug });
+    if (params.q) search.set("q", params.q);
+    if (params.activeOnly) search.set("activeOnly", "true");
+    if (params.inactiveOnly) search.set("inactiveOnly", "true");
+    if (params.limit != null) search.set("limit", String(params.limit));
+    if (params.offset != null) search.set("offset", String(params.offset));
+    return adminRequest<{ total: number; questions: AdminQuestionRow[] }>(`/admin/questions?${search}`);
+  },
+  questionStats: (suiteSlug: string) =>
+    adminRequest<{ stats: AdminQuestionStats }>(`/admin/questions/stats?suiteSlug=${encodeURIComponent(suiteSlug)}`),
+  deleteQuestion: (questionId: string) =>
+    adminRequest<{ ok: boolean; deletedQuestionId: string }>(`/admin/questions/${questionId}`, { method: "DELETE" }),
+  purgeInactiveQuestions: (suiteSlug: string) =>
+    adminRequest<{
+      ok: boolean;
+      suiteSlug: string;
+      deletedCount: number;
+      blockedWithAnswers: number;
+    }>(`/admin/questions/purge-inactive?suiteSlug=${encodeURIComponent(suiteSlug)}`, { method: "POST" }),
+  questionDetail: (questionId: string) =>
+    adminRequest<{ question: AdminQuestionRow & { scoring_payload?: Record<string, unknown> } }>(
+      `/admin/questions/${questionId}`,
+    ),
+  patchQuestion: (
+    questionId: string,
+    data: {
+      questionText?: string;
+      questionPayload?: Record<string, unknown>;
+      isActive?: boolean;
+      displayOrder?: number;
+      weight?: number;
+      direction?: string;
+    },
+  ) =>
+    adminRequest<{ ok: boolean; question: AdminQuestionRow }>(`/admin/questions/${questionId}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  listAuditLogs: (params?: { action?: string; q?: string; limit?: number; offset?: number }) => {
+    const search = new URLSearchParams();
+    if (params?.action) search.set("action", params.action);
+    if (params?.q) search.set("q", params.q);
+    if (params?.limit != null) search.set("limit", String(params.limit));
+    if (params?.offset != null) search.set("offset", String(params.offset));
+    const qs = search.toString();
+    return adminRequest<{
+      total: number;
+      logs: AdminAuditLogRow[];
+      actionTypes: Array<{ action: string; count: number }>;
+    }>(`/admin/audit/logs${qs ? `?${qs}` : ""}`);
+  },
+  chatAnalytics: (limit = 30) =>
+    adminRequest<AdminChatAnalytics>(`/admin/chat/analytics?limit=${limit}`),
 };

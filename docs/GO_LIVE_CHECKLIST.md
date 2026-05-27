@@ -41,7 +41,17 @@ Authentication → **URL Configuration**：
     - `https://lovecompass-web.vercel.app/auth**`（邮箱登录备用）
   - `http://localhost:5173/auth**`
 
-Google Provider 启用后，在 Google Cloud Console 的 Authorized redirect URI 与 Supabase 保持一致。
+Authentication → **Providers → Google**（**必开**，否则点 Google 会报错）：
+
+1. 启用 Google Provider
+2. 填入 Google Cloud OAuth Client ID / Secret
+3. Google Cloud Console → Authorized redirect URI：`https://wjfpglsygkbpubanylug.supabase.co/auth/v1/callback`
+4. 若迁移到 SG 项目，对 `busyjidkgfakqglldyye` 重复上述配置
+
+本地自检：`node scripts/check-auth-config.mjs`（应显示 `google oauth: enabled`）
+
+一键配置（需 Access Token + service_role）：`./scripts/supabase-setup-test-auth.sh`  
+启用 Google 时额外传入 `GOOGLE_CLIENT_ID` 与 `GOOGLE_CLIENT_SECRET`。
 
 ### 3. 前端 Vercel — Root Directory（**必为 `frontend`**）
 
@@ -95,6 +105,8 @@ FRONTEND_URL=https://lovecompass-web.vercel.app \
 
 | 现象 | 原因 | 处理 |
 |------|------|------|
+| Google 登录黑屏/JSON 报错 | Supabase 未启用 Google Provider | Dashboard → Auth → Providers → Google；或 `node scripts/check-auth-config.mjs` |
+| 注册后无法登录 | SG 项目需邮件验证（autoconfirm=false） | 查收验证邮件；或 Dashboard 关闭 Confirm email |
 | 提交报「需要登录」 | Token 未带 / 过期 / 未配 JWT Secret | 重新登录；配 `SUPABASE_JWT_SECRET` |
 | Google 404 | 旧版回调 `/auth/callback` 未部署 | 拉最新代码 redeploy；Supabase 加 `/auth**` |
 | 没进兑换码页 | 旧版 self=free 或未 redeploy | 拉最新 frontend redeploy |

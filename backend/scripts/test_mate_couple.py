@@ -101,6 +101,25 @@ def test_mate_couple_payload_shape() -> None:
     assert payload["modules"]["P4"]["score"] is not None
 
 
+def test_p1_blends_hard_conditions() -> None:
+    male = {
+        "scores": {"MS1": 72},
+        "fields": {"education_level": 5, "huji": "local", "age": 30},
+        "derived": {"reality_score": 72},
+        "context": {"income_level": "优质层", "housing_status": "自有/按揭房"},
+    }
+    female = {
+        "scores": {"FS3": 70},
+        "fields": {"education_level": 2, "huji": "nonlocal", "age": 26},
+        "derived": {"reality_score": 70},
+        "context": {"income_level": "半独立", "housing_status": "租房（积累中）"},
+    }
+    module_only = 100 - abs(72 - 70)
+    p1 = compute_P1(male, female)
+    assert p1["score"] < module_only - 5
+    assert "硬条件有落差" in p1.get("atoms", [])
+
+
 def test_p4_pending_without_planning_data() -> None:
     male = {
         "gender": "male",
@@ -136,5 +155,6 @@ def test_p4_pending_without_planning_data() -> None:
 
 if __name__ == "__main__":
     test_mate_couple_payload_shape()
+    test_p1_blends_hard_conditions()
     test_p4_pending_without_planning_data()
     print("mate couple tests passed")

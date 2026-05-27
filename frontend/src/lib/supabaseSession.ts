@@ -41,7 +41,10 @@ export async function getSessionWithRefresh(): Promise<Session | null> {
   }
 
   const { data: refreshed, error } = await supabase.auth.refreshSession();
-  if (error) return current.session ?? null;
+  if (error) {
+    if (sessionNearExpiry(current.session)) return null;
+    return current.session ?? null;
+  }
   return refreshed.session ?? current.session ?? null;
 }
 

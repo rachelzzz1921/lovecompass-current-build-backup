@@ -1,9 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
-import { Copy, Plus, RefreshCw } from "lucide-react";
+import { Copy, KeyRound, Plus, RefreshCw, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { adminApi, type RedemptionCodeRow } from "@/lib/adminApi";
 import { formatApiErrorMessage } from "@/lib/apiErrors";
+import { AdminTableShell } from "@/components/admin/AdminTableShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -41,6 +42,36 @@ function AdminCodesPage() {
   const [suiteSlug, setSuiteSlug] = useState<string>("all");
   const [query, setQuery] = useState("");
   const [activeOnly, setActiveOnly] = useState(false);
+  const [suites, setSuites] = useState<Array<{ slug: string; name: string }>>([]);
+  const [universal, setUniversal] = useState<Awaited<ReturnType<typeof adminApi.universalRedemption>> | null>(null);
+  const [universalLoading, setUniversalLoading] = useState(false);
+
+  useEffect(() => {
+    void adminApi.suites().then((r) => setSuites(r.suites)).catch(() => undefined);
+    void loadUniversal();
+  }, []);
+
+  async function loadUniversal() {
+    try {
+      const res = await adminApi.universalRedemption();
+      setUniversal(res);
+    } catch {
+      setUniversal(null);
+    }
+  }
+
+  async function ensureUniversal() {
+    setUniversalLoading(true);
+    try {
+      const res = await adminApi.ensureUniversalShadows();
+      toast.success(res.allOk ? "万能码 shadow 已全部就绪" : "部分套件 provisioning 失败，请查看详情");
+      void loadUniversal();
+    } catch (err) {
+      toast.error(formatApiErrorMessage(err));
+    } finally {
+      setUniversalLoading(false);
+    }
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -81,8 +112,50 @@ function AdminCodesPage() {
           <h1 className="text-2xl font-semibold tracking-tight">兑换码管理</h1>
           <p className="mt-1 text-sm text-muted-foreground">共 {total} 条 · 生成、启停与查询</p>
         </div>
-        <CreateCodesDialog onCreated={load} />
+        <CreateCodesDialog suites={suites.length ? suites : SUITE_OPTIONS.map((s) => ({ slug: s.slug, name: s.label }))} onCreated={load} />
+        <CreateCustomCodeDialog suites={suites.length ? suites : SUITE_OPTIONS.map((s) => ({ slug: s.slug, name: s.label }))} onCreated={load} />
       </div>
+
+      <Card className="border-primary/20 bg-primary/5">
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Sparkles className="h-4 w-4 text-primary" />
+            万能兑换码
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            环境变量 <code className="rounded bg-muted px-1">LOVECOMPASS_UNIVERSAL_CODE</code> 配置的码，用户输入后可解锁任意付费套题（不限次数）。
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-md border border-border bg-background px-3 py-1.5 font-mono text-sm">
+              {universal?.configuredCode ?? "未配置"}
+            </span>
+            {universal?.configuredCode ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  void navigator.clipboard.writeText(universal.configuredCode!);
+                  toast.success("已复制万能码");
+                }}
+              >
+                <Copy className="mr-1.5 h-3.5 w-3.5" />
+                复制
+              </Button>
+            ) : null}
+            <Button size="sm" onClick={() => void ensureUniversal()} disabled={universalLoading}>
+              <KeyRound className={`mr-1.5 h-3.5 w-3.5 ${universalLoading ? "animate-spin" : ""}`} />
+              {universal?.allProvisioned ? "重新校验 shadow" : "初始化全部 shadow 码"}
+            </Button>
+          </div>
+          {universal ? (
+            <p className="text-xs text-muted-foreground">
+              Shadow 记录：{universal.suites.filter((s) => s.provisioned).length}/{universal.suites.length} 个套件已就绪
+            </p>
+          ) : null}
+        </CardContent>
+      </Card>
 
       <Card className="border-border/60">
         <CardContent className="flex flex-wrap items-end gap-3 pt-6">
@@ -94,9 +167,9 @@ function AdminCodesPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">全部套件</SelectItem>
-                {SUITE_OPTIONS.map((s) => (
+                {(suites.length ? suites : SUITE_OPTIONS.map((s) => ({ slug: s.slug, name: s.label }))).map((s) => (
                   <SelectItem key={s.slug} value={s.slug}>
-                    {s.label}
+                    {s.name ?? s.slug}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -127,6 +200,7 @@ function AdminCodesPage() {
 
       <Card className="border-border/60">
         <CardContent className="p-0">
+          <AdminTableShell>
           <Table>
             <TableHeader>
               <TableRow>
@@ -184,13 +258,20 @@ function AdminCodesPage() {
               )}
             </TableBody>
           </Table>
+          </AdminTableShell>
         </CardContent>
       </Card>
     </div>
   );
 }
 
-function CreateCodesDialog({ onCreated }: { onCreated: () => void }) {
+function CreateCodesDialog({
+  onCreated,
+  suites,
+}: {
+  onCreated: () => void;
+  suites: Array<{ slug: string; name: string }>;
+}) {
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [suiteSlug, setSuiteSlug] = useState("s02_ros_female");
@@ -273,9 +354,9 @@ function CreateCodesDialog({ onCreated }: { onCreated: () => void }) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {SUITE_OPTIONS.map((s) => (
+                  {suites.map((s) => (
                     <SelectItem key={s.slug} value={s.slug}>
-                      {s.label}
+                      {s.name ?? s.slug}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -323,6 +404,120 @@ function CreateCodesDialog({ onCreated }: { onCreated: () => void }) {
               {submitting ? "生成中…" : "生成"}
             </Button>
           )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function CreateCustomCodeDialog({
+  onCreated,
+  suites,
+}: {
+  onCreated: () => void;
+  suites: Array<{ slug: string; name: string }>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [suiteSlug, setSuiteSlug] = useState(suites[0]?.slug ?? "s02_ros_female");
+  const [batchName, setBatchName] = useState("");
+  const [customCode, setCustomCode] = useState("");
+  const [kind, setKind] = useState("common");
+  const [maxUses, setMaxUses] = useState("999999");
+
+  async function submit() {
+    if (!batchName.trim() || !customCode.trim()) {
+      toast.error("请填写批次名称和兑换码");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await adminApi.createCodes({
+        suiteSlug,
+        batchName: batchName.trim(),
+        kind,
+        count: 1,
+        customCode: customCode.trim().toUpperCase(),
+        maxUses: parseInt(maxUses, 10) || undefined,
+      });
+      toast.success("自定义兑换码已创建");
+      setOpen(false);
+      setBatchName("");
+      setCustomCode("");
+      onCreated();
+    } catch (err) {
+      toast.error(formatApiErrorMessage(err));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button size="sm" variant="outline">
+          <KeyRound className="mr-1.5 h-4 w-4" />
+          指定码
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>创建指定兑换码</DialogTitle>
+        </DialogHeader>
+        <div className="grid gap-3">
+          <div className="space-y-1.5">
+            <Label>测试套件</Label>
+            <Select value={suiteSlug} onValueChange={setSuiteSlug}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {suites.map((s) => (
+                  <SelectItem key={s.slug} value={s.slug}>
+                    {s.name ?? s.slug}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>兑换码（自定义字符串）</Label>
+            <Input
+              className="font-mono uppercase"
+              placeholder="MIRROR-VIP-2026"
+              value={customCode}
+              onChange={(e) => setCustomCode(e.target.value)}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>批次名称</Label>
+            <Input placeholder="内测 VIP" value={batchName} onChange={(e) => setBatchName(e.target.value)} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>类型</Label>
+              <Select value={kind} onValueChange={setKind}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="common">通用码</SelectItem>
+                  <SelectItem value="single_use">一客一码</SelectItem>
+                  <SelectItem value="gift">礼品码</SelectItem>
+                  <SelectItem value="admin_grant">运营发放</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>最大次数</Label>
+              <Input type="number" min={1} value={maxUses} onChange={(e) => setMaxUses(e.target.value)} />
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button onClick={() => void submit()} disabled={submitting}>
+            {submitting ? "创建中…" : "创建"}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

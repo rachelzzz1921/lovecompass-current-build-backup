@@ -211,6 +211,13 @@ export type MateAiContent = {
   generated_at?: string;
 };
 
+export type MateScoreScope = {
+  label: string;
+  shortLabel?: string;
+  hint: string;
+  bandHint?: string;
+};
+
 export type MateResult = {
   attemptId: string;
   gender: "female" | "male";
@@ -241,6 +248,7 @@ export type MateResult = {
   footerMarquee?: { marquee: string[]; intervalMs: number };
   aiContent?: MateAiContent;
   insights?: MateInsight[];
+  scoreScope?: MateScoreScope;
 };
 
 export const MATE_NAV_SECTIONS = [

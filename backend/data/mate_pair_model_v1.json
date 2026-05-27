@@ -14,6 +14,11 @@
     "P5": 0.10,
     "P6": 0.05
   },
+  "p1_config": {
+    "module_blend": 0.55,
+    "hard_blend": 0.45,
+    "badge_scores": { "ok": 92, "warn": 62, "alert": 35 }
+  },
   "six_modules": [
     {
       "module_code": "P1",

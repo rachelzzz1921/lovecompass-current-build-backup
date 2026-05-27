@@ -2,6 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { adminApi, type AdminAttemptRow } from "@/lib/adminApi";
 import { formatApiErrorMessage } from "@/lib/apiErrors";
+import { AdminEmailCell } from "@/components/admin/AdminEmailCell";
+import { AdminTableShell } from "@/components/admin/AdminTableShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -76,16 +78,17 @@ function AdminAttemptsPage() {
         <CardHeader>
           <CardTitle className="text-base">记录列表</CardTitle>
         </CardHeader>
-        <CardContent className="overflow-x-auto">
+        <CardContent className="p-0">
+          <AdminTableShell>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>时间</TableHead>
-                <TableHead>用户</TableHead>
+                <TableHead className="w-[120px]">时间</TableHead>
+                <TableHead className="min-w-[200px] w-[28%]">用户</TableHead>
                 <TableHead>套件</TableHead>
                 <TableHead>状态</TableHead>
                 <TableHead>指数</TableHead>
-                <TableHead>attemptId</TableHead>
+                <TableHead className="min-w-[280px]">attemptId</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -94,7 +97,9 @@ function AdminAttemptsPage() {
                   <TableCell className="text-xs whitespace-nowrap">
                     {formatTime(row.completed_at ?? row.created_at)}
                   </TableCell>
-                  <TableCell className="max-w-[140px] truncate text-xs">{row.email ?? "—"}</TableCell>
+                  <TableCell className="align-top py-2">
+                    <AdminEmailCell email={row.email} />
+                  </TableCell>
                   <TableCell className="text-xs">
                     <div>{row.suite_name}</div>
                     <div className="text-muted-foreground">{row.suite_slug}</div>
@@ -103,11 +108,12 @@ function AdminAttemptsPage() {
                     <Badge variant={row.status === "completed" ? "default" : "secondary"}>{row.status}</Badge>
                   </TableCell>
                   <TableCell className="tabular-nums text-xs">{row.ros_index ?? "—"}</TableCell>
-                  <TableCell className="font-mono text-[10px] max-w-[120px] truncate">{row.id}</TableCell>
+                  <TableCell className="font-mono text-[10px] break-all">{row.id}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
+          </AdminTableShell>
         </CardContent>
       </Card>
     </div>

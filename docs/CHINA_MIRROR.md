@@ -7,7 +7,7 @@
 ```
 用户（内地） → mirror.example.com（静态前端，OSS 或 VPS）
             → api.mirror.example.com（nginx → lovecompass-api-backend.vercel.app）
-            → sb.mirror.example.com（nginx → wjfpglsygkbpubanylug.supabase.co）
+            → sb.mirror.example.com（nginx → busyjidkgfakqglldyye.supabase.co）
             → 同一 Postgres / 同一套测评数据
 ```
 

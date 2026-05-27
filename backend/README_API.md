@@ -37,22 +37,38 @@ VITE_LOVECOMPASS_API_BASE_URL=http://localhost:8000
 
 | 方法 | 路径 | 用途 |
 |---|---|---|
-| GET | `/admin/me` | 校验管理员身份 |
-| GET | `/admin/stats` | 运营概览统计 |
+| GET | `/admin/me` | 校验管理员身份（role 或密码解锁） |
+| POST | `/admin/unlock` | 已登录用户提交管理密码，换取短期解锁令牌 |
+| GET | `/admin/stats` | 运营概览（含双人/聊天今日指标 + 最近审计） |
 | GET | `/admin/suites` | 测试套件列表 |
 | GET | `/admin/redemption/codes` | 兑换码列表（筛选/分页） |
-| POST | `/admin/redemption/codes` | 批量生成兑换码 |
+| POST | `/admin/redemption/codes` | 批量/指定码生成兑换码 |
+| GET | `/admin/redemption/universal` | 万能码状态 |
+| POST | `/admin/redemption/universal/ensure-all` | 初始化万能码 shadow |
 | PATCH | `/admin/redemption/codes/{id}` | 启停/更新兑换码 |
 | GET | `/admin/redemption/events` | 兑换记录 |
-| GET | `/admin/users` | 用户列表 |
+| GET | `/admin/users` | 用户列表（MR 编号） |
+| POST | `/admin/users/invite` | 邀请/创建用户 |
+| PATCH | `/admin/users/{id}` | 更新角色/状态 |
+| DELETE | `/admin/users/{id}` | 停用或硬删用户 |
 | GET | `/admin/users/{id}` | 用户详情 + 测试/兑换 |
-| GET | `/admin/monitor/live` | 实时快照（测评/双人关系码/兑换，15s 轮询用） |
+| GET | `/admin/questions` | 题库列表 |
+| GET | `/admin/questions/stats` | 套件题量统计 |
+| PATCH | `/admin/questions/{id}` | 更新题目 |
+| DELETE | `/admin/questions/{id}` | 删除淘汰题 |
+| POST | `/admin/questions/purge-inactive` | 批量清理淘汰题 |
+| GET | `/admin/audit/logs` | 操作审计日志 |
+| GET | `/admin/chat/analytics` | AI 聊天分析 |
+| GET | `/admin/monitor/live` | 实时快照（15s 轮询） |
 | GET | `/admin/attempts` | 测试记录列表 |
 | GET | `/admin/analysts` | AI 顾问列表 |
 | GET | `/admin/analysts/{slug}` | 顾问详情 |
 | PATCH | `/admin/analysts/{slug}` | 更新顾问配置 |
 
-前端管理页：`/admin`（概览）、`/admin/monitor`（实时监控）、`/admin/attempts`（测评记录）、`/admin/codes`、`/admin/users`、`/admin/analysts`。
+前端管理页：`/admin`（概览）、`/admin/monitor`、`/admin/attempts`、`/admin/chat`、`/admin/codes`、`/admin/questions`、`/admin/users`、`/admin/analysts`、`/admin/audit`。
 
-开通管理员：在 Supabase SQL Editor 执行 `UPDATE public.profiles SET role = 'admin' WHERE email = '你的邮箱';`
+开通管理员（二选一）：
+
+1. **管理密码**（须先登录）：后端配置 `LOVECOMPASS_ADMIN_PASSWORD`，在 `/admin` 输入密码解锁（默认 12h 有效）。
+2. **永久角色**：Supabase SQL `UPDATE public.profiles SET role = 'admin' WHERE email = '...';`
 

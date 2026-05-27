@@ -1,7 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { RefreshCw, Radio } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { adminApi, type AdminLiveMonitor } from "@/lib/adminApi";
 import { useAdminLivePoll } from "@/lib/useAdminLivePoll";
+import { AdminStatCard, AdminPageHeader } from "@/components/admin/AdminStatCard";
+import { AdminEmailCell } from "@/components/admin/AdminEmailCell";
+import { AdminTableShell } from "@/components/admin/AdminTableShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -30,12 +33,7 @@ function StatusBadge({ status }: { status?: string }) {
 }
 
 function StatTile({ label, value }: { label: string; value: number | string }) {
-  return (
-    <div className="rounded-xl border border-border/60 bg-card/40 px-4 py-3">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="mt-1 text-xl font-semibold tabular-nums">{value}</p>
-    </div>
-  );
+  return <AdminStatCard label={label} value={value} />;
 }
 
 function AdminMonitorPage() {
@@ -67,22 +65,16 @@ function MonitorView({
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <Radio className="h-5 w-5 text-emerald-500 animate-pulse" />
-            <h1 className="text-2xl font-semibold tracking-tight">实时监控</h1>
-          </div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            每 15 秒自动刷新
-            {lastUpdated ? ` · 上次 ${formatTime(lastUpdated.toISOString())}` : ""}
-          </p>
-          {error ? <p className="mt-1 text-xs text-amber-600">刷新异常：{error}</p> : null}
-        </div>
+        <AdminPageHeader
+          title="实时监控"
+          description={`每 15 秒自动刷新${lastUpdated ? ` · 上次 ${formatTime(lastUpdated.toISOString())}` : ""}`}
+        />
         <Button variant="outline" size="sm" onClick={onRefresh}>
           <RefreshCw className="h-4 w-4 mr-1.5" />
           立即刷新
         </Button>
       </div>
+      {error ? <p className="text-xs text-amber-600">刷新异常：{error}</p> : null}
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatTile label="注册用户" value={s.users ?? 0} />
@@ -99,12 +91,13 @@ function MonitorView({
         <CardHeader>
           <CardTitle className="text-base">最近测评记录</CardTitle>
         </CardHeader>
-        <CardContent className="overflow-x-auto">
+        <CardContent className="p-0">
+          <AdminTableShell>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>时间</TableHead>
-                <TableHead>用户</TableHead>
+                <TableHead className="w-[130px]">时间</TableHead>
+                <TableHead className="min-w-[200px] w-[28%]">用户</TableHead>
                 <TableHead>套件</TableHead>
                 <TableHead>状态</TableHead>
                 <TableHead>关系码</TableHead>
@@ -116,7 +109,9 @@ function MonitorView({
                   <TableCell className="text-xs whitespace-nowrap">
                     {formatTime(row.completed_at ?? row.created_at)}
                   </TableCell>
-                  <TableCell className="max-w-[140px] truncate text-xs">{row.email ?? row.user_id?.slice(0, 8)}</TableCell>
+                  <TableCell className="align-top py-2">
+                    <AdminEmailCell email={row.email} fallback={row.user_id?.slice(0, 8)} />
+                  </TableCell>
                   <TableCell className="text-xs">
                     <div>{row.suite_name ?? "—"}</div>
                     <div className="text-muted-foreground">{row.suite_slug}</div>
@@ -129,6 +124,7 @@ function MonitorView({
               ))}
             </TableBody>
           </Table>
+          </AdminTableShell>
         </CardContent>
       </Card>
 
@@ -155,7 +151,9 @@ function MonitorView({
               {data.recentRedemptions.map((row, i) => (
                 <TableRow key={`${row.code}-${i}`}>
                   <TableCell className="text-xs">{formatTime(row.redeemed_at)}</TableCell>
-                  <TableCell className="text-xs">{row.email ?? "—"}</TableCell>
+                  <TableCell className="align-top">
+                    <AdminEmailCell email={row.email} />
+                  </TableCell>
                   <TableCell className="text-xs">{row.suite_slug}</TableCell>
                   <TableCell className="font-mono text-xs">{row.code}</TableCell>
                 </TableRow>
@@ -186,8 +184,8 @@ function CoupleSessionTable({
             <TableRow>
               <TableHead>关系码</TableHead>
               <TableHead>状态</TableHead>
-              <TableHead>发起人</TableHead>
-              <TableHead>伴侣</TableHead>
+              <TableHead className="min-w-[160px]">发起人</TableHead>
+              <TableHead className="min-w-[160px]">伴侣</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -204,8 +202,12 @@ function CoupleSessionTable({
                   <TableCell>
                     <StatusBadge status={row.status} />
                   </TableCell>
-                  <TableCell className="max-w-[100px] truncate text-xs">{row.initiator_email ?? "—"}</TableCell>
-                  <TableCell className="max-w-[100px] truncate text-xs">{row.partner_email ?? "—"}</TableCell>
+                  <TableCell className="align-top py-2">
+                    <AdminEmailCell email={row.initiator_email} />
+                  </TableCell>
+                  <TableCell className="align-top py-2">
+                    <AdminEmailCell email={row.partner_email} />
+                  </TableCell>
                 </TableRow>
               ))
             )}

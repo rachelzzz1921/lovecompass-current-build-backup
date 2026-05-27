@@ -697,13 +697,22 @@ export function MateMatchTemperature({ result }: { result: MateResult }) {
   const zone = result.matchZone;
   const zoneIdx = zone ? Math.max(0, zone.zones.indexOf(zone.userZone)) : 1;
   const partner = result.gender === "female" ? "男性" : "女性";
+  const scope = result.scoreScope;
 
   return (
     <div className="space-y-2">
+      {scope ? (
+        <p className={`${mateLayout.caption} text-white/50`}>
+          {scope.label} · {scope.hint}
+        </p>
+      ) : null}
       <p className={mateLayout.proseSm}>
         以下不是「普适好{partner}标准」，而是<strong className="text-white/90 font-normal">基于你的坐标</strong>
         ，告诉你什么类型对你算上限、甜区、该避开。
       </p>
+      {scope?.bandHint ? (
+        <p className={`${mateLayout.caption} text-white/45`}>{scope.bandHint}</p>
+      ) : null}
       {zone ? (
         <div className="mb-6">
           <p className={mateLayout.proseSm}>{zone.sliderTitle}</p>

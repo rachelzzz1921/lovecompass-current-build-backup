@@ -38,6 +38,21 @@ export type MateAttentionItem = {
   source?: string;
 };
 
+export type MateCoupleModule = {
+  code: string;
+  dimension: string;
+  level: string;
+  score: number | null;
+  pending?: boolean;
+};
+
+export type MateScoreScope = {
+  label: string;
+  shortLabel?: string;
+  hint: string;
+  bandHint?: string;
+};
+
 export type MateCoupleResult = {
   code: string;
   verdict: {
@@ -69,4 +84,6 @@ export type MateCoupleResult = {
     initiatorSuiteSlug?: string;
     partnerSuiteSlug?: string;
   };
+  relationshipModules?: MateCoupleModule[];
+  scoreScope?: MateScoreScope;
 };

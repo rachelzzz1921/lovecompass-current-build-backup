@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Enable Supabase email/password auth and create a confirmed test user (no email verification).
+# Enable Supabase email/password auth (+ optional Google OAuth) and create a confirmed test user.
 #
 # Required env:
 #   SUPABASE_ACCESS_TOKEN  — https://supabase.com/dashboard/account/tokens
@@ -7,6 +7,7 @@
 #
 # Optional:
 #   PROJECT_REF (default: wjfpglsygkbpubanylug)
+#   GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET — enable Google provider when both set
 #   TEST_EMAIL (default: lovecompass.test@example.com)
 #   TEST_PASSWORD (default: LoveCompassTest2026!)
 set -euo pipefail
@@ -25,15 +26,34 @@ if [[ -z "${SUPABASE_SERVICE_ROLE_KEY:-}" ]]; then
   exit 1
 fi
 
-echo "==> Enabling Email provider + auto-confirm (no verification email)..."
+AUTH_PATCH='{
+  "external_email_enabled": true,
+  "mailer_autoconfirm": true,
+  "disable_signup": false
+}'
+
+if [[ -n "${GOOGLE_CLIENT_ID:-}" && -n "${GOOGLE_CLIENT_SECRET:-}" ]]; then
+  AUTH_PATCH="$(python3 - <<PY
+import json, os
+base = json.loads(os.environ["AUTH_PATCH"])
+base.update({
+  "external_google_enabled": True,
+  "external_google_client_id": os.environ["GOOGLE_CLIENT_ID"],
+  "external_google_secret": os.environ["GOOGLE_CLIENT_SECRET"],
+})
+print(json.dumps(base))
+PY
+)"
+  export AUTH_PATCH
+  echo "==> Enabling Email + auto-confirm + Google OAuth on ${PROJECT_REF}..."
+else
+  echo "==> Enabling Email + auto-confirm on ${PROJECT_REF} (Google skipped — set GOOGLE_CLIENT_ID/SECRET to enable)..."
+fi
+
 curl -fsS -X PATCH "https://api.supabase.com/v1/projects/${PROJECT_REF}/config/auth" \
   -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
   -H "Content-Type: application/json" \
-  -d '{
-    "external_email_enabled": true,
-    "mailer_autoconfirm": true,
-    "disable_signup": false
-  }' | python3 -m json.tool | head -40
+  -d "${AUTH_PATCH}" | python3 -m json.tool | head -40
 
 echo
 echo "==> Creating confirmed test user ${TEST_EMAIL}..."

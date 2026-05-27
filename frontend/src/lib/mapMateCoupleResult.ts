@@ -1,9 +1,11 @@
 import type {
   MateAttentionItem,
   MateConditionRow,
+  MateCoupleModule,
   MateCoupleResult,
   MateDealItem,
   MateRhythmRow,
+  MateScoreScope,
 } from "@/data/mateCoupleTypes";
 
 function asString(v: unknown, fallback = ""): string {
@@ -77,6 +79,46 @@ function mapAttention(raw: unknown): MateAttentionItem[] {
   });
 }
 
+function mapScoreScope(raw: unknown): MateScoreScope | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const row = raw as Record<string, unknown>;
+  const label = asString(row.label);
+  const hint = asString(row.hint);
+  if (!label || !hint) return undefined;
+  return {
+    label,
+    shortLabel: asString(row.short_label || row.shortLabel) || undefined,
+    hint,
+    bandHint: asString(row.band_hint || row.bandHint) || undefined,
+  };
+}
+
+function mapRelationshipModules(raw: unknown): MateCoupleModule[] {
+  const modules = raw as Record<string, unknown> | undefined;
+  if (!modules || typeof modules !== "object") return [];
+  const dimensions: Record<string, string> = {
+    P1: "现实适配",
+    P2: "情感需求",
+    P3: "相处节奏",
+    P4: "长期规划",
+    P5: "风险碰撞",
+  };
+  return ["P1", "P2", "P3", "P4", "P5"]
+    .map((code) => {
+      const mod = modules[code] as Record<string, unknown> | undefined;
+      if (!mod) return null;
+      const scoreRaw = mod.score;
+      return {
+        code,
+        dimension: dimensions[code] ?? code,
+        level: asString(mod.level, "—"),
+        score: scoreRaw == null ? null : asNumber(scoreRaw),
+        pending: Boolean(mod.pending),
+      };
+    })
+    .filter((x): x is MateCoupleModule => x != null);
+}
+
 export function mapApiMateCouplePayload(raw: Record<string, unknown>): MateCoupleResult {
   const verdictRaw = (raw.verdict ?? {}) as Record<string, unknown>;
   const dealRaw = (raw.deal_items ?? {}) as Record<string, unknown>;
@@ -129,5 +171,7 @@ export function mapApiMateCouplePayload(raw: Record<string, unknown>): MateCoupl
       initiatorSuiteSlug: asString(participants.initiatorSuiteSlug) || undefined,
       partnerSuiteSlug: asString(participants.partnerSuiteSlug) || undefined,
     },
+    relationshipModules: mapRelationshipModules(raw.modules ?? raw.relationship_analysis),
+    scoreScope: mapScoreScope(raw.scoreScope ?? raw.score_scope),
   };
 }

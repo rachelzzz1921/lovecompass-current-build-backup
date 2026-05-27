@@ -26,6 +26,25 @@ def test_pair_metrics() -> None:
     assert metrics["P1"] >= metrics["P6"] - 30
 
 
+def test_p6_affects_base_score() -> None:
+    low = compute_pair_compatibility_base(
+        module_scores={"FS1": 50, "FS2": 68, "FS3": 72, "FS4": 70, "FS5": 22},
+        axis_x=45,
+        axis_y=70,
+        gender="female",
+    )
+    high = compute_pair_compatibility_base(
+        module_scores={"FS1": 90, "FS2": 68, "FS3": 72, "FS4": 70, "FS5": 22},
+        axis_x=45,
+        axis_y=70,
+        gender="female",
+    )
+    delta = high["base"] - low["base"]
+    assert 1.8 <= delta <= 2.2, f"P6 weight delta expected ~2, got {delta}"
+    assert high["P6"] == 90.0
+    assert low["P6"] == 50.0
+
+
 def test_bounds_three_bands_with_portraits() -> None:
     profile = {
         "upper_match": "有阅历、不被表面吸引的男性",
@@ -53,6 +72,9 @@ def test_bounds_three_bands_with_portraits() -> None:
     assert sweet.get("stableProbability", 0) >= 62
     assert "对你来说" in sweet["summary"]
     assert profile["sweet_spot"] in sweet["summary"]
+    extras = bounds.get("matchZoneExtras") or {}
+    assert extras.get("scoreScope", {}).get("label")
+    assert "火花潜力" in upper["traits"]
 
 
 def test_position_changes_portraits() -> None:
@@ -92,6 +114,7 @@ def test_male_targets_female_portraits() -> None:
 if __name__ == "__main__":
     test_library_loads()
     test_pair_metrics()
+    test_p6_affects_base_score()
     test_bounds_three_bands_with_portraits()
     test_position_changes_portraits()
     test_male_targets_female_portraits()

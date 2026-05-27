@@ -9,7 +9,7 @@ from app.chat_prompt_layers import score_band_label
 from app.mate_analysis import build_mate_precomputed_layers
 from app.mate_engine import QUADRANT_LABELS, apply_v4_position_overrides, enrich_mate_payload_v4
 from app.mate_express import asset_module_label, module_display_label, risk_module_label
-from app.mate_match_bounds import build_match_bounds
+from app.mate_match_bounds import build_match_bounds, load_match_bounds_library
 from app.ros_scoring import generate_relation_code
 from app.scoring import _clamp, answer_to_numeric
 
@@ -654,6 +654,9 @@ def _build_mate_result_payload(
         "sweetSpot": bounds["sweetSpot"],
         "lowerMatch": bounds["lowerMatch"],
         "matchBoundsMeta": bounds.get("matchZoneExtras"),
+        "scoreScope": (bounds.get("matchZoneExtras") or {}).get("scoreScope")
+        or load_match_bounds_library().get("score_scope")
+        or {},
         "secularAdvice": _build_secular_advice(position_name, module_scores),
         "aiLens": _build_ai_lens(module_scores, gender),
         "deepArchive": {

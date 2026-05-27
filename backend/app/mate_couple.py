@@ -326,12 +326,102 @@ def extract_profiles(
     return {"male": male, "female": female}
 
 
+_INCOME_TIER_BY_LABEL: dict[str, float] = {
+    "入门层": 1.0,
+    "基础层": 2.0,
+    "中等层": 3.0,
+    "中上层": 4.0,
+    "优质层": 5.0,
+    "顶端层": 6.0,
+    "稳定独立": 3.0,
+    "半独立": 2.5,
+    "依赖型": 1.5,
+    "明显高于平均": 4.5,
+    "较好": 3.5,
+    "中等": 2.5,
+    "偏弱": 1.5,
+}
+
+
+def _badge_to_alignment(badge: str, config: dict[str, Any]) -> float:
+    scores = config.get("badge_scores") or {"ok": 92, "warn": 62, "alert": 35}
+    return float(scores.get(badge, scores.get("warn", 62)))
+
+
+def _income_tier(label: str) -> float | None:
+    text = str(label or "").strip()
+    if not text or text == "—":
+        return None
+    if text in _INCOME_TIER_BY_LABEL:
+        return _INCOME_TIER_BY_LABEL[text]
+    if text.startswith("档位"):
+        try:
+            return float(text.split()[-1])
+        except ValueError:
+            return None
+    return None
+
+
+def _collect_p1_hard_alignments(male: dict[str, Any], female: dict[str, Any]) -> list[float]:
+    """Hard-condition gaps from supplement + single-test context (income, housing, huji, etc.)."""
+    copy = load_couple_copy()
+    gap_rules = copy.get("gap_rules") or {}
+    p1_cfg = load_pair_model().get("p1_config") or {}
+    m_fields = male.get("fields") or {}
+    f_fields = female.get("fields") or {}
+    m_ctx = male.get("context") or {}
+    f_ctx = female.get("context") or {}
+    alignments: list[float] = []
+
+    m_edu, f_edu = m_fields.get("education_level"), f_fields.get("education_level")
+    if m_edu is not None and f_edu is not None:
+        diff = abs(int(m_edu) - int(f_edu))
+        _, badge = _gap_badge(diff, gap_rules.get("education") or [])
+        alignments.append(_badge_to_alignment(badge, p1_cfg))
+
+    if m_fields.get("huji") and f_fields.get("huji"):
+        badge, _ = _resolve_huji_badge(str(m_fields["huji"]), str(f_fields["huji"]))
+        alignments.append(_badge_to_alignment(badge, p1_cfg))
+
+    m_age, f_age = m_fields.get("age"), f_fields.get("age")
+    if m_age is not None and f_age is not None:
+        diff = abs(int(m_age) - int(f_age))
+        _, badge = _gap_badge(diff, gap_rules.get("age") or [])
+        alignments.append(_badge_to_alignment(badge, p1_cfg))
+
+    m_tier, f_tier = _income_tier(str(m_ctx.get("income_level") or "")), _income_tier(str(f_ctx.get("income_level") or ""))
+    if m_tier is not None and f_tier is not None:
+        diff = abs(m_tier - f_tier)
+        _, badge = _gap_badge(diff, gap_rules.get("income") or [])
+        alignments.append(_badge_to_alignment(badge, p1_cfg))
+
+    m_h, f_h = str(m_ctx.get("housing_status") or ""), str(f_ctx.get("housing_status") or "")
+    if m_h and f_h and m_h != "—" and f_h != "—":
+        alignments.append(95.0 if m_h == f_h else 62.0)
+
+    return alignments
+
+
 def compute_P1(male: dict[str, Any], female: dict[str, Any]) -> dict[str, Any]:
     m_score = float(male.get("derived", {}).get("reality_score", 50))
     f_score = float(female.get("derived", {}).get("reality_score", 50))
-    score = _alignment_score(m_score, f_score)
+    module_score = _alignment_score(m_score, f_score)
+    hard_alignments = _collect_p1_hard_alignments(male, female)
+
+    p1_cfg = load_pair_model().get("p1_config") or {}
+    module_blend = float(p1_cfg.get("module_blend", 0.55))
+    hard_blend = float(p1_cfg.get("hard_blend", 0.45))
+
+    if hard_alignments:
+        hard_score = sum(hard_alignments) / len(hard_alignments)
+        score = module_score * module_blend + hard_score * hard_blend
+    else:
+        score = module_score
+
     gap = abs(m_score - f_score)
     atoms: list[str] = []
+    if hard_alignments and score < module_score - 8:
+        atoms.append("硬条件有落差")
     if gap <= 15:
         atoms.append("现实差距小")
     elif gap >= 25:
@@ -529,16 +619,24 @@ def build_condition_table(male: dict[str, Any], female: dict[str, Any]) -> list[
             "badge_label": label,
         })
 
+    m_income = str(m_ctx.get("income_level") or "—")
+    f_income = str(f_ctx.get("income_level") or "—")
+    m_tier, f_tier = _income_tier(m_income), _income_tier(f_income)
+    if m_tier is not None and f_tier is not None:
+        diff = abs(m_tier - f_tier)
+        income_label, income_badge = _gap_badge(diff, gap_rules.get("income") or [])
+    else:
+        income_label, income_badge = "接近", "ok"
     rows.append({
         "field": "income_level",
         "label": "收入水平",
         "source": "MS1-A-M-01",
-        "male_value": m_ctx.get("income_level", "—"),
-        "female_value": f_ctx.get("income_level", "—"),
+        "male_value": m_income,
+        "female_value": f_income,
         "male_sub": "",
         "female_sub": "",
-        "badge": "ok",
-        "badge_label": "接近",
+        "badge": income_badge,
+        "badge_label": income_label,
     })
 
     rows.append({
@@ -980,6 +1078,7 @@ def build_couple_payload(
         "engine": "MATE_PAIR_ENGINE_V1.0",
         "productSet": "MATE",
         "code": code,
+        "scoreScope": load_couple_copy().get("score_scope") or {},
         "participants": {
             "initiatorAttemptId": str(initiator.get("id") or ""),
             "partnerAttemptId": str(partner.get("id") or ""),

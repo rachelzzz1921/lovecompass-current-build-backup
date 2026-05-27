@@ -18,6 +18,7 @@ import type {
   MateRehearseEpisode,
   MateResult,
   MateReverseCard,
+  MateScoreScope,
   MateSimulator,
   MateSweetSpot,
   MateTimelineNode,
@@ -270,6 +271,20 @@ function mapAiContent(raw: unknown): MateAiContent | undefined {
   };
 }
 
+function mapScoreScope(raw: unknown): MateScoreScope | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const row = raw as ApiPayload;
+  const label = asString(row.label);
+  const hint = asString(row.hint);
+  if (!label || !hint) return undefined;
+  return {
+    label,
+    shortLabel: asString(row.short_label || row.shortLabel) || undefined,
+    hint,
+    bandHint: asString(row.band_hint || row.bandHint) || undefined,
+  };
+}
+
 function mapInsights(raw: unknown): MateInsight[] {
   if (!Array.isArray(raw)) return [];
   return raw
@@ -328,6 +343,7 @@ export function mapApiSingleToMateResult(attemptId: string, single: ApiPayload):
     footerMarquee: single.footerMarquee as MateResult["footerMarquee"],
     aiContent: mapAiContent(single.ai_content),
     insights: mapInsights(single.insights),
+    scoreScope: mapScoreScope(single.scoreScope ?? single.score_scope),
   };
 }
 

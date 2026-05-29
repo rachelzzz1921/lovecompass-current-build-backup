@@ -41,20 +41,19 @@ from app.ros_ai_content import (
     ros_ai_content_ready,
 )
 from app.ros_couple import attempt_snapshot as ros_attempt_snapshot
-from app.ros_router import create_relation_session, link_partner_to_session, merge_and_store_couple_report
+from app.ros_router import ensure_relation_session, link_partner_to_session, merge_and_store_couple_report
 from app.ros_scoring import is_ros_suite
 from app.self_ai_content import (
     attach_self_ai_content_to_payload,
     enhance_self_ai_background,
     enhance_self_ai_for_attempt,
 )
+from app.ai_adapter import zhipu_ai_active
 from app.semantic_translation import guard_ai_output, sanitize_user_facing_payload
-
-FINALIZE_STALE_MINUTES = 2
 
 
 def _ai_enhance_enabled() -> bool:
-    return os.getenv("AI_PROVIDER", "mock").strip().lower() == "zhipu"
+    return zhipu_ai_active()
 
 
 def _claim_finalize_slot(conn: Any, attempt_id: str) -> bool:
@@ -122,6 +121,11 @@ def hydrate_attempt_for_read(
             use_ai=False,
             gender=gender,
         )
+        if background_tasks and (result_payload.get("ai_content") or {}).get("mode") == "deterministic":
+            if _ai_enhance_enabled():
+                from app.mate_ai_content import enhance_mate_ai_background
+
+                background_tasks.add_task(enhance_mate_ai_background, attempt_id)
     else:
         if not result_payload.get("core_traits"):
             result_payload = attach_core_traits_to_payload(
@@ -149,7 +153,7 @@ def hydrate_attempt_for_read(
 
 
 def _enhance_ai_after_finalize(conn: Any, attempt_id: str, suite_slug: str) -> None:
-    if os.getenv("AI_PROVIDER", "mock").strip().lower() != "zhipu":
+    if not zhipu_ai_active():
         return
     try:
         if is_ros_suite(suite_slug):
@@ -303,12 +307,17 @@ def finalize_attempt_background(attempt_id: str, user_id: str) -> None:
                 )
                 scores = {"dimension_scores": dimension_scores, "ros_index": row.get("ros_index")}
 
+            relation_code_for_row = None
+            if is_ros_suite(suite_slug) or (is_mate_suite(suite_slug) and not is_lite_suite_slug(suite_slug)):
+                relation_code_for_row = result_payload.get("relationCode") or scores.get("relation_code")
+
             conn.execute(
                 """
                 UPDATE public.test_attempts
                 SET result_payload = %s,
                     dimension_scores = %s,
                     ros_index = %s,
+                    relation_code = COALESCE(%s, relation_code),
                     status = 'completed',
                     completed_at = now()
                 WHERE id = %s
@@ -317,6 +326,7 @@ def finalize_attempt_background(attempt_id: str, user_id: str) -> None:
                     Jsonb(result_payload),
                     Jsonb(scores.get("dimension_scores") or dimension_scores),
                     scores.get("ros_index") if is_ros_suite(suite_slug) or is_mate_suite(suite_slug) else row.get("ros_index"),
+                    relation_code_for_row,
                     attempt_id,
                 ),
             )
@@ -337,22 +347,23 @@ def finalize_attempt_background(attempt_id: str, user_id: str) -> None:
                             pass
                 else:
                     relation_code = result_payload.get("relationCode") or scores.get("relation_code")
-                    create_relation_session(
-                        conn,
-                        code=str(relation_code),
-                        initiator_attempt_id=uuid.UUID(attempt_id),
-                        initiator_user_id=user_id,
-                        initiator_snapshot=ros_attempt_snapshot(
-                            {
-                                "id": attempt_id,
-                                "user_id": user_id,
-                                "suite_slug": suite_slug,
-                                "dimension_scores": scores.get("dimension_scores"),
-                                "ros_index": scores.get("ros_index"),
-                                "result_payload": result_payload,
-                            }
-                        ),
-                    )
+                    if relation_code:
+                        ensure_relation_session(
+                            conn,
+                            code=str(relation_code),
+                            initiator_attempt_id=uuid.UUID(attempt_id),
+                            initiator_user_id=user_id,
+                            initiator_snapshot=ros_attempt_snapshot(
+                                {
+                                    "id": attempt_id,
+                                    "user_id": user_id,
+                                    "suite_slug": suite_slug,
+                                    "dimension_scores": scores.get("dimension_scores"),
+                                    "ros_index": scores.get("ros_index"),
+                                    "result_payload": result_payload,
+                                }
+                            ),
+                        )
             elif is_mate_suite(suite_slug) and not is_lite_suite_slug(suite_slug):
                 if partner_code:
                     linked = link_mate_partner_to_session(
@@ -404,7 +415,7 @@ def finalize_attempt_background(attempt_id: str, user_id: str) -> None:
                     enhance_ros_couple_session_background(str(session_row["id"]))
             conn.commit()
 
-            if os.getenv("AI_PROVIDER", "mock").strip().lower() == "zhipu":
+            if zhipu_ai_active():
                 threading.Thread(
                     target=_run_post_finalize_ai,
                     args=(attempt_id, suite_slug),

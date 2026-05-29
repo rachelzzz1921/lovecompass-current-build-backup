@@ -11,6 +11,7 @@ import { AuthChecking, useRequireAuth } from "@/lib/requireAuth";
 import { peekResultPrefetch, takeResultPrefetch } from "@/lib/resultPrefetchCache";
 import { rosSingleDisplayReady } from "@/lib/waitForResultReady";
 import { ResultDataLoading } from "@/components/ResultDataLoading";
+import type { SuiteTier } from "@/lib/suiteTier";
 
 export const Route = createFileRoute("/result/ros/$id")({
   ssr: false,
@@ -30,6 +31,7 @@ function RosResultPage() {
   const [error, setError] = useState<string | null>(null);
   const [r, setR] = useState<RosSingleResult | null>(null);
   const [suiteSlug, setSuiteSlug] = useState<string | null>(null);
+  const [suiteTier, setSuiteTier] = useState<SuiteTier | null>(null);
   const [coupleUnlocked, setCoupleUnlocked] = useState(false);
   const [accuracyNote, setAccuracyNote] = useState<string | null>(null);
   const hydratedRef = useRef<string | null>(null);
@@ -47,6 +49,10 @@ function RosResultPage() {
         setR(mapApiSingleToRosResult(single, cached.data.relationCode || ""));
         setCoupleUnlocked(Boolean(cached.data.coupleUnlocked));
         setSuiteSlug(cached.data.suiteSlug ?? null);
+        setSuiteTier(
+          cached.data.suiteTier ??
+            (cached.data.suiteSlug?.includes("_lite") ? "lite" : cached.data.suiteSlug ? "full" : null),
+        );
         setAccuracyNote(typeof single.accuracyNote === "string" ? single.accuracyNote : null);
         setLoading(false);
         hydratedRef.current = id;
@@ -65,6 +71,13 @@ function RosResultPage() {
         setCoupleUnlocked(Boolean(res.coupleUnlocked));
         const single = res.single as Record<string, unknown>;
         setAccuracyNote(typeof single.accuracyNote === "string" ? single.accuracyNote : null);
+        setSuiteSlug(
+          res.suiteSlug ?? (single.suiteSlug ? String(single.suiteSlug) : null),
+        );
+        setSuiteTier(
+          res.suiteTier ??
+            (single.suiteTier === "lite" || single.suiteTier === "full" ? single.suiteTier : null),
+        );
         hydratedRef.current = id;
       })
       .catch((e) => {
@@ -73,12 +86,6 @@ function RosResultPage() {
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
-    lovecompassApi
-      .getAttemptResult(id)
-      .then((res) => {
-        if (!cancelled) setSuiteSlug(String(res.attempt?.test_id ?? ""));
-      })
-      .catch(() => undefined);
     return () => {
       cancelled = true;
     };
@@ -109,6 +116,8 @@ function RosResultPage() {
                 setCoupleUnlocked(Boolean(res.coupleUnlocked));
               }
             }
+            if (res.suiteSlug) setSuiteSlug(res.suiteSlug);
+            if (res.suiteTier) setSuiteTier(res.suiteTier);
           })
           .catch(() => undefined);
       }, delayMs);
@@ -134,6 +143,7 @@ function RosResultPage() {
       attemptId={id}
       coupleUnlocked={coupleUnlocked}
       suiteSlug={suiteSlug}
+      suiteTier={suiteTier}
       accuracyNote={accuracyNote}
     />
   );

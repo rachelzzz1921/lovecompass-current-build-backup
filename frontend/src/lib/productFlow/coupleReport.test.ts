@@ -13,6 +13,8 @@ describe("coupleReport", () => {
     expect(coupleReportEligible("mate", "s03_mate_male")).toBe(true);
     expect(coupleReportEligible("mate", "s03_mate_male_lite")).toBe(false);
     expect(coupleReportEligible("ros", null)).toBe(false);
+    expect(coupleReportEligible("ros", null, null, "ROS-ABCD-1234")).toBe(true);
+    expect(coupleReportEligible("ros", null, "full")).toBe(true);
   });
 
   it("has product-specific unavailable copy", () => {

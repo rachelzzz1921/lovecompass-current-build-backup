@@ -16,7 +16,7 @@ import { MateResultShell } from "@/components/mate/MateResultShell";
 import { MATE_RESULT_SECTIONS } from "@/lib/readingSections";
 import { CoupleReportUnavailableNotice } from "@/components/CoupleReportUnavailableNotice";
 import { chatRouteSearch } from "@/lib/chatRouteSearch";
-import { coupleReportEligible } from "@/lib/coupleReport";
+import { coupleReportEligible, showCoupleReportUpgradeNotice } from "@/lib/coupleReport";
 import { inferSuiteTier } from "@/lib/suiteTier";
 import { mateLayout } from "@/lib/mateLayout";
 import { drawMateSummaryShareCard } from "@/lib/share/templates/drawMateSummaryShareCard";
@@ -45,7 +45,7 @@ export function MateResultView({
     [result],
   );
 
-  const canCoupleReport = coupleReportEligible("mate", suiteSlug);
+  const canCoupleReport = coupleReportEligible("mate", suiteSlug, null, relationCode);
 
   return (
     <MateResultShell>
@@ -103,7 +103,7 @@ export function MateResultView({
             </>
           )}
         </section>
-      ) : relationCode && suiteSlug && !canCoupleReport ? (
+      ) : relationCode && showCoupleReportUpgradeNotice(suiteSlug) ? (
         <section className={`${mateLayout.chapter} ${mateLayout.highlight}`}>
           <CoupleReportUnavailableNotice productId="mate" surface="light" />
         </section>

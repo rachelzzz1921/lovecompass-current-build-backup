@@ -21,6 +21,7 @@ export type RosSinglePrefetch = {
     relationCode?: string;
     coupleUnlocked?: boolean;
     suiteSlug?: string;
+    suiteTier?: "lite" | "full";
   };
 };
 

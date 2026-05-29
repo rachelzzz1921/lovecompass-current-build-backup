@@ -251,7 +251,7 @@ async function prefetchRosSingle(attemptId: string, attempt: Record<string, unkn
       "",
   ) || undefined;
 
-  const stash = (single: Record<string, unknown>, extra?: { relationCode?: string; coupleUnlocked?: boolean }) => {
+  const stash = (single: Record<string, unknown>, extra?: { relationCode?: string; coupleUnlocked?: boolean; suiteSlug?: string; suiteTier?: "lite" | "full" }) => {
     stashResultPrefetch(attemptId, {
       kind: "ros-single",
       attemptId,
@@ -262,7 +262,8 @@ async function prefetchRosSingle(attemptId: string, attempt: Record<string, unkn
           relationCode ??
           (String(single.relationCode ?? "") || undefined),
         coupleUnlocked: extra?.coupleUnlocked,
-        suiteSlug: String(attempt.test_id ?? ""),
+        suiteSlug: extra?.suiteSlug ?? String(attempt.test_id ?? single.suiteSlug ?? ""),
+        suiteTier: extra?.suiteTier,
       },
     } satisfies RosSinglePrefetch);
   };
@@ -281,6 +282,8 @@ async function prefetchRosSingle(attemptId: string, attempt: Record<string, unkn
       stash(single, {
         relationCode: singleRes.relationCode,
         coupleUnlocked: singleRes.coupleUnlocked,
+        suiteSlug: singleRes.suiteSlug,
+        suiteTier: singleRes.suiteTier,
       });
       return;
     }
@@ -301,6 +304,8 @@ async function prefetchRosSingle(attemptId: string, attempt: Record<string, unkn
         stash(single, {
           relationCode: singleRes.relationCode,
           coupleUnlocked: singleRes.coupleUnlocked,
+          suiteSlug: singleRes.suiteSlug,
+          suiteTier: singleRes.suiteTier,
         });
         return;
       }

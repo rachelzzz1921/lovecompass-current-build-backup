@@ -373,6 +373,8 @@ export const lovecompassApi = {
       ok: boolean;
       attemptId: string;
       single: Record<string, unknown>;
+      suiteSlug?: string;
+      suiteTier?: "lite" | "full";
       relationCode?: string;
       partnerStatus?: string;
       coupleUnlocked?: boolean;

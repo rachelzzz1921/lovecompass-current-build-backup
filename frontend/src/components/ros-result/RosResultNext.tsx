@@ -2,10 +2,15 @@ import { Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
 import { Star, AlertCircle, Lightbulb, ArrowRight, Copy, Link2, Bot, Share2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
+import type { RosSingleResult } from "@/data/rosTypes";
+import { aiEnhancementPendingLabel, showAiEnhancementPending } from "@/lib/aiContentUx";
+import { fetchAiEnhancementEnabled } from "@/lib/aiCapabilities";
 import { useLongPress } from "@/hooks/useLongPress";
 import { chatRouteSearch } from "@/lib/chatRouteSearch";
 import type { ExampleSubject } from "@/lib/exampleSubjectCopy";
-import { coupleReportEligible } from "@/lib/coupleReport";
+import { coupleReportEligible, showCoupleReportUpgradeNotice } from "@/lib/coupleReport";
+import type { SuiteTier } from "@/lib/suiteTier";
 import { CoupleReportUnavailableNotice } from "@/components/CoupleReportUnavailableNotice";
 import {
   copyCanvasToClipboard,
@@ -107,6 +112,7 @@ export function RosResultNext({
   attemptId,
   coupleUnlocked,
   suiteSlug,
+  suiteTier = null,
   onShare,
   exampleMode = false,
   exampleSubject,
@@ -116,12 +122,14 @@ export function RosResultNext({
   attemptId: string;
   coupleUnlocked: boolean;
   suiteSlug?: string | null;
+  suiteTier?: SuiteTier | null;
   onShare: () => void;
   exampleMode?: boolean;
   exampleSubject?: ExampleSubject;
   examplePartner?: string;
 }) {
-  const canCoupleReport = coupleReportEligible("ros", suiteSlug);
+  const canCoupleReport = coupleReportEligible("ros", suiteSlug, suiteTier, result.code);
+  const showCoupleUpgrade = showCoupleReportUpgradeNotice(suiteSlug, suiteTier);
   const inviteUrl = typeof window !== "undefined"
     ? `${window.location.origin}/ros/invite/${result.code}`
     : `/ros/invite/${result.code}`;
@@ -223,9 +231,9 @@ export function RosResultNext({
           </div>
         )}
       </div>
-      ) : (
+      ) : showCoupleUpgrade ? (
         <CoupleReportUnavailableNotice productId="ros" />
-      )}
+      ) : null}
 
       <div className="grid grid-cols-2 gap-3">
         <Link

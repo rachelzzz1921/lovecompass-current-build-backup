@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import { REL_STAGES, type RosSingleResult } from "@/data/rosTypes";
-import { AiReportSection } from "@/components/AiReportSection";
 import { SuiteUpgradeBanner } from "@/components/SuiteUpgradeBanner";
 import { LiteResultNotice } from "@/components/LiteResultNotice";
 import { SuiteCrossSell } from "@/components/SuiteCrossSell";
@@ -10,7 +9,8 @@ import { FloatingSectionNav } from "@/components/reading/FloatingSectionNav";
 import { ResultReadingThreshold } from "@/components/reading/ResultReadingThreshold";
 import { useFloatingResultNav } from "@/components/reading/useFloatingResultNav";
 import { ROS_RESULT_SECTIONS } from "@/lib/readingSections";
-import { inferSuiteTier } from "@/lib/suiteTier";
+import { RESULT_PAGE_BG, resultChrome, resultProductChipClass } from "@/lib/resultChrome";
+import { inferSuiteTier, type SuiteTier } from "@/lib/suiteTier";
 import { RelationshipWeatherHero } from "@/components/ros-result/RelationshipWeatherHero";
 import { RosStageCurve } from "@/components/ros-result/RosStageCurve";
 import { RosFiveLayers } from "@/components/ros-result/RosFiveLayers";
@@ -25,6 +25,7 @@ export type RosResultViewProps = {
   attemptId: string;
   coupleUnlocked?: boolean;
   suiteSlug?: string | null;
+  suiteTier?: SuiteTier | null;
   accuracyNote?: string | null;
   exampleMode?: boolean;
   exampleSubject?: ExampleSubject;
@@ -36,6 +37,7 @@ export function RosResultView({
   attemptId,
   coupleUnlocked = false,
   suiteSlug,
+  suiteTier = null,
   accuracyNote,
   exampleMode = false,
   exampleSubject,
@@ -54,22 +56,21 @@ export function RosResultView({
     sub: "有一些小摩擦，但在往好的方向走",
   };
   const { activeSectionId, visible: showFloatingNav } = useFloatingResultNav(ROS_RESULT_SECTIONS);
+  const isLiteResult =
+    suiteTier === "lite" || (suiteSlug ? inferSuiteTier(suiteSlug) === "lite" : false);
 
   return (
-    <main className="relative min-h-screen w-full min-w-0" style={{ background: "#0c0e11" }}>
+    <main className={resultChrome.page} style={{ background: RESULT_PAGE_BG }}>
       {!exampleMode ? (
         <header
-          className="sticky top-0 z-20 flex items-center justify-between px-5 pt-5 pb-3"
-          style={{ background: "linear-gradient(180deg,#0c0e11 70%, transparent)" }}
+          className={resultChrome.header}
+          style={{ background: resultChrome.headerFade }}
         >
           <Link to="/" className="flex items-center gap-2 text-sm text-white/55 hover:text-white transition">
             <ArrowLeft className="h-4 w-4" />
             <span className="hidden sm:inline">返回</span>
           </Link>
-          <span
-            className="chip font-mono text-[10px] tracking-[0.25em]"
-            style={{ background: "rgba(99,102,241,0.12)", color: "#a5a8ff", border: "1px solid rgba(99,102,241,0.3)" }}
-          >
+          <span className={`chip ${resultProductChipClass("ros")} font-mono text-[10px] tracking-[0.25em]`}>
             SET · 02 / ROS
           </span>
         </header>
@@ -115,7 +116,14 @@ export function RosResultView({
         </div>
 
         <section id="ros-layers" className="scroll-mt-32">
-          <RosFiveLayers result={result} attemptId={attemptId} inviteCode={result.code} suiteSlug={suiteSlug} exampleMode={exampleMode} />
+          <RosFiveLayers
+            result={result}
+            attemptId={attemptId}
+            inviteCode={result.code}
+            suiteSlug={suiteSlug}
+            suiteTier={suiteTier}
+            exampleMode={exampleMode}
+          />
         </section>
 
         <div className="h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
@@ -133,6 +141,7 @@ export function RosResultView({
             attemptId={attemptId}
             coupleUnlocked={coupleUnlocked}
             suiteSlug={suiteSlug}
+            suiteTier={suiteTier}
             onShare={() => setShareOpen(true)}
             exampleMode={exampleMode}
             exampleSubject={exampleSubject}
@@ -142,9 +151,7 @@ export function RosResultView({
 
         {!exampleMode ? (
           <>
-            <AiReportSection attemptId={attemptId} title="AI · 关系深度报告" variant="dark" />
-
-            {suiteSlug && inferSuiteTier(suiteSlug) === "lite" ? (
+            {isLiteResult && suiteSlug ? (
               <SuiteUpgradeBanner productId="ros" suiteSlug={suiteSlug} attemptId={attemptId} />
             ) : null}
 

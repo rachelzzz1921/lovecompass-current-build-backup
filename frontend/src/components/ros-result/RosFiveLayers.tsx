@@ -4,7 +4,8 @@ import { ChevronDown } from "lucide-react";
 import { useState } from "react";
 import type { RosLayerDetail, RosSingleResult } from "@/data/rosTypes";
 import { chatRouteSearch } from "@/lib/chatRouteSearch";
-import { coupleReportEligible, coupleReportUpgradeRoute } from "@/lib/coupleReport";
+import { coupleReportEligible, coupleReportUpgradeRoute, showCoupleReportUpgradeNotice } from "@/lib/coupleReport";
+import type { SuiteTier } from "@/lib/suiteTier";
 import { rosLayerChatPrefill, rosPartnerInvitePrefill } from "@/lib/rosLayerChatPrefill";
 
 import { RosLayerRadar } from "@/components/ros-result/RosLayerRadar";
@@ -78,15 +79,19 @@ export function RosFiveLayers({
   attemptId,
   inviteCode,
   suiteSlug,
+  suiteTier = null,
   exampleMode = false,
 }: {
   result: RosSingleResult;
   attemptId: string;
   inviteCode: string;
   suiteSlug?: string | null;
+  suiteTier?: SuiteTier | null;
   exampleMode?: boolean;
 }) {
-  const canCoupleReport = exampleMode || coupleReportEligible("ros", suiteSlug);
+  const canCoupleReport =
+    exampleMode || coupleReportEligible("ros", suiteSlug, suiteTier, inviteCode);
+  const showCoupleUpgrade = showCoupleReportUpgradeNotice(suiteSlug, suiteTier);
   const [open, setOpen] = useState<string | null>(null);
   const valueOf = (k: string) => result.dims.find((d) => d.key === k)?.value ?? 0;
 
@@ -245,7 +250,7 @@ export function RosFiveLayers({
                             邀请他/她来做 →
                           </Link>
                         </div>
-                        ) : (
+                        ) : showCoupleUpgrade ? (
                         <div className="rounded-xl border border-dashed border-white/10 px-3 py-2.5 mt-3 space-y-2">
                           <p className="text-[11px] text-white/45 leading-relaxed">
                             快速版无法合测双人报告。升级完整版后可邀请 TA 作答。
@@ -258,7 +263,7 @@ export function RosFiveLayers({
                             了解完整版与双人报告 →
                           </Link>
                         </div>
-                        )
+                        ) : null
                       ) : null}
                     </div>
                   </motion.div>

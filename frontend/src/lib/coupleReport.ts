@@ -8,13 +8,36 @@ export type UpgradeBullet = { title: string; detail: string };
 export const LITE_COUPLE_BLOCKED_MESSAGE =
   "快速版不支持双人匹配，请使用完整版测评后再邀请 TA。";
 
+/** slug / payload tier / 关系码 综合判断版本（避免 suiteSlug 未加载时误判为 lite）。 */
+export function resolveSuiteTier(
+  suiteSlug: string | null | undefined,
+  suiteTier?: SuiteTier | null,
+): SuiteTier | null {
+  if (suiteTier === "lite" || suiteTier === "full") return suiteTier;
+  if (!suiteSlug) return null;
+  return inferSuiteTier(suiteSlug);
+}
+
 /** 套二 ROS / 套三 MATE：仅完整版支持合测生成双人报告。 */
 export function coupleReportEligible(
-  productId: CoupleProductId,
+  _productId: CoupleProductId,
   suiteSlug: string | null | undefined,
+  suiteTier?: SuiteTier | null,
+  relationCode?: string | null,
 ): boolean {
-  if (!suiteSlug) return false;
-  return inferSuiteTier(suiteSlug) === "full";
+  const tier = resolveSuiteTier(suiteSlug, suiteTier);
+  if (tier === "lite") return false;
+  if (tier === "full") return true;
+  if (relationCode?.trim()) return true;
+  return false;
+}
+
+/** 仅在已确认快速版时展示「升级完整版 / 双人不可用」引导。 */
+export function showCoupleReportUpgradeNotice(
+  suiteSlug: string | null | undefined,
+  suiteTier?: SuiteTier | null,
+): boolean {
+  return resolveSuiteTier(suiteSlug, suiteTier) === "lite";
 }
 
 export function coupleReportUnavailableCopy(productId: CoupleProductId): string {

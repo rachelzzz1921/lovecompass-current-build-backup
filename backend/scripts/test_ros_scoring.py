@@ -107,6 +107,30 @@ def test_ros_single_scoring_has_display_floor() -> None:
     })
 
 
+def test_ros_lite_skips_relation_code() -> None:
+    bank = _load_bank()
+    questions = _sample_questions(bank)
+    answers = _mid_answers(questions)
+    scoring_model = {
+        "scoring_formula": bank["scoring_formula"],
+        "type_rules": {
+            "stage_rules": bank["stage_rules"],
+            "relationship_type_rules": bank["relationship_type_rules"],
+            "attachment_collision_map": bank["attachment_collision_map"],
+            "prescription_rules": bank["prescription_rules"],
+        },
+    }
+    scores = summarize_ros_scores(
+        questions,
+        answers,
+        scoring_model,
+        suite_slug="s02_ros_female_lite",
+    )
+    assert scores.get("relation_code") is None
+    assert scores["result_payload"].get("relationCode") is None
+    print("ros lite no relation code ok")
+
+
 def test_ros_couple_merge() -> None:
     bank = _load_bank()
     questions = _sample_questions(bank)

@@ -113,6 +113,37 @@ def _fetch_latest_self_attachment(conn: Any, user_id: str) -> str | None:
     return str(attachment) if attachment else None
 
 
+def _infer_suite_tier(slug: str | None) -> str:
+    return "lite" if slug and "_lite" in slug.lower() else "full"
+
+
+ROS_LITE_COUPLE_DETAIL = "ROS 双人匹配需完整版测评，快速版不支持生成双人报告"
+
+
+def _assert_ros_couple_eligible(*attempts: dict[str, Any]) -> None:
+    for attempt in attempts:
+        tier = _infer_suite_tier(str(attempt.get("suite_slug") or ""))
+        if tier == "lite":
+            raise HTTPException(status_code=403, detail=ROS_LITE_COUPLE_DETAIL)
+
+
+def _assert_session_participants_eligible(conn: Any, session: dict[str, Any]) -> None:
+    initiator = _fetch_attempt(conn, session["initiator_attempt_id"])
+    if not initiator:
+        snapshot = coerce_dict(session.get("initiator_snapshot"))
+        slug = str(snapshot.get("suiteSlug") or "")
+        if _infer_suite_tier(slug) == "lite":
+            raise HTTPException(status_code=403, detail=ROS_LITE_COUPLE_DETAIL)
+        return
+
+    partner: dict[str, Any] | None = None
+    if session.get("partner_attempt_id"):
+        partner = _fetch_attempt(conn, session["partner_attempt_id"])
+
+    attempts = [initiator] + ([partner] if partner else [])
+    _assert_ros_couple_eligible(*attempts)
+
+
 def merge_and_store_couple_report(conn: Any, session_id: uuid.UUID) -> dict[str, Any]:
     session = conn.execute(
         "SELECT * FROM public.ros_relation_sessions WHERE id = %s",
@@ -120,6 +151,7 @@ def merge_and_store_couple_report(conn: Any, session_id: uuid.UUID) -> dict[str,
     ).fetchone()
     if not session:
         raise HTTPException(status_code=404, detail="关系会话不存在")
+    _assert_session_participants_eligible(conn, dict(session))
     if not session.get("partner_attempt_id"):
         raise HTTPException(status_code=400, detail="伴侣尚未完成测评")
 
@@ -204,6 +236,8 @@ def link_partner_to_session(
     if initiator:
         initiator_tier = _infer_suite_tier(initiator.get("suite_slug"))
         partner_tier = _infer_suite_tier(partner_attempt.get("suite_slug"))
+        if initiator_tier == "lite" or partner_tier == "lite":
+            raise HTTPException(status_code=403, detail=ROS_LITE_COUPLE_DETAIL)
         if initiator_tier != partner_tier:
             raise HTTPException(
                 status_code=400,
@@ -294,6 +328,7 @@ def get_relation_code_preview(code: str):
         session = _fetch_session_by_code(conn, normalized)
         if not session:
             raise HTTPException(status_code=404, detail="关系码不存在")
+        _assert_session_participants_eligible(conn, session)
         initiator = _fetch_attempt(conn, session["initiator_attempt_id"])
         snapshot = session.get("initiator_snapshot") or {}
         if initiator and isinstance(initiator.get("result_payload"), dict):
@@ -336,6 +371,7 @@ def get_couple_report(code: str, background_tasks: BackgroundTasks, user_id: str
         session = _fetch_session_by_code(conn, normalized)
         if not session:
             raise HTTPException(status_code=404, detail="关系码不存在")
+        _assert_session_participants_eligible(conn, session)
         if str(session.get("initiator_user_id")) != user_id and str(session.get("partner_user_id")) != user_id:
             raise HTTPException(status_code=403, detail="无权查看该双人报告")
 
@@ -419,6 +455,8 @@ def get_ros_single_result(
         suite_tier = _infer_suite_tier(suite_slug)
         if isinstance(payload, dict) and payload.get("suiteTier") in ("lite", "full"):
             suite_tier = str(payload["suiteTier"])
+        if suite_tier == "lite":
+            code = None
 
     single = payload if isinstance(payload, dict) else {}
     if (

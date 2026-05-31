@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { ArrowLeft, ArrowRight, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { CoupleReportUnavailableNotice } from "@/components/CoupleReportUnavailableNotice";
-import { coupleReportUnavailableCopy } from "@/lib/coupleReport";
+import { coupleReportUnavailableCopy, isLiteCoupleBlockedMessage } from "@/lib/coupleReport";
 import { formatApiErrorMessage } from "@/lib/apiErrors";
 import { unlockProductForRun } from "@/lib/productAccessFlow";
 import { lovecompassApi } from "@/lib/lovecompassApi";
@@ -61,7 +61,14 @@ function InvitePage() {
         setSuiteTier(tier);
         setLiteBlocked(tier === "lite");
       } catch (e) {
-        if (!cancelled) toast.error(formatApiErrorMessage(e));
+        if (!cancelled) {
+          const msg = formatApiErrorMessage(e);
+          if (isLiteCoupleBlockedMessage(msg)) {
+            setLiteBlocked(true);
+          } else {
+            toast.error(msg);
+          }
+        }
       } finally {
         if (!cancelled) setPreviewLoading(false);
       }

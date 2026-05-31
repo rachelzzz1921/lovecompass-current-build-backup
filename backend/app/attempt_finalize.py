@@ -277,6 +277,9 @@ def finalize_attempt_background(attempt_id: str, user_id: str) -> None:
                     "ros_index": row.get("ros_index"),
                     "relation_code": result_payload.get("relationCode"),
                 }
+                if is_lite_suite_slug(suite_slug):
+                    result_payload.pop("relationCode", None)
+                    scores["relation_code"] = None
             else:
                 archetype = None
                 if result_payload.get("archetype_code"):
@@ -308,7 +311,9 @@ def finalize_attempt_background(attempt_id: str, user_id: str) -> None:
                 scores = {"dimension_scores": dimension_scores, "ros_index": row.get("ros_index")}
 
             relation_code_for_row = None
-            if is_ros_suite(suite_slug) or (is_mate_suite(suite_slug) and not is_lite_suite_slug(suite_slug)):
+            if is_ros_suite(suite_slug) and not is_lite_suite_slug(suite_slug):
+                relation_code_for_row = result_payload.get("relationCode") or scores.get("relation_code")
+            elif is_mate_suite(suite_slug) and not is_lite_suite_slug(suite_slug):
                 relation_code_for_row = result_payload.get("relationCode") or scores.get("relation_code")
 
             conn.execute(
@@ -331,7 +336,7 @@ def finalize_attempt_background(attempt_id: str, user_id: str) -> None:
                 ),
             )
 
-            if is_ros_suite(suite_slug):
+            if is_ros_suite(suite_slug) and not is_lite_suite_slug(suite_slug):
                 if partner_code:
                     linked = link_partner_to_session(
                         conn,

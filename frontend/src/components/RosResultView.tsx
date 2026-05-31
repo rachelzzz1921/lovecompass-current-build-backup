@@ -16,6 +16,7 @@ import { RosStageCurve } from "@/components/ros-result/RosStageCurve";
 import { RosFiveLayers } from "@/components/ros-result/RosFiveLayers";
 import { RosHeartbeatLine, RosBlindSpot } from "@/components/ros-result/RosHeartbeatLine";
 import { RosResultNext } from "@/components/ros-result/RosResultNext";
+import { RosCoupleInvitePanel } from "@/components/ros-result/RosCoupleInvitePanel";
 import { RosShareCardDialog } from "@/components/ros-result/RosShareCardDialog";
 
 import type { ExampleSubject } from "@/lib/exampleSubjectCopy";
@@ -87,6 +88,16 @@ export function RosResultView({
             surface="dark"
           />
         ) : null}
+
+        {!exampleMode ? (
+          <RosCoupleInvitePanel
+            relationCode={result.code}
+            coupleUnlocked={coupleUnlocked}
+            suiteSlug={suiteSlug}
+            suiteTier={suiteTier}
+          />
+        ) : null}
+
         <section id="ros-hero" className="scroll-mt-32 space-y-5">
           <RelationshipWeatherHero
             weather={weather}
@@ -139,9 +150,6 @@ export function RosResultView({
           <RosResultNext
             result={result}
             attemptId={attemptId}
-            coupleUnlocked={coupleUnlocked}
-            suiteSlug={suiteSlug}
-            suiteTier={suiteTier}
             onShare={() => setShareOpen(true)}
             exampleMode={exampleMode}
             exampleSubject={exampleSubject}

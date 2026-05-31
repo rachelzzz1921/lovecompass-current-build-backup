@@ -23,7 +23,7 @@ export function LiteResultNotice({ productId, suiteSlug, accuracyNote, className
     (() => {
       const base = `快速版 ${lite.questions} 题，结果精度约 70–75%；完整版 ${full.questions} 题可提升至约 95%。`;
       if (productId === "ros" || productId === "mate") {
-        return `${base} ${liteResultUpgradeTeaser(productId as CoupleProductId)}`;
+        return `${base} 快速版不支持双人匹配与合测报告。${liteResultUpgradeTeaser(productId as CoupleProductId)}`;
       }
       return base;
     })();

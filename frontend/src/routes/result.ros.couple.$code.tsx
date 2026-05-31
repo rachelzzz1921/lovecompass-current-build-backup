@@ -4,8 +4,10 @@ import { Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { RosCoupleResult } from "@/data/rosTypes";
 import { ApiErrorPanel } from "@/components/ApiErrorPanel";
+import { CoupleReportUnavailableNotice } from "@/components/CoupleReportUnavailableNotice";
 import { RosCoupleResultView } from "@/components/RosCoupleResultView";
 import { formatApiErrorMessage } from "@/lib/apiErrors";
+import { isLiteCoupleBlockedMessage } from "@/lib/coupleReport";
 import { mapApiCouplePayload } from "@/lib/mapRosCoupleResult";
 import { lovecompassApi } from "@/lib/lovecompassApi";
 import { AuthChecking, useRequireAuth } from "@/lib/requireAuth";
@@ -29,6 +31,7 @@ function CouplePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [waitingPartner, setWaitingPartner] = useState(false);
+  const [coupleBlocked, setCoupleBlocked] = useState(false);
   const [r, setR] = useState<RosCoupleResult | null>(null);
   const [initiatorAttemptId, setInitiatorAttemptId] = useState<string | undefined>();
 
@@ -58,7 +61,10 @@ function CouplePage() {
       .catch((e) => {
         if (cancelled) return;
         const msg = formatApiErrorMessage(e);
-        if (/等待伴侣|409/.test(msg)) {
+        if (isLiteCoupleBlockedMessage(msg)) {
+          setCoupleBlocked(true);
+          setError(null);
+        } else if (/等待伴侣|409/.test(msg)) {
           setWaitingPartner(true);
           setError(null);
         } else {
@@ -101,6 +107,21 @@ function CouplePage() {
   if (authPending) return <AuthChecking />;
   if (loading) return <ResultDataLoading label="读取双人报告…" />;
 
+  if (coupleBlocked) {
+    return (
+      <main className="relative min-h-screen flex items-center justify-center px-6" style={{ background: "#0c0e11" }}>
+        <div className="max-w-lg w-full">
+          <CoupleReportUnavailableNotice productId="ros" />
+          <div className="text-center mt-6">
+            <Link to="/" className="text-xs text-white/45 hover:text-white/70">
+              返回首页
+            </Link>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
   if (waitingPartner) {
     return (
       <main className="relative min-h-screen flex items-center justify-center px-6" style={{ background: "#0c0e11" }}>
@@ -109,7 +130,7 @@ function CouplePage() {
           <h1 className="font-display text-2xl text-white">等待 TA 完成测评</h1>
           <p className="text-sm text-white/65 leading-relaxed">
             你的部分已经就绪。双人报告会在 TA 用关系码{" "}
-            <span className="font-mono text-[#c2c4ff]">{code}</span> 完成 ROS 60 题后自动解锁。
+            <span className="font-mono text-[#c2c4ff]">{code}</span> 完成 ROS 完整版后自动解锁。
           </p>
           <Link to="/ros/invite/$code" params={{ code }}>
             <Button className="rounded-full mt-2">查看邀请页</Button>

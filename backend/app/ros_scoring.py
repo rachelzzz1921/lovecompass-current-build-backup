@@ -536,6 +536,7 @@ def summarize_ros_scores(
     *,
     gender: str = "female",
     relation_code: str | None = None,
+    suite_slug: str | None = None,
 ) -> dict[str, Any]:
     type_rules = (scoring_model or {}).get("type_rules") or {}
     scoring_formula = (scoring_model or {}).get("scoring_formula") or {}
@@ -552,7 +553,10 @@ def summarize_ros_scores(
     relationship_type = _resolve_relationship_type(layer_scores, type_rules.get("relationship_type_rules") or type_rules)
     stage_id = _resolve_stage_id(layer_scores, time_tag, type_rules.get("stage_rules") or {})
     insights = _build_insights(layer_scores, relationship_type)
-    code = relation_code or generate_relation_code()
+    lite_suite = bool(suite_slug and "_lite" in suite_slug.lower())
+    code: str | None = None
+    if not lite_suite:
+        code = relation_code or generate_relation_code()
 
     result_payload = _build_ros_result_payload(
         layer_scores=layer_scores,

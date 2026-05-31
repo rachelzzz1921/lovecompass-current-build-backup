@@ -5,12 +5,15 @@ import { Button } from "@/components/ui/button";
 import type { MateCoupleResult } from "@/data/mateCoupleTypes";
 import { MateCoupleResultView } from "@/components/mate/MateCoupleResultView";
 import { ApiErrorPanel } from "@/components/ApiErrorPanel";
+import { CoupleReportUnavailableNotice } from "@/components/CoupleReportUnavailableNotice";
 import { formatApiErrorMessage } from "@/lib/apiErrors";
+import { isLiteCoupleBlockedMessage } from "@/lib/coupleReport";
 import { mapApiMateCouplePayload } from "@/lib/mapMateCoupleResult";
 import { lovecompassApi } from "@/lib/lovecompassApi";
 import { AuthChecking, useRequireAuth } from "@/lib/requireAuth";
 import { takeResultPrefetch } from "@/lib/resultPrefetchCache";
 import { ResultDataLoading } from "@/components/ResultDataLoading";
+import { RESULT_PAGE_BG } from "@/lib/resultChrome";
 
 export const Route = createFileRoute("/result/mate/couple/$code")({
   ssr: false,
@@ -29,6 +32,7 @@ function MateCouplePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [waitingPartner, setWaitingPartner] = useState(false);
+  const [coupleBlocked, setCoupleBlocked] = useState(false);
   const [result, setResult] = useState<MateCoupleResult | null>(null);
 
   useEffect(() => {
@@ -53,7 +57,10 @@ function MateCouplePage() {
       .catch((e) => {
         if (cancelled) return;
         const msg = formatApiErrorMessage(e);
-        if (/等待伴侣|409/.test(msg)) {
+        if (isLiteCoupleBlockedMessage(msg)) {
+          setCoupleBlocked(true);
+          setError(null);
+        } else if (/等待伴侣|409/.test(msg)) {
           setWaitingPartner(true);
           setError(null);
         } else {
@@ -97,9 +104,24 @@ function MateCouplePage() {
   if (authPending) return <AuthChecking />;
   if (loading) return <ResultDataLoading label="读取双人报告…" />;
 
+  if (coupleBlocked) {
+    return (
+      <main className="relative min-h-screen flex items-center justify-center px-6" style={{ background: RESULT_PAGE_BG }}>
+        <div className="max-w-lg w-full">
+          <CoupleReportUnavailableNotice productId="mate" surface="light" />
+          <div className="text-center mt-6">
+            <Link to="/" className="text-xs text-white/45 hover:text-white/70">
+              返回首页
+            </Link>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
   if (waitingPartner) {
     return (
-      <main className="relative min-h-screen flex items-center justify-center px-6" style={{ background: "#100a0d" }}>
+      <main className="relative min-h-screen flex items-center justify-center px-6" style={{ background: RESULT_PAGE_BG }}>
         <div className="max-w-md text-center space-y-4">
           <Heart className="h-10 w-10 mx-auto text-[#fb7185]" />
           <h1 className="font-display text-2xl text-white">等待 TA 完成测评</h1>
